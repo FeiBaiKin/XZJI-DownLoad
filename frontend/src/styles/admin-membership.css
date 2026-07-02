@@ -1,0 +1,186 @@
+/* 会员配置行 */
+.membership-config-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* ========== 会员配置横向列表 ========== */
+.mbr-list {
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+}
+
+.mbr-row {
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.mbr-row:last-child {
+  border-bottom: none;
+}
+
+/* 折叠摘要行 */
+.mbr-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--border-default);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  user-select: none;
+}
+
+.mbr-summary:hover {
+  background: var(--bg-elevated);
+}
+
+.mbr-row.expanded .mbr-summary {
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+}
+
+.mbr-caret {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.mbr-name {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+  min-width: 100px;
+}
+
+.mbr-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 60px;
+}
+
+.mbr-stat-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.575rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.mbr-stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+.mbr-color-dot {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-default);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.mbr-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0;
+  transition: all 0.1s ease;
+  flex-shrink: 0;
+}
+
+.mbr-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* 展开编辑区 */
+.mbr-detail {
+  padding: 1rem 1rem 1rem 2.5rem;
+  background: var(--bg-primary);
+}
+
+.mbr-fields {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.mbr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 100px;
+  flex: 1;
+}
+
+.mbr-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.575rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.mbr-input {
+  font-size: 0.8rem;
+  padding: 0.45rem 0.6rem;
+}
+
+.mbr-discount-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mbr-discount-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border-default);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+
+.mbr-color-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mbr-color-preview {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .mbr-summary {
+    flex-wrap: wrap;
+  }
+  .mbr-fields {
+    flex-direction: column;
+  }
+  .mbr-field {
+    min-width: 100%;
+  }
+}

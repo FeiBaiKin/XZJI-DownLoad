@@ -1,0 +1,242 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;500;600;700&display=swap');
+
+/* 深色模式（默认） */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-elevated: #161616;
+  --border-subtle: #1a1a1a;
+  --border-default: #222222;
+  --text-primary: #fafafa;
+  --text-secondary: #666666;
+  --text-tertiary: #444444;
+  --white: #ffffff;
+  --black: #000000;
+  --danger: #cc3333;
+  --accent: #5b8def;
+  --danger-bg: rgba(204, 51, 51, 0.08);
+}
+
+/* 浅色模式 */
+[data-theme="light"] {
+  --bg-primary: #fafafa;
+  --bg-secondary: #f3f3f3;
+  --bg-elevated: #ebebeb;
+  --border-subtle: #e5e5e5;
+  --border-default: #d4d4d4;
+  --text-primary: #0a0a0a;
+  --text-secondary: #555555;
+  --text-tertiary: #999999;
+  --white: #0a0a0a;
+  --black: #ffffff;
+  --danger: #cc3333;
+  --accent: #5b8def;
+  --danger-bg: rgba(204, 51, 51, 0.08);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  letter-spacing: 0.02em;
+}
+
+/* 等宽字体工具类 */
+.mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* 通用按钮 class */
+.action-button {
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 500;
+  background-color: var(--white);
+  color: var(--black);
+  border: 1px solid var(--white);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.action-button:hover {
+  background-color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.action-button:active {
+  transform: scale(0.98);
+}
+
+.action-button.secondary {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.action-button.secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+/* 通用输入 */
+.form-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  font-size: 0.9375rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.form-input:focus {
+  border-color: var(--text-secondary);
+}
+
+.form-input::placeholder {
+  color: var(--text-tertiary);
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+}
+
+.form-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 通用表单 */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+.form-error {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.8125rem;
+  color: var(--danger);
+  padding: 0.75rem;
+  border: 1px solid var(--danger);
+  background-color: var(--danger-bg);
+  letter-spacing: 0.02em;
+}
+
+.form-success {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-elevated);
+  letter-spacing: 0.02em;
+}
+
+/* 加载/空状态 */
+.loading-state {
+  padding: 3rem;
+  text-align: center;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.empty-state {
+  padding: 3rem;
+  text-align: center;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.9375rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* 数据表格 */
+.data-table {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.data-table th {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  background-color: var(--bg-elevated);
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tr:hover td {
+  background-color: var(--bg-elevated);
+}
+
+/* action-link */
+.action-link {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.action-link:hover {
+  color: var(--text-primary);
+}
+
+.action-link.danger {
+  color: var(--danger);
+}
+
+/* 卡片 */
+.brick-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  padding: 1.5rem;
+}

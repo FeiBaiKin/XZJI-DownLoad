@@ -1,0 +1,20 @@
+# XZJI 后端配置示例
+# 实际配置由安装向导自动生成（config.yaml），请勿手动提交真实配置
+server:
+  port: 4000
+  # CORS 允许的来源域名（含协议），留空则允许所有来源（仅开发环境）
+  # 生产环境务必配置具体域名，例如：
+  # allowed_origins:
+  #   - "https://example.com"
+  #   - "https://www.example.com"
+  allowed_origins: []
+
+database:
+  host: 127.0.0.1
+  port: 3306
+  user: admin
+  password: "123456"
+  name: xzji
+
+jwt:
+  secret: ""  # 安装时自动生成

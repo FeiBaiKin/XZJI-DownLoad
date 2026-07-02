@@ -1,0 +1,61 @@
+/* ==============================================
+   Content Page Layout (public pages: /page/:slug)
+   ============================================== */
+
+.content-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.content-page-wrap {
+  width: 100%;
+  max-width: 740px;
+  margin: 0 auto;
+}
+
+.content-page-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin: 1.5rem 0 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ==============================================
+   Page Content (public pages)
+   ============================================== */
+
+.page-content {
+  line-height: 1.8;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  padding: 1.5rem 0 0;
+}
+.page-content h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 2rem 0 1rem;
+  color: var(--text-primary);
+}
+.page-content h2:first-child {
+  margin-top: 0;
+}
+.page-content p {
+  margin: 0 0 1rem;
+  color: var(--text-secondary);
+}
+.page-content ul, .page-content ol {
+  margin: 0 0 1rem;
+  padding-left: 1.5rem;
+  color: var(--text-secondary);
+}
+.page-content li {
+  margin-bottom: 0.5rem;
+}

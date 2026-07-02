@@ -1,0 +1,69 @@
+/* wangEditor Brutalist 主题定制（对齐原项目 quill.css 的 Brutalist 风格） */
+
+.rich-text-editor { border: 1px solid var(--border-default); background: var(--bg-secondary); }
+
+/* 工具栏 */
+.rich-text-editor .w-e-toolbar { border: none; border-bottom: 1px solid var(--border-default); background: var(--bg-secondary); border-radius: 0; }
+.rich-text-editor .w-e-bar { background: var(--bg-secondary); }
+.rich-text-editor .w-e-bar-item { color: var(--text-secondary); }
+.rich-text-editor .w-e-bar-item button,
+.rich-text-editor .w-e-bar-item .w-e-bar-item-title { color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; }
+.rich-text-editor .w-e-bar-item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.rich-text-editor .w-e-bar-item:hover button { color: var(--text-primary); }
+.rich-text-editor .w-e-bar-item.w-e-menu-active,
+.rich-text-editor .w-e-bar-item.w-e-active { color: var(--accent); }
+.rich-text-editor .w-e-bar-item.w-e-menu-active button,
+.rich-text-editor .w-e-bar-item.w-e-active button { color: var(--accent); }
+.rich-text-editor .w-e-bar-divider { background: var(--border-subtle); }
+
+/* 编辑区 */
+.rich-text-editor .w-e-text-container { background: var(--bg-secondary); border: none; min-height: 280px; }
+.rich-text-editor.simple .w-e-text-container { min-height: 180px; }
+.rich-text-editor .w-e-scroll { background: var(--bg-secondary); }
+.rich-text-editor .w-e-text-container [data-w-e-type="text"] { color: var(--text-primary); font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 0.9375rem; line-height: 1.7; padding: 0.75rem 1rem; }
+.rich-text-editor .w-e-text-container [contenteditable="true"]:empty::before { color: var(--text-tertiary); font-style: normal; font-family: 'Space Grotesk', sans-serif; font-size: 0.9375rem; }
+
+/* 内容排版 */
+.rich-text-editor .w-e-text-container h1, .rich-text-editor .w-e-text-container h2, .rich-text-editor .w-e-text-container h3,
+.rich-text-editor .w-e-text-container h4, .rich-text-editor .w-e-text-container h5, .rich-text-editor .w-e-text-container h6 { color: var(--text-primary); margin: 1em 0 0.5em; }
+.rich-text-editor .w-e-text-container p { margin: 0 0 0.5em; }
+.rich-text-editor .w-e-text-container a { color: var(--accent); }
+.rich-text-editor .w-e-text-container ul, .rich-text-editor .w-e-text-container ol { padding-left: 1.5em; }
+.rich-text-editor .w-e-text-container blockquote { border-left: 3px solid var(--accent); color: var(--text-secondary); padding-left: 1rem; margin: 0.75em 0; }
+.rich-text-editor .w-e-text-container code,
+.rich-text-editor .w-e-text-container pre { background: var(--bg-primary); color: var(--text-primary); font-family: 'JetBrains Mono', monospace; font-size: 0.85em; }
+.rich-text-editor .w-e-text-container code { padding: 0.15em 0.4em; }
+.rich-text-editor .w-e-text-container pre { padding: 1rem; overflow-x: auto; }
+.rich-text-editor .w-e-text-container img { max-width: 100%; }
+
+/* 下拉面板/弹窗（不限定 .rich-text-editor 前缀，部分会 portal 到 body） */
+
+/* 分组下拉（对齐/缩进/图片/视频 等组菜单的子菜单容器） */
+.w-e-bar-item-menus-container { background: var(--bg-secondary) !important; border: 1px solid var(--border-default) !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important; border-radius: 0 !important; z-index: 1000 !important; }
+.w-e-bar-item-menus-container .w-e-bar-item { color: var(--text-primary); padding: 0.375rem 0.625rem; font-size: 0.75rem; }
+.w-e-bar-item-menus-container .w-e-bar-item .title { font-size: 0.75rem; color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-weight: 500; }
+.w-e-bar-item-menus-container .w-e-bar-item button { color: var(--text-primary); font-family: 'Space Grotesk', sans-serif; font-size: 0.75rem; gap: 0.375rem; }
+.w-e-bar-item-menus-container .w-e-bar-item svg { width: 14px; height: 14px; }
+.w-e-bar-item-menus-container .w-e-bar-item:hover { background: var(--bg-elevated); }
+
+/* 选择列表（标题/字号/字体 下拉） */
+.w-e-select-list { background: var(--bg-secondary) !important; border: 1px solid var(--border-default) !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important; border-radius: 0 !important; z-index: 1000 !important; }
+.w-e-select-list li { color: var(--text-secondary); }
+.w-e-select-list li:hover { background: var(--bg-elevated); color: var(--text-primary); }
+
+/* 通用下拉面板（颜色/背景色） */
+.w-e-drop-panel { background: var(--bg-secondary) !important; border: 1px solid var(--border-default) !important; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important; border-radius: 0 !important; z-index: 1000 !important; }
+.w-e-panel-content-color { background: var(--bg-secondary) !important; }
+.w-e-panel-content-color li { color: var(--text-secondary); }
+.w-e-panel-content-color li.clear { color: var(--text-secondary); }
+.w-e-panel-content-color li:hover { background: var(--bg-elevated); }
+
+/* 弹窗（插入链接/图片） */
+.w-e-modal { background: var(--bg-secondary) !important; border: 1px solid var(--border-default) !important; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important; border-radius: 0 !important; z-index: 1001 !important; }
+.w-e-modal .babel-container span { color: var(--text-secondary); font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.w-e-modal .babel-container input,
+.w-e-modal input[type="text"] { background: var(--bg-primary) !important; border: 1px solid var(--border-default) !important; color: var(--text-primary) !important; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; border-radius: 0 !important; }
+.w-e-modal .button-container button { background: var(--white) !important; color: var(--black) !important; border: 1px solid var(--white) !important; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 0.8125rem; cursor: pointer; border-radius: 0 !important; }
+.w-e-modal .button-container button:hover { background: var(--text-primary) !important; border-color: var(--text-primary) !important; }
+.w-e-modal .btn-close { color: var(--text-secondary); }
+.w-e-modal .btn-close:hover { color: var(--text-primary); }

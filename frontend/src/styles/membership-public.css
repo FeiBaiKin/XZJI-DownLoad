@@ -1,0 +1,254 @@
+/* ============================================
+   会员中心 — 公共会员页面样式
+   ============================================ */
+
+/* ── Hero Banner ── */
+.membership-hero {
+  margin-bottom: 2rem;
+}
+
+.membership-hero-card {
+  border: 1px solid var(--border-default);
+  padding: 1.5rem;
+}
+
+.membership-hero-card.active {
+  background: var(--bg-secondary);
+}
+
+.membership-hero-card.inactive {
+  background: var(--bg-secondary);
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+
+.membership-hero-tier-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.membership-hero-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  padding: 0.15em 0.5em;
+}
+
+.membership-hero-tier-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.membership-hero-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1rem;
+}
+
+.membership-hero-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.membership-hero-stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.membership-hero-stat-suffix {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.membership-hero-stat-label {
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.membership-hero-bar-track {
+  height: 4px;
+  background: var(--bg-primary);
+}
+
+.membership-hero-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.membership-hero-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Tier Cards Grid ── */
+.membership-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.membership-tier-card {
+  position: relative;
+  border: 1px solid var(--border-default);
+  background: var(--bg-secondary);
+  padding: 0 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.membership-tier-card.recommended {
+  border-color: var(--text-primary);
+}
+
+.membership-tier-card.current {
+  border-color: var(--text-tertiary);
+  opacity: 0.8;
+}
+
+.membership-tier-accent {
+  height: 4px;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.membership-tier-recommend {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bg-primary);
+  background: var(--text-primary);
+  padding: 0.15em 0.5em;
+}
+
+.membership-tier-current {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-default);
+  padding: 0.15em 0.5em;
+}
+
+.membership-tier-name {
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.membership-tier-price-row {
+  padding: 0 1.25rem;
+  margin-bottom: 0.2rem;
+}
+
+.membership-tier-currency {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.membership-tier-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.membership-tier-period {
+  padding: 0 1.25rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 1rem;
+}
+
+.membership-tier-features {
+  list-style: none;
+  margin: 0 0 1.25rem;
+  padding: 0 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.membership-tier-features li {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.5;
+}
+
+.membership-tier-check {
+  color: var(--text-primary);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.membership-tier-btn {
+  margin: 0 1.25rem;
+  padding: 0.65rem 0;
+  width: calc(100% - 2.5rem);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.membership-tier-btn:hover:not(:disabled) {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+}
+
+.membership-tier-btn.primary {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-color: var(--text-primary);
+}
+
+.membership-tier-btn.primary:hover:not(:disabled) {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.membership-tier-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .membership-hero-stats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .membership-tiers {
+    grid-template-columns: 1fr;
+  }
+}

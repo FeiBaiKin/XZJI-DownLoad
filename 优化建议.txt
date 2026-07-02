@@ -1,0 +1,83 @@
+下面是按优先级排的优化清单，每条都标了代码位置。
+
+  P0 · 安全（建议优先处理）
+
+✅ 1. 模拟支付存在白嫖漏洞，且默认开启。 provider.go:119-121 里当未配置支付方式时，EnabledProviders 默认回退为
+  ["mock"]；而 MockPay（handler/economy.go:83）挂在公开无鉴权的回调路由组里，逻辑是"拿订单号 →
+  直接入账加余额"。任何登录用户都能自己调 /user/recharge 选 mock 拿到自己的订单号，再 GET
+  /api/payment/mock-pay?orderNo=... 给自己免费充值。如果生产环境管理员没手动关掉 mock，就是确定的资金漏洞。建议：mock
+  仅在非生产环境可用（用编译标签或配置显式开启），默认值改为空数组，并在后台明确标注"mock 仅供测试"。
+
+  【已完成 2025-07-02】彻底删除：mock.go provider 文件、MockPay handler、/payment/mock-pay 路由、前端 RechargeModal/PaymentConfigPage/admin.ts 全部 mock UI 与常量。默认值改为空数组，PaymentMethods 接口过滤未注册 provider。前端无可用方式时显示"未开启支付方式，请联系管理员"。
+
+✅ 2. CORS 默认放行所有来源。 main.go:62 + 中间件逻辑：allowed_origins 为空时回退 *。配合 JWT 存在前端
+  localStorage，安装向导生成的 config.yaml
+  默认就是空白名单。建议安装向导强制写入站点域名，或生产启动时对空白名单打警告。
+
+  【已完成 2025-07-02】安装向导新增 siteURL 必填字段（校验 http/https 前缀），安装时写入 config.yaml 的 allowed_origins 数组。SaveConfig 签名追加 allowedOrigins 参数。
+
+✅ 3. Token 存 localStorage，易受 XSS 窃取。 前端 api/index.ts 从 localStorage 读写 token。项目里有富文本（wangEditor）和
+  v-html 渲染页面（PageView.vue），虽然用了 DOMPurify，但一旦有一处消毒疏漏，token 即可被盗且无法通过 HttpOnly
+  防护。若能接受改造，建议改用 HttpOnly Cookie + CSRF token；短期至少确保所有 v-html 入口都过 DOMPurify。
+
+  【已完成 2025-07-02】全面改造：JWT 改为 HttpOnly Cookie（SameSite=Lax，24h），AuthRequired 中间件优先读 cookie 回退 Authorization header。新增 CSRF 中间件（double-submit cookie 模式，user/admin 组的状态变更请求需 X-CSRF-Token 头匹配 csrf_token cookie）。Login/Register/PasswordlessLogin 自动设置 cookie。新增 POST /auth/logout 清除 cookie。前端 axios 设 withCredentials=true，自动读 cookie 附加 CSRF 请求头，移除 localStorage token 读写。Auth store isLoggedIn 改为基于 user 判空 + initialized 标记，路由守卫适配。
+
+  4. 密码策略过弱。 auth.go:112 仅校验 len >= 6，无复杂度、无常见弱密码拦截。bcrypt
+  cost=10（auth.go:157）可接受，但敏感站点建议提到 12。
+
+  P1 · 正确性与健壮性
+
+✅ 5. 验证码邮件同步发送，阻塞请求。 auth.go:248 的 SendVerificationCode 在 HTTP 请求内同步走 SMTP，SMTP
+  慢或超时会直接拖慢/拖垮 /auth/send-code。建议改为异步（goroutine + 队列），接口先返回"已发送"。
+
+  【已完成 2025-07-02】SendCode 改为 goroutine 异步发送：go func(email, code, purpose string, cfg EmailConfig) { ... }(req.Email, code, req.Purpose, emailCfg)，发送失败仅记 slog.Error 日志，接口立即返回成功。
+
+✅ 6. 支付回调读 body 无大小限制。 handler/economy.go:317 用 io.ReadAll(c.Request.Body) 读回调体，没有 MaxBytesReader
+  限制，超大请求体可能耗内存。回调是外部可达端点，建议加读取上限。
+
+  【已完成 2025-07-02】微信回调和支付宝回调的 body 读取改为 io.LimitReader(c.Request.Body, 1<<20) 限制 1MB。易支付回调仅读 query params 无需限制。
+
+  7. 无自动化测试。 pwtest/ 只是手写的一次性验证脚本，且依赖本地跑起来的服务、硬编码了
+  admin/admin123。支付入账、余额扣减、会员续期这些涉及钱的核心逻辑，最该有单元测试（GORM 可用 SQLite/mock 或
+  testcontainers）。建议至少给 EconomyService 的 Recharge/PurchaseLink/BuyMembership/ProcessPaidOrder 补测试。
+
+  P2 · 性能
+
+  8. 关键词搜索是精确匹配 + 无索引优化的空间。 SearchKeyword（content.go:392）用 keyword = ? 精确查，keyword
+  字段本身有唯一索引所以单点查询没问题；但如果后续要做模糊搜索，LIKE '%x%'
+  会全表扫。当前架构下体验也偏硬（必须完全一致才命中）。若要提升搜索体验，考虑前缀索引或引入全文检索。
+
+  9. 限流与配置缓存都是单机内存实现。 中间件限流和 ConfigCache
+  都在进程内存里。一旦水平扩容成多实例，限流会失效、配置失效通知不到其他实例。若有扩容计划，需要换 Redis。
+
+  P3 · 工程质量
+
+✅ 10. go.mod 依赖几乎全标了 // indirect。 连 gin、gorm 这些直接依赖都标成 indirect，说明没跑过 go mod
+  tidy。跑一次即可修正，让直接/间接依赖分清。
+
+  【已完成 2025-07-02】执行 go mod tidy，gin/gorm/viper/jwt/crypto/text/mysql 正确标记为 direct 依赖。
+
+✅ 11. backendRoot() 目录定位逻辑在 router/handler/service 三处各有一份。 已在 Readme 记录，属于重复代码，建议收敛到一个
+  util 函数。
+
+  【已完成 2025-07-02】新增 util/path.go 的 BackendRoot() 公共函数，router/handler/service 三处改为调用 util.BackendRoot()。
+
+  12. 未使用的依赖 naive-ui。 前端声明了但全项目零使用，npm run build 时是死重量。确认无计划使用就移除。
+
+✅ 13. SchemaMigration 表建了但没用。 迁移完全靠 AutoMigrate，没有版本化迁移。AutoMigrate
+  不处理列删除/重命名/数据迁移，字段调整时容易出问题。数据结构趋于稳定后，建议引入正式迁移工具（如
+  golang-migrate）并真正使用这张表。
+
+  【已完成 2025-07-02】新增 database/migrate.go（SQL 文件迁移运行器）和 migrations/000001_baseline.up.sql（全量 DDL 基线）及 .down.sql。Init 流程在 AutoMigrate+Seed 后调用 RunMigrations 执行增量 SQL。首次运行自动标记 baseline 为已应用，后续新建编号递增的 .sql 文件即可。
+
+  P4 · 前端
+
+✅ 14. 大量业务接口散落在各页面直接调 api 实例（充值、签到、admin 配置等未收进 api/ 模块）。类型和 URL
+  分散，重构时容易漏改。建议统一收敛到 api/ 下的模块，与 authApi/contentApi 一致。
+
+  【已完成 2025-07-02】新增 api/economy.ts（支付/会员/签到/交易/等级等20+端点带完整类型）和 api/admin.ts（仪表盘/设置/用户/配置/订单等全部 admin 端点）。RechargeModal、UserDashboard 已迁移至使用模块。其余页面可渐进迁移。
+
+✅ 15. 块权限判定逻辑前后端各写一份（后端 ContentService.blockAccess，前端 HomePage），已在 Readme
+  标注。两边不一致会导致"前端显示能买、后端拒绝"之类的错位，属于长期维护隐患。
+
+  【已完成 2025-07-02】前端 blockAccess 提取到 utils/blockAccess.ts 独立工具函数（含后端同步注释+类型）。后端 content.go 添加交叉注释指向前端文件。修改任一侧必须同步另一侧。

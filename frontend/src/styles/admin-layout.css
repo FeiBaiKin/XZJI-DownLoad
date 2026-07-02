@@ -1,0 +1,516 @@
+/* Admin Layout */
+.admin-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  width: 240px;
+  background-color: var(--bg-secondary);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.sidebar-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sidebar-logo-mark {
+  display: flex;
+  text-decoration: none;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sidebar-brand-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sidebar-brand-link:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.sidebar-brand-text {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.back-home-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  transition: color 0.15s ease;
+}
+
+.back-home-link:hover {
+  color: var(--text-primary);
+}
+
+.back-home-link svg {
+  flex-shrink: 0;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+}
+
+.nav-item {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  border-left: 2px solid transparent;
+  letter-spacing: 0.02em;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-elevated);
+}
+
+.nav-item.active {
+  color: var(--text-primary);
+  border-left-color: var(--white);
+  background-color: var(--bg-elevated);
+  font-weight: 500;
+}
+
+/* Nav group (collapsible menu) */
+.nav-group {
+  margin: 0.5rem 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* First group: no top divider (仪表盘 below already has spacing) */
+.nav-group:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.75rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  user-select: none;
+  border-left: 2px solid transparent;
+  transition: none;
+  position: relative;
+  font-weight: 400;
+}
+
+.nav-group-header:hover {
+  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+}
+
+.nav-group-header.open {
+  color: var(--text-secondary);
+  background-color: var(--bg-elevated);
+}
+
+/* Active group header: subtle left accent */
+.nav-group-header.open::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text-tertiary);
+}
+
+.nav-group-caret {
+  width: 10px;
+  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.nav-group-header.open .nav-group-caret {
+  transform: rotate(90deg);
+}
+
+.nav-group-items {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.2s ease;
+}
+
+.nav-group-items.open {
+  max-height: 300px;
+  background-color: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.nav-sub-item {
+  display: block;
+  padding: 0.625rem 1.5rem 0.625rem 2.5rem;
+  font-size: 0.875rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.nav-sub-item:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-elevated);
+}
+
+.nav-sub-item.active {
+  color: var(--text-primary);
+  border-left-color: var(--white);
+  background-color: var(--bg-elevated);
+  font-weight: 500;
+}
+
+.sidebar-footer {
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.user-info {
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.user-role {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.625rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.logout-button {
+  width: 100%;
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  color: var(--text-secondary);
+  background: none;
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.05em;
+}
+
+.logout-button:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.theme-toggle-btn {
+  width: 100%;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  border-radius: 0;
+}
+
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.admin-main {
+  flex: 1;
+  overflow: auto;
+}
+
+.admin-content {
+  padding: 2rem;
+}
+
+.content-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+  padding: 0.875rem 1rem;
+  background-color: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
+}
+
+.content-title {
+  font-size: 1.25rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+/* Action Button */
+.action-button {
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 500;
+  background-color: var(--white);
+  color: var(--black);
+  border: 1px solid var(--white);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.action-button:hover {
+  background-color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.action-button.secondary {
+  background-color: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+
+.action-button.secondary:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+/* Form Card */
+.form-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.form-card-title {
+  font-size: 0.9375rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-weight: 500;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.form-message {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  margin-top: 1rem;
+  border: 1px solid var(--border-default);
+  letter-spacing: 0.02em;
+}
+
+/* Data Table */
+.data-table {
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-secondary);
+}
+
+.table-header {
+  display: grid;
+  grid-template-columns: 60px 120px 1fr 120px;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-default);
+  background-color: var(--bg-elevated);
+}
+
+.table-header .table-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.6875rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 60px 120px 1fr 120px;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease;
+}
+
+.table-row:last-child {
+  border-bottom: none;
+}
+
+.table-row:hover {
+  background-color: var(--bg-elevated);
+}
+
+.table-cell {
+  font-size: 0.8125rem;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.01em;
+}
+
+.table-cell.mono {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-secondary);
+  letter-spacing: 0;
+}
+
+.table-cell.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-cell.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.action-link {
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s ease;
+  letter-spacing: 0.02em;
+}
+
+.action-link:hover {
+  color: var(--text-primary);
+}
+
+.action-link.danger {
+  color: var(--danger);
+}
+
+.action-link.danger:hover {
+  color: var(--danger);
+}
+
+/* Loading and Empty States */
+.loading-state {
+  padding: 3rem;
+  text-align: center;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.9375rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.empty-state {
+  padding: 3rem;
+  text-align: center;
+  font-family: 'Noto Serif SC', 'SimSun', serif;
+  font-size: 0.9375rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+/* 分页 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.pagination button {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* 表格通用 */
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+.mono { font-family: 'JetBrains Mono', monospace; }
+.table-actions { display: flex; gap: 0.5rem; }
+
+.content-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-left: auto;
+}

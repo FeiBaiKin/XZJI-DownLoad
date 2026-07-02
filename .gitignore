@@ -1,0 +1,24 @@
+# Go
+backend/backend.exe
+backend/backend
+backend/config.yaml
+backend/.installed
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+
+# 构建产物
+deploy-package/
+xzji-deploy.tar.gz
+
+# pnpm
+node_modules/
+
+# IDE / 工具
+.vscode/
+.idea/
+.zcode/
+*.log

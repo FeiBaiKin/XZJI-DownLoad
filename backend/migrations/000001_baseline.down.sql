@@ -1,0 +1,19 @@
+-- 回滚 baseline：删除所有表
+DROP TABLE IF EXISTS `schema_migrations`;
+DROP TABLE IF EXISTS `email_verifications`;
+DROP TABLE IF EXISTS `membership_reminders`;
+DROP TABLE IF EXISTS `points_transactions`;
+DROP TABLE IF EXISTS `link_purchases`;
+DROP TABLE IF EXISTS `payment_orders`;
+DROP TABLE IF EXISTS `membership_orders`;
+DROP TABLE IF EXISTS `membership_config`;
+DROP TABLE IF EXISTS `level_config`;
+DROP TABLE IF EXISTS `check_in_records`;
+DROP TABLE IF EXISTS `check_in_config`;
+DROP TABLE IF EXISTS `site_settings`;
+DROP TABLE IF EXISTS `announcements`;
+DROP TABLE IF EXISTS `pages`;
+DROP TABLE IF EXISTS `keyword_category_links`;
+DROP TABLE IF EXISTS `keyword_categories`;
+DROP TABLE IF EXISTS `keyword_responses`;
+DROP TABLE IF EXISTS `users`;
