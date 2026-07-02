@@ -10,7 +10,7 @@ XZJI 是一个**关键词资源搜索 + 会员经济系统**的全栈网站（Go
 - 链接块有三种访问权限：`free`（免费）、`balance`（余额付费）、`membership`（会员专属）。付费链接需登录后用余额购买，会员链接需有效会员身份且受每日下载次数限制。
 - 完整经济体系：**余额充值**（微信支付 V3 / 支付宝 / 易支付）、**会员购买**（余额支付、支持折扣与续期叠加）、**每日签到**（连续签到奖励）、**经验等级**（充值/签到得经验，自动升级）。
 - **管理后台**：关键词、分类、自定义页面、公告、用户、站点设置、邮件（SMTP）、签到 / 等级 / 会员 / 支付配置、充值订单管理、仪表盘统计。
-- 内置 **Web 安装向导**（类 WordPress）：首次运行访问 `/install` 填写站点信息、管理员账号、数据库配置，自动建库建表、生成配置文件。
+- 内置 **Web 安装向导**（类 WordPress）：首次运行访问 `/install` 填写站点信息、站点 URL、管理员账号、数据库配置，自动建库建表、生成配置文件与 CORS 白名单。
 - 项目历史：由原 React + Node 项目 **Node-XZJI** 1:1 移植而来（前端 React→Vue3，后端 Node→Go），源码注释中多处提及"适配 GO 契约"等移植痕迹。
 
 ## 2. 技术栈
@@ -33,31 +33,31 @@ E:\Work\XZJI\
 │   ├── config.yaml         # 实际配置（安装向导生成，勿提交）
 │   ├── config.yaml.example # 配置示例
 │   ├── .installed          # 安装锁文件（存在=已安装；删除可重装）
-│   ├── migrations/         # 空目录（迁移用 GORM AutoMigrate，无 SQL 文件）
+│   ├── migrations/         # SQL 增量迁移目录（含 baseline 文件；配合 schema_migrations 记录版本）
 │   ├── uploads/            # 用户上传：头像 avatar_<uid>_<ts>.<ext>、Logo logo_<ts>.<ext>
 │   └── internal/
 │       ├── app/            # App 结构体：依赖注入容器（DB/JWTSecret/4个Service/ConfigCache）
 │       ├── cache/          # 泛型 TTLCache + ConfigCache（邮件/支付/签到/等级配置缓存）
 │       ├── config/         # Viper 配置加载/保存、JWT secret 生成、DSN 构造
-│       ├── database/       # 连接池初始化、建库、AutoMigrate、Seed 种子数据
+│       ├── database/       # 连接池初始化、建库、AutoMigrate、Seed、RunMigrations
 │       ├── handler/        # HTTP 处理器（无状态函数，经 getApp(c) 取依赖）
-│       ├── middleware/     # JWT 鉴权、RequireAdmin、CORS、内存滑动窗口限流
+│       ├── middleware/     # AuthRequired、CSRF、RequireAdmin、CORS、内存滑动窗口限流
 │       ├── models/         # 全部 18 个 GORM 模型（单文件 models.go）
 │       ├── router/         # 路由：SetupInstallOnly（未安装）/ SetupFull（已安装）
 │       ├── scheduler/      # 定时任务：会员到期提醒（首次5s后，之后每24h）
 │       ├── service/        # 业务层：auth/user/content/economy/misc/membership/email/install
 │       │   └── payment/    # 支付 Provider 接口 + wechat/alipay/epay 三家实现
-│       └── util/           # JWT 生成/解析
+│       └── util/           # JWT 生成/解析、BackendRoot 等通用工具
 ├── frontend/               # Vue 3 前端
 │   ├── vite.config.ts      # dev 端口 3000；/api 与 /uploads 代理到 :4000；@ → ./src
 │   └── src/
-│       ├── api/            # axios 实例 + auth/content/install API 模块
+│       ├── api/            # axios 实例 + auth/content/install/economy/admin API 模块
 │       ├── components/     # ConfirmDialog / ToastContainer / RichTextEditor / MembershipModal / RechargeModal
 │       ├── constants/      # 支付方式标签、公告类型、8个网盘平台识别正则
 │       ├── layouts/        # UserLayout（用户中心）/ AdminLayout（管理后台）
 │       ├── router/         # 路由 + 守卫（requireAuth / requireAdmin / 全局 beforeEach）
 │       ├── stores/         # Pinia：auth / siteSettings / theme / toast
-│       ├── styles/         # 19 个全局 CSS（~6900行），无 scoped（仅 InstallView 例外）
+│       ├── styles/         # 19 个全局 CSS（约 5900 行），无 scoped（仅 InstallView 例外）
 │       ├── types/          # api.ts（全部接口类型）、error.ts（extractErrorMessage）
 │       ├── utils/          # formatTime / formatMoney
 │       └── views/          # public/（6页）、user/（4页）、admin/（13页）
@@ -88,7 +88,7 @@ cd frontend && npm run build       # 产出 frontend/dist
 start-all.bat
 ```
 
-- **首次运行**：`backend/.installed` 不存在时，后端只挂载安装路由并提示访问 `http://localhost:4000/install`；完成安装（自动建库建表、写入管理员、生成 `config.yaml` 与 `.installed`）后**需重启后端**。
+- **首次运行**：`backend/.installed` 不存在时，后端只挂载安装路由并提示访问 `http://localhost:4000/install`；安装向导要求填写 `siteURL`（需以 `http://` 或 `https://` 开头），完成安装后会自动写入 `config.yaml` 的 `allowed_origins`，并生成 `.installed`；完成后**需重启后端**。
 - **重装**：删除 `backend/.installed`（必要时连同 `config.yaml`）后重启。
 - **生产模式**：Go 进程直接服务前端静态文件——优先 `backend/public/`，回退 `../frontend/dist/`；非 `/api` 的 GET 未命中文件时回落 `index.html`（SPA fallback）；`/uploads` 映射到 `backend/uploads/`。
 
@@ -98,7 +98,7 @@ start-all.bat
 
 1. `service.IsInstalled()` 检查 `backend/.installed` 锁文件。
 2. **未安装** → `router.SetupInstallOnly()`：仅 `/api/install/status`、`/api/install`、`/api/health` + SPA fallback，监听 :4000。
-3. **已安装** → 加载 `config.yaml`（Viper，支持 `XZJI_` 前缀环境变量）→ 注入 JWT secret 与 CORS 白名单 → `database.Init`（连接池 MaxIdle 10 / MaxOpen 100 / 生命周期 1h → AutoMigrate → Seed）→ `scheduler.Start`（会员到期提醒）→ `app.NewApp` 构建依赖 → `router.SetupFull` 监听配置端口（默认 4000）。
+3. **已安装** → 加载 `config.yaml`（Viper，支持 `XZJI_` 前缀环境变量）→ 注入 JWT secret 与 CORS 白名单 → `database.Init`（连接池 MaxIdle 10 / MaxOpen 100 / 生命周期 1h → AutoMigrate → Seed → `RunMigrations`）→ `scheduler.Start`（会员到期提醒）→ `app.NewApp` 构建依赖 → `router.SetupFull` 监听配置端口（默认 4000）。
 4. 优雅关闭：SIGINT/SIGTERM → 停调度器 → 15s 超时关 HTTP → 关数据库连接池。
 
 ### 5.2 分层与依赖注入
@@ -131,7 +131,7 @@ router → handler（无状态函数）→ service（业务逻辑）→ GORM mod
 | `PointsTransaction` | `points_transactions` | 余额/经验流水：Type(recharge/purchase/membership/checkin/bonus)、BalanceAmount、ExpEarned、RefID |
 | `MembershipReminder` | `membership_reminders` | 到期提醒去重记录（user+days_left） |
 | `EmailVerification` | `email_verification` | 邮箱验证码：Email+Purpose(register/forgot-password/login)、Code、ExpiresAt、Used |
-| `SchemaMigration` | `schema_migrations` | 迁移版本表（已建表但当前无写入逻辑） |
+| `SchemaMigration` | `schema_migrations` | SQL 迁移版本表（`RunMigrations` 记录已应用版本，首次运行自动标记 baseline） |
 
 ### 5.4 API 路由（`internal/router/router.go`，前缀 `/api`）
 
@@ -141,9 +141,9 @@ router → handler（无状态函数）→ service（业务逻辑）→ GORM mod
 - `GET /page/:slug`、`GET /pages`、`GET /keywords?category=`、`GET /announcements/active`、`GET /categories`、`GET /settings`、`GET /site/config`
 
 **认证 `/auth`（公开 + IP 限流）**：
-- `POST /login`（10次/分）、`POST /register`（5次/时）、`POST /send-code`（3次/分）、`POST /verify-code`、`POST /passwordless-login`、`POST /forgot-password`、`POST /reset-password`（5次/分）
+- `POST /login`（10次/分）、`POST /register`（5次/时）、`POST /send-code`（3次/分）、`POST /verify-code`、`POST /passwordless-login`、`POST /forgot-password`、`POST /reset-password`（5次/分）、`POST /logout`
 
-**用户 `/user`（`AuthRequired` JWT）**：
+**用户 `/user`（`AuthRequired` + `CSRF`）**：
 - 资料：`GET|PUT /profile`、`PUT /password`、`POST /avatar`
 - 经济：`GET /payment-methods`、`POST /recharge`、`GET /recharge-status/:orderNo`、`POST /purchase-link`、`GET /purchase-status`、`GET /transactions`
 - 会员：`GET /membership`、`POST /buy-membership`、`GET /downloads-today`
@@ -152,7 +152,7 @@ router → handler（无状态函数）→ service（业务逻辑）→ GORM mod
 **支付回调（公开）**：
 - `POST /payment/callback/wechat`、`POST|GET /payment/callback/alipay`、`ANY /payment/callback/epay`
 
-**管理 `/admin`（`AuthRequired` + `RequireAdmin`）**：
+**管理 `/admin`（`AuthRequired` + `RequireAdmin` + `CSRF`）**：
 - 内容 CRUD：`/keywords`（含 `/:id/categories` 关联读写）、`/categories`、`/pages`、`/announcements`
 - 订单：`GET /payment-orders`、`GET /payment-orders/stats`、`POST /payment-orders/batch-delete`、`DELETE /payment-orders/:id`
 - 配置：`GET /stats`、`GET|PUT /settings`、`POST /upload-logo`、`GET|PUT /email-config`、`POST /email-test`、`GET|PUT /checkin-config`、`GET|PUT /level-config`、`GET|PUT /membership-config`、`GET|PUT /payment-config`、`POST /trigger-membership-reminders`
@@ -160,7 +160,8 @@ router → handler（无状态函数）→ service（业务逻辑）→ GORM mod
 
 ### 5.5 中间件（`internal/middleware/`）
 
-- `AuthRequired(jwtSecret)`：解析 `Authorization: Bearer <JWT>`，写 `userID/username/role` 进 context；JWT 有效期 **24h**（`util/jwt.go`，HS256）。
+- `AuthRequired(jwtSecret)`：优先解析 HttpOnly `token` Cookie，回退 `Authorization: Bearer <JWT>`（兼容 API 客户端），写 `userID/username/role` 进 context；JWT 有效期 **24h**（`util/jwt.go`，HS256）。
+- `CSRF()`：double-submit cookie 模式；首次请求自动下发可读 `csrf_token` Cookie，`POST/PUT/PATCH/DELETE` 需携带匹配的 `X-CSRF-Token` 请求头。
 - `RequireAdmin()`：role != admin → 403。
 - `CORS()`：白名单来自 `config.yaml` 的 `server.allowed_origins`，**为空则允许 `*`（仅限开发）**。
 - 限流：内存滑动窗口、按客户端 IP（支持 X-Forwarded-For / X-Real-IP），单实例有效。
@@ -175,7 +176,7 @@ router → handler（无状态函数）→ service（业务逻辑）→ GORM mod
 | `alipay` 支付宝 | 场景 page（电脑跳转）/ wap（手机，按 UA 自动选）/ precreate（当面付扫码）；RSA2 签名，回调用支付宝公钥验签 |
 | `epay` 易支付 | 彩虹易支付协议：MD5 签名跳转 `submit.php` 收银台；回调校验 MD5，仅 `TRADE_SUCCESS` 入账 |
 
-**通用入账** `ProcessPaidOrder`：事务 + `FOR UPDATE` 锁单 → 金额校验（±0.01）→ 幂等（已 paid 跳过）→ 更新订单 → 加余额 + 赠经验 → 写流水 → 触发等级升级检查。
+**通用入账** `ProcessPaidOrder`：事务 + `FOR UPDATE` 锁单 → 金额校验（±0.01）→ 幂等（已 paid 跳过）→ 更新订单 → 加余额 + 赠经验 → 写流水 → 触发等级升级检查。回调 body 读取均用 `io.LimitReader` 限制 1MB（易支付仅读 query 无需限制），防止超大请求体耗内存。
 
 ### 5.7 缓存与调度器
 
@@ -198,11 +199,12 @@ jwt:
   secret: ...           # 安装时自动生成 32 字节 hex
 ```
 
-由安装向导生成，已被 .gitignore 忽略；示例见 `config.yaml.example`。
+由安装向导生成，已被 .gitignore 忽略；安装向导会将 `siteURL` 写入 `server.allowed_origins`；示例见 `config.yaml.example`。
 
 ### 5.9 数据库迁移与种子
 
-- **无 SQL 迁移文件**（`migrations/` 为空），启动时 GORM `AutoMigrate` 全部模型，迁移前 `cleanOrphanedData()` 清理孤儿关联。
+- 启动时先执行 GORM `AutoMigrate` 全部模型，再运行 `migrations/` 下按文件名排序的 `*.up.sql` 增量迁移；迁移版本记录在 `schema_migrations` 表。
+- 首次运行时会自动将当前 `AutoMigrate` 建立的表结构标记为 `000001_baseline`，后续新增 SQL 迁移文件按版本号递增。
 - `Seed`（幂等）：3 个默认页面（privacy/terms/about）、签到默认配置、10 级等级（初来乍到→至尊会员）、3 档会员（基础/高级/至尊：30/90/365 天，¥30/80/200，折扣 0.90/0.80/0.60）、5 个示例关键词、默认邮件设置（`email_force_verify=0`、`email_enable_passwordless=0` 等）。
 
 ## 6. 前端架构
@@ -213,27 +215,27 @@ jwt:
 - `/user`（`beforeEnter: requireAuth`，UserLayout）：`` 个人中心、`profile` 资料、`membership` 会员、`security` 改密。
 - `/admin`（`beforeEnter: requireAdmin`，AdminLayout）：`` 仪表盘、`keywords`、`categories`、`pages`、`announcements`、`settings`、`email`、`users`、`checkin`、`levels`、`membership`、`payment-config`、`orders`。
 - 兜底 `/:pathMatch(.*)*` → `/`。
-- 全局 `beforeEach`：已有 token 但内存无 user 时先 `fetchProfile()`（刷新后恢复角色信息），失败清空登录态；非 public 且未登录 → `/login?redirect=...`。
+- 全局 `beforeEach`：首次进入时尝试通过 HttpOnly Cookie 恢复登录态（`fetchProfile()`）；失败则清空登录态；非 public 且未登录 → `/login?redirect=...`。
 
 ### 6.2 状态管理（Pinia，setup 语法）
 
-- `auth`：token + user（均持久化 localStorage）；`isLoggedIn`、`isAdmin`；login/register/logout/fetchProfile。
+- `auth`：`user` 持久化到 localStorage，JWT 通过 HttpOnly Cookie 携带；`isLoggedIn`、`isAdmin`、`initialized`；login/register/logout/fetchProfile。
 - `siteSettings`：站点名/描述/页脚/Logo（首次访问拉 `/api/settings`）。
 - `theme`：深/浅主题（localStorage，默认 dark），App.vue 同步 `data-theme` 属性。
 - `toast`：全局通知队列（success/error/info，3.5s 自动消失）。
 
 ### 6.3 API 层（`src/api/index.ts`）
 
-- axios 实例：`baseURL: '/api'`、超时 15s。
-- 请求拦截器：自动附加 `Authorization: Bearer <localStorage.token>`。
-- 响应拦截器：**401 → 清 token、清 auth store、跳 `/login`**（当前在 /login、/install、/register 时除外）。
-- 模块：`authApi`（认证+资料）、`contentApi`（admin CRUD + public 接口）、`installApi`；经济/签到/admin 配置类接口散落在各页面直接调用 `api` 实例。
+- axios 实例：`baseURL: '/api'`、超时 15s、`withCredentials: true`。
+- 请求拦截器：对 `POST/PUT/PATCH/DELETE` 自动附加 `X-CSRF-Token`（从 `csrf_token` Cookie 读取）。
+- 响应拦截器：**401 → 清 auth store、跳 `/login`**（当前在 /login、/install、/register 时除外）。
+- 模块：`authApi`（认证+资料）、`contentApi`（admin CRUD + public 接口）、`installApi`、`economyApi`（充值/会员/签到/交易/等级）、`adminApi`（仪表盘/设置/用户/配置/订单）。其余页面仍有少量直接调用 `api` 实例的代码，可继续渐进收敛。
 
 ### 6.4 页面职责速查
 
-- **HomePage**（最大页面，678 行）：搜索、分类筛选、内容块渲染（含付费链接购买弹窗）、关键词卡片（点击复制）、公告弹窗、支付回跳提示（`?from=alipay|epay`）、主题切换、管理后台入口。
-- **RechargeModal**（最复杂组件，361 行）：充值三步流程 select→paying→done；扫码类（微信 Native / 支付宝当面付）用 qrcode 生成二维码并 **2 秒轮询** `/user/recharge-status/:orderNo`；跳转类（支付宝网页 / 易支付）新窗口打开。
-- **KeywordManager**（后台最大，413 行）：内容块编辑器（text/image/link 增删排序、权限设置），内置网盘链接解析器（自动识别百度/阿里/夸克/蓝奏/天翼/123/微云/UC 并提取提取码）。
+- **HomePage**（最大页面，约 620 行）：搜索、分类筛选、内容块渲染（含付费链接购买弹窗）、关键词卡片（点击复制）、公告弹窗、支付回跳提示（`?from=alipay|epay`）、主题切换、管理后台入口。
+- **RechargeModal**（最复杂组件，约 300 行）：充值三步流程 select→paying→done；扫码类（微信 Native / 支付宝当面付）用 qrcode 生成二维码并 **2 秒轮询** `/user/recharge-status/:orderNo`；跳转类（支付宝网页 / 易支付）新窗口打开。
+- **KeywordManager**（后台最大，约 380 行）：内容块编辑器（text/image/link 增删排序、权限设置），内置网盘链接解析器（自动识别百度/阿里/夸克/蓝奏/天翼/123/微云/UC 并提取提取码）。
 - **RichTextEditor**：直接用 wangEditor 核心 API `createEditor/createToolbar`（`@wangeditor/editor-for-vue` 与 Vue 3.5 不兼容，勿改回）。
 - 其余页面见第 3 节目录树，命名即职责。
 
@@ -264,7 +266,7 @@ jwt:
 
 ### 7.5 邮箱验证码体系
 
-`email_verification` 表按 purpose 区分：`register`（注册验证，受 `email_force_verify` 开关控制是否强制）、`forgot-password`（三步重置）、`login`（免密登录，受 `email_enable_passwordless` 开关控制）。发送有 60s 频率限制 + IP 限流（3 次/分）；验证码 6 位数字；`consumeCode` 校验并标记 used。
+`email_verification` 表按 purpose 区分：`register`（注册验证，受 `email_force_verify` 开关控制是否强制）、`forgot-password`（三步重置）、`login`（免密登录，受 `email_enable_passwordless` 开关控制）。发送有 60s 频率限制 + IP 限流（3 次/分）；验证码 6 位数字；`consumeCode` 校验并标记 used。**发送为异步**：`SendCode` 起 goroutine 走 SMTP，接口立即返回"已发送"，发送失败仅记日志不阻塞请求。
 
 ## 8. 部署
 
@@ -273,16 +275,7 @@ jwt:
 - 交叉编译示例：`cd backend && GOOS=linux GOARCH=amd64 go build -o xzji-linux-amd64 main.go`；前端 `npm run build` 后把 `dist/` 内容放入部署包 `public/`。
 - 生产注意：`config.yaml` 应配置 `allowed_origins` 白名单；支付回调地址在后台「支付配置」中基于站点 URL 配置。
 
-## 9. 测试与验证（`pwtest/`）
-
-临时性端到端验证脚本（需本地已安装并运行前后端，管理员账号 `admin/admin123` 为本地开发环境安装时所设）：
-
-- `verify-epay.mjs`：纯 fetch + crypto 验证易支付签名/下单/回调闭环（含与 Go `epaySign` 一致的 MD5 签名实现）。
-- `verify-home-admin.mjs` / `verify-payment-config.mjs` / `verify-recharge-modal.mjs` / `verify-recharge-wechat.mjs`：Playwright 无头浏览器验证对应 UI 流程。
-
-运行方式：`node pwtest/<script>.mjs`（需要环境中可解析 `playwright` 依赖）。项目没有正式的单元测试/CI。
-
-## 10. 关键约定与坑
+## 9. 关键约定与坑
 
 1. **关键词 `response` 字段是 JSON 字符串**（内容块数组序列化），后端原样存取，前端需 `JSON.parse` / `JSON.stringify`。内容块结构见 `frontend/src/types/api.ts` 的 `KeywordBlock`（type: text/image/link；access: free/balance/membership；cost、url、code 等）。
 2. **块权限判定逻辑前后端各有一份**（后端 `ContentService.blockAccess`，前端 HomePage）：`access` 显式值优先 → `cost>0` 视为 balance → 否则 free。两边必须保持一致。
@@ -290,10 +283,10 @@ jwt:
 4. `PaymentOrder.Points` 字段名有历史包袱，**实际含义是赠送经验**。
 5. 金额一律 `decimal(10,2)`；微信回调金额单位是**分**（入账时已转元）。
 6. 上传限制：头像/Logo ≤5MB（前端资料页另限头像 2MB）；扩展名白名单 jpg/jpeg/png/gif/webp（Logo 额外允许 svg）。
-7. JWT 24h 过期，无 refresh token；401 由前端拦截器统一登出跳转。
+7. JWT 24h 过期，无 refresh token；默认通过 HttpOnly Cookie 携带，前端状态变更请求需带 CSRF 头；401 由前端拦截器统一清理登录态并跳转。
 8. 限流与配置缓存都是**内存实现**，仅单实例部署有效；多实例需改造。
 9. `SiteSetting` 是万能 KV 表：站点信息、`email_*`、`payment_*` 都在里面，admin 保存后记得调 `ConfigCache.Invalidate*`（现有 handler 已处理，新增配置类须遵循）。
 10. 前端**无 .env 文件**，运行时配置全部来自后端接口；开发期后端地址写死在 `vite.config.ts` 的 proxy（4000）。
-11. `backendRoot()` 目录定位逻辑在 router/handler/service 三处各有一份类似实现（已知重复，改动路径逻辑时三处都要看）。
+11. backend 根目录定位已收敛到 `internal/util/path.go` 的 `BackendRoot()`；改动路径解析逻辑时优先检查这一处，再看调用方是否有额外拼接约束。
 12. `.zcode/skills/` 是指向用户级 AI 技能目录的符号链接，与项目业务无关。
-13. 数据库结构变更 = 改 `models.go` + 重启（AutoMigrate）；`SchemaMigration` 表已建但版本写入逻辑尚未实现。
+13. 数据库结构变更分两类：新增/兼容性字段仍走 `models.go` + `AutoMigrate`；删除列、重命名、数据回填等需新增 `migrations/*.up.sql`，并由 `schema_migrations` 跟踪版本。
