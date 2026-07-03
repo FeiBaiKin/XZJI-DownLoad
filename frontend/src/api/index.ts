@@ -27,14 +27,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
+    // 授权停服：业务接口被拦截时点亮全局停服遮罩
+    if (err.response?.status === 403 && err.response?.data?.code === 'license_blocked') {
+      import('@/stores/license')
+        .then(({ useLicenseStore }) => useLicenseStore().markBlocked(err.response?.data?.error))
+        .catch(() => {})
+    }
     if (err.response?.status === 401) {
       try {
         const { useAuthStore } = require('@/stores/auth')
         useAuthStore().clearAuth()
       } catch {}
       const path = window.location.pathname
-      if (!path.startsWith('/login') && !path.startsWith('/install') && !path.startsWith('/register')) {
-        window.location.href = '/login'
+      const onAuthPage =
+        path.startsWith('/login') || path.startsWith('/install') ||
+        path.startsWith('/register') || path.startsWith('/admin/login')
+      if (!onAuthPage) {
+        // 后台路径的 401 回后台登录页，其余回前台登录页
+        window.location.href = path.startsWith('/admin') ? '/admin/login' : '/login'
       }
     }
     return Promise.reject(err)

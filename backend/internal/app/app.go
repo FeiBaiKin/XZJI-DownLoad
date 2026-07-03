@@ -3,6 +3,7 @@ package app
 import (
 	"gorm.io/gorm"
 	"xzji/backend/internal/cache"
+	"xzji/backend/internal/license"
 	"xzji/backend/internal/service"
 )
 
@@ -21,10 +22,13 @@ type App struct {
 
 	// Cache 配置缓存
 	Cache *cache.ConfigCache
+
+	// License 授权升级中心客户端（验签状态机 + 心跳循环）
+	License *license.Manager
 }
 
 // NewApp 创建 App 实例，初始化所有 services。
-func NewApp(db *gorm.DB, jwtSecret string) *App {
+func NewApp(db *gorm.DB, jwtSecret string, lic *license.Manager) *App {
 	return &App{
 		DB:          db,
 		JWTSecret:   jwtSecret,
@@ -33,5 +37,6 @@ func NewApp(db *gorm.DB, jwtSecret string) *App {
 		ContentSvc:  &service.ContentService{DB: db},
 		EconomySvc:  &service.EconomyService{DB: db},
 		Cache:       cache.NewConfigCache(),
+		License:     lic,
 	}
 }

@@ -13,6 +13,7 @@ import (
 	"xzji/backend/internal/app"
 	"xzji/backend/internal/config"
 	"xzji/backend/internal/database"
+	"xzji/backend/internal/license"
 	"xzji/backend/internal/middleware"
 	"xzji/backend/internal/router"
 	"xzji/backend/internal/scheduler"
@@ -35,7 +36,7 @@ func main() {
 		fmt.Println()
 		r := router.SetupInstallOnly()
 		srv := &http.Server{Addr: ":4000", Handler: r}
-		go gracefulShutdown(srv, "安装服务")
+		go gracefulShutdown(srv, "安装服务", nil)
 		slog.Info("安装服务已启动", "port", 4000)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("安装服务启动失败", "err", err)
@@ -72,8 +73,18 @@ func main() {
 	// 启动会员到期提醒调度器（5s 后首次检查，之后每 24h）
 	scheduler.Start(database.DB())
 
+	// 授权升级中心客户端：加载本地缓存凭证并启动心跳循环
+	// （域名取安装向导写入 allowed_origins 的站点地址）
+	siteURL := ""
+	if len(cfg.Server.AllowedOrigins) > 0 {
+		siteURL = cfg.Server.AllowedOrigins[0]
+	}
+	licenseMgr := license.NewManager(siteURL)
+	licenseMgr.Load()
+	licenseMgr.Start()
+
 	// 创建应用实例（依赖注入）
-	application := app.NewApp(database.DB(), jwtSecret)
+	application := app.NewApp(database.DB(), jwtSecret, licenseMgr)
 
 	port := cfg.Server.Port
 	if port == 0 {
@@ -81,7 +92,7 @@ func main() {
 	}
 	r := router.SetupFull(application)
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: r}
-	go gracefulShutdown(srv, "后端服务")
+	go gracefulShutdown(srv, "后端服务", licenseMgr)
 	slog.Info("后端服务已启动", "port", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("服务启动失败", "err", err)
@@ -89,8 +100,8 @@ func main() {
 	}
 }
 
-// gracefulShutdown 监听系统信号，优雅关闭 HTTP 服务、调度器和数据库连接池。
-func gracefulShutdown(srv *http.Server, name string) {
+// gracefulShutdown 监听系统信号，优雅关闭 HTTP 服务、调度器、授权心跳和数据库连接池。
+func gracefulShutdown(srv *http.Server, name string, lic *license.Manager) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
@@ -100,8 +111,11 @@ func gracefulShutdown(srv *http.Server, name string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// 停止调度器
+	// 停止调度器与授权心跳循环
 	scheduler.Stop()
+	if lic != nil {
+		lic.Stop()
+	}
 
 	// 关闭 HTTP 服务（不再接受新连接，等待现有请求完成）
 	if err := srv.Shutdown(ctx); err != nil {

@@ -12,6 +12,26 @@ export interface CheckInConfig { daily_balance: number; daily_exp: number; conse
 export interface LevelConfigItem { level: number; exp_required: number; label: string }
 export interface MembershipConfigItem { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string }
 export interface PaymentConfig { payment_site_url: string; payment_enabled_providers: string; payment_wx_appid: string; payment_wx_mchid: string; payment_wx_serial_no: string; payment_wx_api_v3_key: string; payment_wx_private_key: string; payment_wx_notify_url: string; payment_ali_appid: string; payment_ali_private_key: string; payment_ali_public_key: string; payment_ali_scene: string; payment_ali_notify_url: string; payment_ali_return_url: string; payment_epay_gateway: string; payment_epay_pid: string; payment_epay_key: string; payment_epay_notify_url: string; payment_epay_return_url: string; [key: string]: string }
+export interface LicenseUpdateInfo { version: string; changelog: string; file_size: number; sha256: string; forced: boolean }
+export interface LicenseSnapshot {
+  activated: boolean
+  valid: boolean
+  reason?: string
+  status?: string
+  code?: string
+  domain: string
+  expiresAt?: number
+  lastVerifiedAt?: number
+  graceDeadline?: number
+  heartbeatIntervalHours?: number
+  gracePeriodDays?: number
+  currentVersion: string
+  latestVersion?: string
+  update?: LicenseUpdateInfo | null
+  lastError?: string
+  lastCheckAt?: number
+}
+export interface LicenseUpgradeResult { version: string; applied: boolean; restarting: boolean; stagingPath?: string; backupDir?: string; message: string }
 
 // ── API ──
 export const adminApi = {
@@ -66,4 +86,15 @@ export const adminApi = {
   },
   // 会员提醒手动触发
   triggerMembershipReminders: () => api.post('/admin/trigger-membership-reminders').then(r => r.data),
+  // 授权管理（授权升级中心）
+  license: {
+    get: () => api.get<LicenseSnapshot>('/admin/license').then(r => r.data),
+    activate: (code: string) =>
+      api.post<{ message: string; status: string; snapshot: LicenseSnapshot }>('/admin/license/activate', { code }).then(r => r.data),
+    heartbeat: () =>
+      api.post<{ message: string; snapshot: LicenseSnapshot }>('/admin/license/heartbeat').then(r => r.data),
+    // 升级含下载耗时，单独放宽超时
+    upgrade: () =>
+      api.post<LicenseUpgradeResult>('/admin/license/upgrade', {}, { timeout: 300000 }).then(r => r.data),
+  },
 }

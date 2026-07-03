@@ -9,7 +9,7 @@ function requireAuth() {
 
 function requireAdmin() {
   const auth = useAuthStore()
-  if (!auth.isLoggedIn) return '/login?redirect=' + encodeURIComponent(location.pathname)
+  if (!auth.isLoggedIn) return '/admin/login?redirect=' + encodeURIComponent(location.pathname)
   if (!auth.isAdmin) return '/user'
   return true
 }
@@ -21,6 +21,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/register', name: 'register', component: () => import('@/views/public/RegisterPage.vue'), meta: { public: true } },
   { path: '/forgot-password', name: 'forgot', component: () => import('@/views/public/ForgotPasswordPage.vue'), meta: { public: true } },
   { path: '/page/:slug', name: 'page', component: () => import('@/views/public/PageView.vue'), meta: { public: true } },
+  // 管理后台独立登录页（与前台 /login 分离，成功后进 /admin）
+  { path: '/admin/login', name: 'admin-login', component: () => import('@/views/admin/AdminLoginPage.vue'), meta: { public: true } },
   {
     path: '/user',
     component: () => import('@/layouts/UserLayout.vue'),
@@ -50,6 +52,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'membership', name: 'admin-membership', component: () => import('@/views/admin/MembershipConfigPage.vue') },
       { path: 'payment-config', name: 'admin-payment', component: () => import('@/views/admin/PaymentConfigPage.vue') },
       { path: 'orders', name: 'admin-orders', component: () => import('@/views/admin/PaymentOrdersPage.vue') },
+      { path: 'license', name: 'admin-license', component: () => import('@/views/admin/LicensePage.vue') },
     ],
   },
   { path: '/:pathMatch(.*)*', redirect: '/' },
@@ -64,7 +67,11 @@ router.beforeEach(async (to, _from) => {
     await auth.fetchProfile()
   }
   if (to.meta.public) return true
-  if (!auth.isLoggedIn) return '/login?redirect=' + encodeURIComponent(to.fullPath)
+  if (!auth.isLoggedIn) {
+    // 后台路径未登录 → 后台登录页；其余 → 前台登录页
+    const loginPath = to.path.startsWith('/admin') ? '/admin/login' : '/login'
+    return loginPath + '?redirect=' + encodeURIComponent(to.fullPath)
+  }
   return true
 })
 

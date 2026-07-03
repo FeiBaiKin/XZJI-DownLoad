@@ -48,21 +48,31 @@ func SetupFull(application *app.App) *gin.Engine {
 		api.GET("/health", handler.Health)
 		api.GET("/install/status", handler.InstallStatus)
 
-		// 公开内容
-		api.POST("/search", handler.PublicSearch)
-		api.GET("/page/:slug", handler.PublicPage)
-		api.GET("/pages", handler.PublicPages)
-		api.GET("/keywords", handler.PublicKeywords)
-		api.GET("/announcements/active", handler.PublicAnnouncements)
-		api.GET("/categories", handler.PublicCategories)
+		// 授权停服守卫：授权无效时拦截前台业务接口（接入文档「停止对外服务」约定：
+		// 前台停服，管理后台/登录/站点设置/支付回调保持可用）
+		guard := middleware.LicenseGuard(application.License)
+
+		// 公开内容（受授权守卫）
+		pub := api.Group("", guard)
+		{
+			pub.POST("/search", handler.PublicSearch)
+			pub.GET("/page/:slug", handler.PublicPage)
+			pub.GET("/pages", handler.PublicPages)
+			pub.GET("/keywords", handler.PublicKeywords)
+			pub.GET("/announcements/active", handler.PublicAnnouncements)
+			pub.GET("/categories", handler.PublicCategories)
+		}
+		// 站点设置/授权状态：放行，前端渲染框架与停服遮罩依赖它们
 		api.GET("/settings", handler.PublicSettings)
 		api.GET("/site/config", handler.PublicSiteConfig)
+		api.GET("/license/status", handler.PublicLicenseStatus)
 
-		// 认证（公开 + 限流）
+		// 认证（公开 + 限流）。登录/找回密码放行（管理员需要登录后台处理授权），
+		// 注册属于业务功能，停服期间拦截。
 		auth := api.Group("/auth")
 		{
 			auth.POST("/login", middleware.RateLimitLogin(), handler.Login)
-			auth.POST("/register", middleware.RateLimitRegister(), handler.Register)
+			auth.POST("/register", guard, middleware.RateLimitRegister(), handler.Register)
 			auth.POST("/send-code", middleware.RateLimitSendCode(), handler.SendCode)
 			auth.POST("/verify-code", handler.VerifyCode)
 			auth.POST("/passwordless-login", middleware.RateLimitPassword(), handler.PasswordlessLogin)
@@ -71,31 +81,34 @@ func SetupFull(application *app.App) *gin.Engine {
 			auth.POST("/logout", handler.Logout)
 		}
 
-		// 用户（需登录 + CSRF）
+		// 用户（需登录 + CSRF）。GET /profile 放行：管理员会话恢复（前端路由守卫）依赖；
+		// 其余用户业务接口停服期间拦截。
 		user := api.Group("/user")
 		user.Use(middleware.AuthRequired(application.JWTSecret))
 		user.Use(middleware.CSRF())
+		user.GET("/profile", handler.GetProfile)
+		userBiz := user.Group("", guard)
 		{
-			user.GET("/profile", handler.GetProfile)
-			user.PUT("/profile", handler.UpdateProfile)
-			user.PUT("/password", handler.ChangePassword)
-			user.POST("/avatar", handler.UploadAvatar)
+			userBiz.PUT("/profile", handler.UpdateProfile)
+			userBiz.PUT("/password", handler.ChangePassword)
+			userBiz.POST("/avatar", handler.UploadAvatar)
 			// 经济
-			user.GET("/payment-methods", handler.PaymentMethods)
-			user.POST("/recharge", handler.Recharge)
-			user.GET("/recharge-status/:orderNo", handler.RechargeStatus)
-			user.POST("/purchase-link", handler.PurchaseLink)
-			user.GET("/purchase-status", handler.PurchaseStatus)
-			user.GET("/membership", handler.GetMembership)
-			user.POST("/buy-membership", handler.BuyMembership)
-			user.GET("/transactions", handler.GetTransactions)
-			user.GET("/downloads-today", handler.DownloadsToday)
-			user.GET("/checkin-status", handler.CheckInStatus)
-			user.POST("/checkin", handler.CheckIn)
-			user.GET("/level-info", handler.LevelInfo)
+			userBiz.GET("/payment-methods", handler.PaymentMethods)
+			userBiz.POST("/recharge", handler.Recharge)
+			userBiz.GET("/recharge-status/:orderNo", handler.RechargeStatus)
+			userBiz.POST("/purchase-link", handler.PurchaseLink)
+			userBiz.GET("/purchase-status", handler.PurchaseStatus)
+			userBiz.GET("/membership", handler.GetMembership)
+			userBiz.POST("/buy-membership", handler.BuyMembership)
+			userBiz.GET("/transactions", handler.GetTransactions)
+			userBiz.GET("/downloads-today", handler.DownloadsToday)
+			userBiz.GET("/checkin-status", handler.CheckInStatus)
+			userBiz.POST("/checkin", handler.CheckIn)
+			userBiz.GET("/level-info", handler.LevelInfo)
 		}
 
-		// 支付回调（第三方支付异步/同步回调，公开）
+		// 支付回调（第三方支付异步/同步回调，公开）。
+		// 停服期间仍放行：用户已付款的订单必须正常入账，避免资金纠纷。
 		api.POST("/payment/callback/wechat", handler.PaymentCallbackWechat)
 		api.POST("/payment/callback/alipay", handler.PaymentCallbackAlipay)
 		api.GET("/payment/callback/alipay", func(c *gin.Context) { c.Redirect(http.StatusFound, "/?from=alipay") })
@@ -152,6 +165,11 @@ func SetupFull(application *app.App) *gin.Engine {
 			admin.PUT("/payment-config", handler.AdminPaymentConfigPut)
 			// 会员到期提醒（手动触发）
 			admin.POST("/trigger-membership-reminders", handler.TriggerMembershipReminders)
+			// 授权管理（授权升级中心接入：状态/激活/心跳/升级）
+			admin.GET("/license", handler.AdminLicenseGet)
+			admin.POST("/license/activate", handler.AdminLicenseActivate)
+			admin.POST("/license/heartbeat", handler.AdminLicenseHeartbeat)
+			admin.POST("/license/upgrade", handler.AdminLicenseUpgrade)
 			// 用户管理
 			admin.GET("/users", handler.AdminUsersList)
 			admin.GET("/users/:id", handler.AdminUserGet)

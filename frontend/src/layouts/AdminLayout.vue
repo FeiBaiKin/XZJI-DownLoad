@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 管理后台布局：1:1 移植自原项目 Node-XZJI/frontend/src/pages/AdminPage.jsx (AdminLayout)
 // 样式来自全局 styles/admin-layout.css
-// 裁剪：授权门禁/极验/系统升级/授权管理（按重构方案暂不实现）
+// 裁剪：授权门禁/极验（按重构方案暂不实现）；授权管理/系统升级已接入授权升级中心（/admin/license）
 import { reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -24,7 +24,7 @@ const openGroups = reactive<Record<string, boolean>>({
   content: startsWith('/admin/keywords') || startsWith('/admin/categories') || startsWith('/admin/pages') || startsWith('/admin/announcements'),
   users: startsWith('/admin/checkin') || startsWith('/admin/levels') || startsWith('/admin/membership') || startsWith('/admin/users'),
   payment: startsWith('/admin/payment') || startsWith('/admin/orders'),
-  system: startsWith('/admin/settings') || startsWith('/admin/email'),
+  system: startsWith('/admin/settings') || startsWith('/admin/email') || startsWith('/admin/license'),
 })
 function toggleGroup(group: string) {
   openGroups[group] = !openGroups[group]
@@ -34,7 +34,7 @@ const isAdmin = computed(() => auth.isAdmin)
 
 function handleLogout() {
   auth.logout()
-  router.push('/login')
+  router.push('/admin/login')
 }
 </script>
 
@@ -118,6 +118,7 @@ function handleLogout() {
           <div class="nav-group-items" :class="{ open: openGroups.system }">
             <router-link to="/admin/settings" class="nav-sub-item" :class="{ active: isActive('/admin/settings') }">网站设置</router-link>
             <router-link to="/admin/email" class="nav-sub-item" :class="{ active: isActive('/admin/email') }">邮箱配置</router-link>
+            <router-link to="/admin/license" class="nav-sub-item" :class="{ active: isActive('/admin/license') }">授权管理</router-link>
           </div>
         </div>
       </nav>
