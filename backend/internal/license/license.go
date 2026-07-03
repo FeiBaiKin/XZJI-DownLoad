@@ -101,9 +101,9 @@ func verifySignature(r *StatusResponse) bool {
 	return ed25519.Verify(ed25519.PublicKey(pub), []byte(msg), sig)
 }
 
-// normalizeDomain 与中心 util.NormalizeDomain 同款归一化：
+// NormalizeDomain 与中心 util.NormalizeDomain 同款归一化：
 // 小写、剥离协议/路径/端口，保证两端对同一 siteURL 得到相同域名串
-func normalizeDomain(input string) string {
+func NormalizeDomain(input string) string {
 	s := strings.TrimSpace(strings.ToLower(input))
 	if s == "" {
 		return ""
@@ -146,7 +146,7 @@ type Manager struct {
 // NewManager 创建授权客户端。siteURL 取自 config.yaml 的 allowed_origins[0]
 // （安装向导写入的站点地址），归一化后作为授权绑定域名。
 func NewManager(siteURL string) *Manager {
-	domain := normalizeDomain(siteURL)
+	domain := NormalizeDomain(siteURL)
 	if domain == "" {
 		domain = "localhost" // 未配置站点地址时的兜底（本地开发）
 	}
@@ -295,10 +295,18 @@ func (m *Manager) noteFailure(err error) {
 // Activate 用授权码向中心激活本站点（同域名重复激活幂等，适用于重装）。
 // 缓存覆盖策略：同一授权码总是采信最新响应；更换授权码时仅当新响应为
 // active 才覆盖，防止误输入绑定了其他域名的码顶掉现有有效授权。
-func (m *Manager) Activate(code string) (*StatusResponse, error) {
+//
+// domain 为本次激活探测到的本站域名（归一化后）；非空时覆盖 m.domain，
+// 使本次及后续心跳/校验均使用新域名；为空时沿用配置中已有的 m.domain。
+func (m *Manager) Activate(code, domain string) (*StatusResponse, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, errors.New("请输入授权码")
+	}
+	if domain != "" {
+		m.mu.Lock()
+		m.domain = domain
+		m.mu.Unlock()
 	}
 	m.opMu.Lock()
 	defer m.opMu.Unlock()

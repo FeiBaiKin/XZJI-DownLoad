@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	"xzji/backend/internal/config"
 	"xzji/backend/internal/license"
 
 	"github.com/gin-gonic/gin"
@@ -40,6 +42,10 @@ func AdminLicenseGet(c *gin.Context) {
 }
 
 // AdminLicenseActivate POST /api/admin/license/activate {code}
+//
+// 域名自动获取：从请求头探测本站真实域名（Origin 优先，回退 Host），
+// 归一化后作为授权上报域名，并在激活成功时回写 config.yaml 的
+// server.allowed_origins，使重启后域名仍可从配置加载。
 func AdminLicenseActivate(c *gin.Context) {
 	m := getLicense(c)
 	if m == nil {
@@ -52,11 +58,34 @@ func AdminLicenseActivate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请输入授权码"})
 		return
 	}
-	sr, err := m.Activate(req.Code)
+
+	// 探测本站域名：浏览器跨域请求带 Origin（含协议），同源请求可能无 Origin，回退 Host
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		// Host 不含协议，按 https 补全以便复用归一化逻辑（协议会被剥离，仅影响端口判断）
+		if h := c.Request.Host; h != "" {
+			scheme := "https"
+			if c.Request.TLS == nil && (c.Request.Header.Get("X-Forwarded-Proto") == "http" || strings.HasPrefix(h, "localhost")) {
+				scheme = "http"
+			}
+			origin = scheme + "://" + h
+		}
+	}
+	domain := license.NormalizeDomain(origin)
+
+	sr, err := m.Activate(req.Code, domain)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 激活成功（active 或同域名幂等）时回写配置，持久化探测到的站点地址
+	if origin != "" && sr.Status == license.StatusActive {
+		if err := config.SetAllowedOrigins([]string{origin}); err != nil {
+			slog.Warn("回写 allowed_origins 失败（不影响本次激活）", "err", err, "origin", origin)
+		}
+	}
+
 	msg := sr.Message
 	if msg == "" {
 		switch sr.Status {

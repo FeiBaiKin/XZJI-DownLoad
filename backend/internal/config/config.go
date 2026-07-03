@@ -123,6 +123,23 @@ func GenerateJWTSecret() string {
 	return hex.EncodeToString(b)
 }
 
+// SetAllowedOrigins 定点更新 config.yaml 的 server.allowed_origins 字段，
+// 保留其余配置不变。用于激活时自动回写探测到的站点地址（域名自动获取场景）。
+func SetAllowedOrigins(origins []string) error {
+	v := viper.New()
+	v.SetConfigFile(ConfigPath)
+	v.SetConfigType("yaml")
+	// 文件不存在时 viper.WriteConfig 会报错，先确保存在
+	if _, err := os.Stat(ConfigPath); err != nil {
+		return fmt.Errorf("配置文件不存在: %w", err)
+	}
+	if err := v.ReadInConfig(); err != nil {
+		return fmt.Errorf("读取配置文件失败: %w", err)
+	}
+	v.Set("server.allowed_origins", origins)
+	return v.WriteConfig()
+}
+
 // DSN 拼接 GORM/MySQL 连接串
 func (c *DatabaseConfig) DSN() string {
 	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
