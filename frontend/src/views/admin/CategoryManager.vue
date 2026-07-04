@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// 分类管理：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/CategoryManager.jsx
-// 样式来自全局 styles/admin-layout.css + admin-orders.css
-import { ref, onMounted } from 'vue'
+// 分类管理：为关键词创建分类，组织内容结构
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
+import { ref, onMounted, h } from 'vue'
+import { NButton, NInput, NInputNumber, NDataTable, NAlert, NSkeleton, type DataTableColumns } from 'naive-ui'
 import { contentApi, type Category } from '@/api/content'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
@@ -66,66 +67,85 @@ async function doDelete() {
     fetchCategories()
   } catch { /* 忽略 */ }
 }
+
+const columns: DataTableColumns<Category> = [
+  { title: '名称', key: 'name', render: (row) => h('span', { class: 'font-medium' }, row.name) },
+  {
+    title: '描述',
+    key: 'description',
+    ellipsis: true,
+    render: (row) => h('span', { class: 'text-[13px] text-zinc-500 dark:text-zinc-400' }, row.description || '-'),
+  },
+  { title: '排序', key: 'sort_order', width: 80, render: (row) => h('span', { class: 'font-mono text-xs' }, row.sort_order) },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 130,
+    render: (row) =>
+      h('div', { class: 'flex gap-1' }, [
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+      ]),
+  },
+]
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
-    <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">分类管理</h2>
-        <span class="content-sub">为关键词创建分类，组织内容结构</span>
-      </div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="160px" :sharp="false" />
+      <NSkeleton height="200px" :sharp="false" />
+    </div>
 
-      <div class="form-card" style="margin-bottom: 1.5rem;">
-        <div class="form-card-title">{{ editing ? '编辑分类' : '新建分类' }}</div>
-        <form @submit.prevent="handleSave">
-          <div style="display: grid; grid-template-columns: 1fr 80px; gap: 0.75rem; margin-bottom: 0.75rem;">
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">分类名称</label>
-              <input type="text" class="form-input" v-model="form.name" placeholder="例如：技术文档" />
+    <template v-else>
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">分类管理</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">为关键词创建分类，组织内容结构</p>
+      </header>
+
+      <!-- 新建 / 编辑表单 -->
+      <section class="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{{ editing ? `编辑分类：${editing.name}` : '新建分类' }}</h3>
+        <form class="space-y-4" @submit.prevent="handleSave">
+          <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_130px]">
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">分类名称</label>
+              <NInput v-model:value="form.name" placeholder="例如：技术文档" />
             </div>
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">排序</label>
-              <input type="number" class="form-input" v-model.number="form.sort_order" />
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">排序</label>
+              <NInputNumber
+                :value="form.sort_order"
+                class="w-full"
+                @update:value="(v: number | null) => form.sort_order = v ?? 0"
+              />
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">描述（可选）</label>
-            <input type="text" class="form-input" v-model="form.description" placeholder="简短描述" />
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">描述（可选）</label>
+            <NInput v-model:value="form.description" placeholder="简短描述" />
           </div>
-          <div v-if="message" class="form-message" style="margin-bottom: 0.75rem;">{{ message }}</div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : (editing ? '更新' : '创建') }}</button>
-            <button v-if="editing" type="button" class="action-button secondary" @click="resetForm">取消</button>
+
+          <NAlert v-if="message" :type="message.includes('失败') || message.includes('不能') ? 'error' : 'success'" closable @close="message = ''">
+            {{ message }}
+          </NAlert>
+
+          <div class="flex gap-2">
+            <NButton attr-type="submit" type="primary" :loading="saving">{{ editing ? '更新' : '创建' }}</NButton>
+            <NButton v-if="editing" quaternary @click="resetForm">取消</NButton>
           </div>
         </form>
-      </div>
+      </section>
 
-      <div class="order-table-wrap">
-        <table class="order-table">
-          <thead>
-            <tr>
-              <th>名称</th>
-              <th>描述</th>
-              <th>排序</th>
-              <th style="width: 120px;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="categories.length === 0"><td colspan="4" class="order-empty">暂无分类</td></tr>
-            <tr v-for="c in categories" :key="c.id">
-              <td style="font-weight: 500;">{{ c.name }}</td>
-              <td style="color: var(--text-secondary); font-size: 0.8rem;">{{ c.description || '-' }}</td>
-              <td class="mono-td">{{ c.sort_order }}</td>
-              <td style="display: flex; gap: 0.75rem;">
-                <button class="action-link" @click="handleEdit(c)">编辑</button>
-                <button class="action-link danger" @click="handleDelete(c)">删除</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- 分类列表 -->
+      <NDataTable
+        :columns="columns"
+        :data="categories"
+        :row-key="(row: Category) => row.id"
+        :bordered="false"
+        class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+      />
     </template>
 
     <ConfirmDialog

@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// 个人资料：1:1 移植自原项目 Node-XZJI/frontend/src/pages/UserCenter.jsx (UserProfile)
-// 样式来自全局 styles/user.css
+// 个人资料：头像上传（≤2MB）+ 基本信息查看/编辑
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted } from 'vue'
+import { NButton, NInput, NAlert, NSkeleton, NTag } from 'naive-ui'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import type { UserBrief } from '@/types/api'
 
 const auth = useAuthStore()
 
-const profile = ref<any>(null)
+const profile = ref<UserBrief | null>(null)
 const loading = ref(true)
 const editing = ref(false)
 const saving = ref(false)
@@ -40,8 +42,8 @@ async function handleSaveProfile() {
     editing.value = false
     message.value = '资料更新成功'
     if (auth.user) auth.user.nickname = res.data.nickname
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '保存失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '保存失败'
   } finally {
     saving.value = false
   }
@@ -63,16 +65,16 @@ async function handleAvatarUpload(e: Event) {
   fd.append('avatar', file)
   try {
     const res = await api.post('/user/avatar', fd)
-    profile.value = { ...profile.value, avatar: res.data.avatar }
+    if (profile.value) profile.value = { ...profile.value, avatar: res.data.avatar }
     message.value = '头像更新成功'
     if (auth.user) auth.user.avatar = res.data.avatar
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '上传失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '上传失败'
   }
 }
 
 function startEdit() {
-  formData.value = { nickname: profile.value.nickname || '', email: profile.value.email || '' }
+  formData.value = { nickname: profile.value?.nickname || '', email: profile.value?.email || '' }
   editing.value = true
   error.value = ''
 }
@@ -84,94 +86,128 @@ function cancelEdit() {
 </script>
 
 <template>
-  <div class="user-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-6">
+      <NSkeleton text width="20%" size="large" />
+      <div class="flex items-center gap-4">
+        <NSkeleton circle width="72px" />
+        <NSkeleton text width="30%" />
+      </div>
+      <NSkeleton text :repeat="6" />
+    </div>
+
     <template v-else>
-      <div v-if="!profile" class="empty-state">无法加载用户信息</div>
+      <p v-if="!profile" class="rounded-xl bg-zinc-50 py-12 text-center text-sm text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+        无法加载用户信息
+      </p>
+
       <template v-else>
-        <div class="content-header">
-          <h2 class="content-title">个人资料</h2>
-        </div>
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">个人资料</h2>
 
         <!-- 头像区域 -->
-        <div class="profile-avatar-section">
-          <div class="avatar-wrapper" @click="fileInputRef?.click()">
-            <img v-if="profile.avatar" :src="profile.avatar" alt="头像" class="avatar-image" />
-            <div v-else class="avatar-placeholder">
-              <span>{{ (profile.nickname || profile.username || 'U')[0].toUpperCase() }}</span>
-            </div>
-            <div class="avatar-overlay">
-              <span class="avatar-overlay-text">更换头像</span>
-            </div>
-          </div>
+        <section class="mt-6 flex items-center gap-5 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <button
+            type="button"
+            class="group relative size-18 shrink-0 overflow-hidden rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            title="更换头像"
+            @click="fileInputRef?.click()"
+          >
+            <img v-if="profile.avatar" :src="profile.avatar" alt="头像" class="size-full object-cover" />
+            <span v-else class="grid size-full place-items-center bg-emerald-600/90 text-2xl font-bold text-white dark:bg-emerald-400 dark:text-zinc-950">
+              {{ (profile.nickname || profile.username || 'U')[0]!.toUpperCase() }}
+            </span>
+            <span class="absolute inset-0 grid place-items-center bg-black/45 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+              更换头像
+            </span>
+          </button>
           <input
             ref="fileInputRef"
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
-            class="avatar-input-hidden"
+            class="hidden"
             @change="handleAvatarUpload"
           />
-          <div class="avatar-info">
-            <span class="avatar-name">{{ profile.nickname || profile.username }}</span>
-            <span class="avatar-hint">支持 JPG、PNG、GIF、WebP，最大 2MB</span>
+          <div class="min-w-0">
+            <p class="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ profile.nickname || profile.username }}</p>
+            <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">支持 JPG、PNG、GIF、WebP，最大 2MB</p>
           </div>
-        </div>
+        </section>
 
         <!-- 基本信息 -->
-        <div class="profile-section">
-          <div class="section-header">
-            <h3 class="section-title">基本信息</h3>
-            <button v-if="!editing" class="action-link" @click="startEdit">编辑</button>
+        <section class="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="flex items-center justify-between">
+            <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">基本信息</h3>
+            <NButton v-if="!editing" size="small" quaternary type="primary" @click="startEdit">编辑</NButton>
           </div>
 
-          <div v-if="message" class="form-success">{{ message }}</div>
-          <div v-if="error" class="form-error">{{ error }}</div>
+          <NAlert v-if="message" type="success" class="mt-4" closable @close="message = ''">{{ message }}</NAlert>
+          <NAlert v-if="error" type="error" class="mt-4" closable @close="error = ''">{{ error }}</NAlert>
 
-          <form v-if="editing" class="profile-form" @submit.prevent="handleSaveProfile">
-            <div class="form-group">
-              <label class="form-label">用户名</label>
-              <input type="text" class="form-input" :value="profile.username" disabled />
-              <span class="form-hint">用户名不可修改</span>
+          <!-- 编辑模式 -->
+          <form v-if="editing" class="mt-5 max-w-md space-y-4" @submit.prevent="handleSaveProfile">
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">用户名</label>
+              <NInput :value="profile.username" disabled />
+              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">用户名不可修改</p>
             </div>
-            <div class="form-group">
-              <label class="form-label">昵称</label>
-              <input type="text" class="form-input" v-model="formData.nickname" />
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">昵称</label>
+              <NInput v-model:value="formData.nickname" placeholder="设置昵称" />
             </div>
-            <div class="form-group">
-              <label class="form-label">邮箱</label>
-              <input type="email" class="form-input" v-model="formData.email" placeholder="用于找回密码" />
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">邮箱</label>
+              <NInput v-model:value="formData.email" placeholder="用于找回密码" :input-props="{ type: 'email' }" />
             </div>
-            <div class="form-actions">
-              <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
-              <button type="button" class="action-button secondary" @click="cancelEdit">取消</button>
+            <div class="flex gap-2 pt-1">
+              <NButton attr-type="submit" type="primary" :loading="saving">保存</NButton>
+              <NButton quaternary @click="cancelEdit">取消</NButton>
             </div>
           </form>
 
-          <div v-else class="profile-details">
-            <div class="detail-row"><span class="detail-label">用户名</span><span class="detail-value">{{ profile.username }}</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">昵称</span><span class="detail-value">{{ profile.nickname || '未设置' }}</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">邮箱</span><span class="detail-value">{{ profile.email || '未设置' }}</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">等级</span><span class="detail-value mono">Lv.{{ profile.level || 1 }}</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">经验</span><span class="detail-value mono">{{ profile.exp || 0 }} EXP</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">余额</span><span class="detail-value mono">{{ (profile.balance || 0).toFixed(2) }} 元</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row">
-              <span class="detail-label">会员</span>
-              <span class="detail-value mono">
-                {{ profile.membership_level ? `${profile.membership_level} (${profile.membership_expires_at ? new Date(profile.membership_expires_at).toLocaleDateString('zh-CN') : ''})` : '无' }}
-              </span>
+          <!-- 查看模式 -->
+          <dl v-else class="mt-3 divide-y divide-zinc-100 dark:divide-zinc-800">
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">用户名</dt>
+              <dd class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ profile.username }}</dd>
             </div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">角色</span><span class="detail-value detail-role">{{ profile.role === 'admin' ? '管理员' : '普通用户' }}</span></div>
-            <div class="detail-divider" />
-            <div class="detail-row"><span class="detail-label">注册时间</span><span class="detail-value detail-time">{{ new Date(profile.created_at).toLocaleString('zh-CN') }}</span></div>
-          </div>
-        </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">昵称</dt>
+              <dd class="text-sm text-zinc-800 dark:text-zinc-200">{{ profile.nickname || '未设置' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">邮箱</dt>
+              <dd class="truncate text-sm text-zinc-800 dark:text-zinc-200">{{ profile.email || '未设置' }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">等级</dt>
+              <dd class="font-mono text-sm text-zinc-800 dark:text-zinc-200">Lv.{{ profile.level || 1 }}</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">经验</dt>
+              <dd class="font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ profile.exp || 0 }} EXP</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">余额</dt>
+              <dd class="font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ (profile.balance || 0).toFixed(2) }} 元</dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">会员</dt>
+              <dd class="text-sm text-zinc-800 dark:text-zinc-200">
+                {{ profile.membership_level
+                  ? `${profile.membership_level}（${profile.membership_expires_at ? new Date(profile.membership_expires_at).toLocaleDateString('zh-CN') : ''}）`
+                  : '无' }}
+              </dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">角色</dt>
+              <dd><NTag :type="profile.role === 'admin' ? 'warning' : 'default'" size="small" round>{{ profile.role === 'admin' ? '管理员' : '普通用户' }}</NTag></dd>
+            </div>
+            <div class="flex items-center justify-between gap-4 py-3">
+              <dt class="text-sm text-zinc-500 dark:text-zinc-400">注册时间</dt>
+              <dd class="font-mono text-sm text-zinc-500 dark:text-zinc-400">{{ new Date(profile.created_at).toLocaleString('zh-CN') }}</dd>
+            </div>
+          </dl>
+        </section>
       </template>
     </template>
   </div>

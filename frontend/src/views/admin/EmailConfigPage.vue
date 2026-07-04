@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// 邮箱配置：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/EmailConfig.jsx
-// 样式来自全局 styles/admin-email.css + admin-payment.css
+// 邮箱配置：SMTP 发件服务器、验证码策略开关、发送测试
+// 业务逻辑保持不变（config 键值均为字符串 '0'/'1'）；UI 重构为 Naive UI + Tailwind
 import { ref, computed, onMounted } from 'vue'
+import { NButton, NInput, NAlert, NSwitch, NSkeleton } from 'naive-ui'
 import api from '@/api'
 
 interface EmailConfigData {
@@ -85,55 +86,100 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading">
-      <div class="content-header"><h2 class="content-title">邮箱配置</h2></div>
-      <div class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="240px" :sharp="false" />
+      <NSkeleton height="160px" :sharp="false" />
     </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">邮箱配置</h2>
-        <span class="content-sub">SMTP 发件服务器、验证码策略与测试</span>
-      </div>
-      <form @submit.prevent="handleSave">
-        <div class="form-card">
-          <div class="form-card-title">SMTP 服务器</div>
-          <div class="pay-fields">
-            <div class="pay-field"><span class="pay-field-label">SMTP 主机</span><input type="text" class="pay-field-input" placeholder="smtp.example.com" v-model="config.email_smtp_host" /></div>
-            <div class="pay-field"><span class="pay-field-label">端口</span><input type="text" class="pay-field-input" placeholder="465" v-model="config.email_smtp_port" /></div>
-            <div class="pay-field"><span class="pay-field-label">发件账号</span><input type="text" class="pay-field-input" placeholder="noreply@example.com" v-model="config.email_smtp_user" /></div>
-            <div class="pay-field"><span class="pay-field-label">授权码 / 密码</span><input type="password" class="pay-field-input" placeholder="SMTP 授权码" v-model="config.email_smtp_pass" /></div>
-            <div class="pay-field" style="grid-column: 1 / -1;"><span class="pay-field-label">发件人名称</span><input type="text" class="pay-field-input" placeholder="系统通知" v-model="config.email_from_name" /><span class="pay-field-hint">显示在邮件「发件人」字段</span></div>
-          </div>
-        </div>
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">邮箱配置</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">SMTP 发件服务器、验证码策略与测试</p>
+      </header>
 
-        <div class="form-card">
-          <div class="form-card-title">功能开关</div>
-          <div class="email-toggles">
-            <div class="email-toggle-row">
-              <div class="email-toggle-info"><span class="email-toggle-label">注册强制邮箱验证</span><span class="email-toggle-desc">开启后，注册时必须验证邮箱</span></div>
-              <button type="button" class="email-toggle-switch" :class="{ on: forceVerify }" :aria-checked="forceVerify" role="switch" @click="updateConfig('email_force_verify', forceVerify ? '0' : '1')"><span class="email-toggle-knob" /></button>
+      <form class="space-y-5" @submit.prevent="handleSave">
+        <!-- SMTP 服务器 -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">SMTP 服务器</h3>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">SMTP 主机</label>
+              <NInput v-model:value="config.email_smtp_host" placeholder="smtp.example.com" />
             </div>
-            <div class="email-toggle-row">
-              <div class="email-toggle-info"><span class="email-toggle-label">启用邮箱验证码登录</span><span class="email-toggle-desc">用户可使用邮箱验证码免密登录</span></div>
-              <button type="button" class="email-toggle-switch" :class="{ on: enablePasswordless }" :aria-checked="enablePasswordless" role="switch" @click="updateConfig('email_enable_passwordless', enablePasswordless ? '0' : '1')"><span class="email-toggle-knob" /></button>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">端口</label>
+              <NInput v-model:value="config.email_smtp_port" placeholder="465" :input-props="{ inputmode: 'numeric' }" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">发件账号</label>
+              <NInput v-model:value="config.email_smtp_user" placeholder="noreply@example.com" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">授权码 / 密码</label>
+              <NInput v-model:value="config.email_smtp_pass" type="password" show-password-on="click" placeholder="SMTP 授权码" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">发件人名称</label>
+              <NInput v-model:value="config.email_from_name" placeholder="系统通知" />
+              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">显示在邮件「发件人」字段</p>
             </div>
           </div>
-          <div v-if="forceVerify || enablePasswordless" class="email-toggle-note"><span class="pay-callback-dot" />验证码有效期 10 分钟，同一邮箱 60 秒内不可重复发送</div>
-        </div>
+        </section>
 
-        <div class="form-card">
-          <div class="form-card-title">发送测试</div>
-          <div class="email-test-row">
-            <input type="email" class="pay-field-input" style="flex: 1;" placeholder="输入测试收件邮箱" v-model="testTo" />
-            <button type="button" class="action-button secondary" :disabled="testing" @click="handleTestEmail">{{ testing ? '发送中...' : '发送测试邮件' }}</button>
+        <!-- 功能开关 -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">功能开关</h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+              <div>
+                <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">注册强制邮箱验证</p>
+                <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">开启后，注册时必须验证邮箱</p>
+              </div>
+              <NSwitch
+                :value="forceVerify"
+                size="small"
+                @update:value="(v: boolean) => updateConfig('email_force_verify', v ? '1' : '0')"
+              />
+            </div>
+            <div class="flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+              <div>
+                <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">启用邮箱验证码登录</p>
+                <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">用户可使用邮箱验证码免密登录</p>
+              </div>
+              <NSwitch
+                :value="enablePasswordless"
+                size="small"
+                @update:value="(v: boolean) => updateConfig('email_enable_passwordless', v ? '1' : '0')"
+              />
+            </div>
           </div>
-          <div v-if="testResult" class="email-test-result" :class="{ error: !testResult.includes('成功') }">{{ testResult }}</div>
-        </div>
+          <p v-if="forceVerify || enablePasswordless" class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
+            验证码有效期 10 分钟，同一邮箱 60 秒内不可重复发送
+          </p>
+        </section>
 
-        <div v-if="message" class="form-success" style="margin-bottom: 1rem;">{{ message }}</div>
-        <div v-if="error" class="form-error" style="margin-bottom: 1rem;">{{ error }}</div>
-        <div class="form-actions"><button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存配置' }}</button></div>
+        <!-- 发送测试 -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">发送测试</h3>
+          <div class="flex max-w-lg gap-2">
+            <NInput v-model:value="testTo" class="flex-1" placeholder="输入测试收件邮箱" :input-props="{ type: 'email' }" />
+            <NButton secondary :loading="testing" @click="handleTestEmail">发送测试邮件</NButton>
+          </div>
+          <p
+            v-if="testResult"
+            class="mt-3 rounded-lg px-3 py-2 text-sm"
+            :class="testResult.includes('成功')
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
+              : 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'"
+          >{{ testResult }}</p>
+        </section>
+
+        <NAlert v-if="message" type="success" closable @close="message = ''">{{ message }}</NAlert>
+        <NAlert v-if="error" type="error" closable @close="error = ''">{{ error }}</NAlert>
+
+        <NButton attr-type="submit" type="primary" :loading="saving">保存配置</NButton>
       </form>
     </template>
   </div>

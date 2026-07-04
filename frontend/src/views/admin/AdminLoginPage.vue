@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // 管理后台独立登录页：与前台 /login 分离，登录成功直接进入 /admin。
 // 仅密码登录（后台入口不提供验证码/注册通道）；非管理员账户登录会被拒绝并清除会话。
-// 样式：全局 styles/admin-login.css，沿用站点 Brutalist 设计系统（CSS 变量双主题）。
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { NButton, NInput, NIcon } from 'naive-ui'
+import { ShieldLock } from '@vicons/tabler'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -14,7 +15,7 @@ const username = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref('')
-const usernameInput = ref<HTMLInputElement | null>(null)
+const usernameInput = ref<InstanceType<typeof NInput> | null>(null)
 
 const redirect = (route.query.redirect as string) || '/admin'
 
@@ -43,8 +44,8 @@ async function handleSubmit() {
       return
     }
     router.push(redirect)
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '登录失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '登录失败'
   } finally {
     loading.value = false
   }
@@ -52,58 +53,62 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="admin-login-page">
-    <main class="admin-login-panel">
-      <header class="admin-login-head">
-        <div class="admin-login-brand">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="0" />
-            <path d="M7 11V7a5 5 0 0110 0v4" />
-          </svg>
-          <span class="admin-login-brand-text">XZJI 管理控制台</span>
+  <div class="relative flex min-h-dvh items-center justify-center overflow-hidden px-6 py-12">
+    <!-- 背景光晕：低调的品牌色渲染 -->
+    <div aria-hidden="true" class="pointer-events-none absolute -top-48 left-1/2 size-[560px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-400/8"></div>
+
+    <main class="relative w-full max-w-sm">
+      <div class="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
+          <NIcon :size="15"><ShieldLock /></NIcon>
+          <span class="text-xs font-medium tracking-wide">管理控制台</span>
         </div>
-        <h1 class="admin-login-title">管理员登录</h1>
-        <p class="admin-login-subtitle">使用管理员账户进入后台</p>
-      </header>
+        <h1 class="mt-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">管理员登录</h1>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">使用管理员账户进入后台</p>
 
-      <form class="admin-login-form" @submit.prevent="handleSubmit">
-        <div class="admin-login-field">
-          <label for="admin-username" class="admin-login-label">账号</label>
-          <input
-            id="admin-username"
-            ref="usernameInput"
-            type="text"
-            class="admin-login-input"
-            v-model="username"
-            :disabled="loading"
-            autocomplete="username"
-            spellcheck="false"
-          />
-        </div>
+        <form class="mt-7 space-y-4" @submit.prevent="handleSubmit">
+          <div>
+            <label for="admin-username" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">账号</label>
+            <NInput
+              id="admin-username"
+              ref="usernameInput"
+              v-model:value="username"
+              size="large"
+              placeholder="管理员账号"
+              :disabled="loading"
+              :input-props="{ autocomplete: 'username', spellcheck: false }"
+            />
+          </div>
 
-        <div class="admin-login-field">
-          <label for="admin-password" class="admin-login-label">密码</label>
-          <input
-            id="admin-password"
-            type="password"
-            class="admin-login-input"
-            v-model="password"
-            :disabled="loading"
-            autocomplete="current-password"
-          />
-        </div>
+          <div>
+            <label for="admin-password" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">密码</label>
+            <NInput
+              id="admin-password"
+              v-model:value="password"
+              type="password"
+              show-password-on="click"
+              size="large"
+              placeholder="密码"
+              :disabled="loading"
+              :input-props="{ autocomplete: 'current-password' }"
+            />
+          </div>
 
-        <div v-if="error" class="admin-login-error" role="alert">{{ error }}</div>
+          <p v-if="error" role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">
+            {{ error }}
+          </p>
 
-        <button type="submit" class="admin-login-submit" :disabled="loading">
-          {{ loading ? '验证中...' : '进入后台' }}
-        </button>
-      </form>
+          <NButton attr-type="submit" type="primary" size="large" block :loading="loading">
+            {{ loading ? '验证中...' : '进入后台' }}
+          </NButton>
+        </form>
+      </div>
 
-      <footer class="admin-login-footer">
-        <router-link to="/" class="admin-login-link">返回前台</router-link>
-        <router-link to="/forgot-password" class="admin-login-link">忘记密码？</router-link>
-      </footer>
+      <div class="mt-5 flex items-center justify-center gap-5 text-sm">
+        <router-link to="/" class="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">返回前台</router-link>
+        <span class="text-zinc-300 dark:text-zinc-700">/</span>
+        <router-link to="/forgot-password" class="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">忘记密码？</router-link>
+      </div>
     </main>
   </div>
 </template>

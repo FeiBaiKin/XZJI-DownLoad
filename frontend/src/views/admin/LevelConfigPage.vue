@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// 等级配置：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/LevelConfig.jsx
-// 样式来自全局 styles/admin-extra.css
+// 等级配置：等级名称与所需经验（PUT 纯数组，适配 GO 契约）
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted } from 'vue'
+import { NButton, NInput, NInputNumber, NAlert, NSkeleton, NIcon } from 'naive-ui'
+import { Plus, X } from '@vicons/tabler'
 import api from '@/api'
 import type { LevelConfig } from '@/types/api'
 
@@ -21,7 +23,7 @@ async function fetchLevels() {
 }
 
 function updateLevel(idx: number, field: string, value: string | number) {
-  levels.value[idx] = { ...levels.value[idx], [field]: value }
+  levels.value[idx] = { ...levels.value[idx]!, [field]: value }
 }
 
 function addLevel() {
@@ -38,7 +40,7 @@ async function handleSave() {
   saving.value = true
   message.value = ''
   try {
-    // 后端 level-config PUT 接收纯数组（原版发送 {levels}），此处适配 GO 契约
+    // 后端 level-config PUT 接收纯数组
     await api.put('/admin/level-config', levels.value)
     message.value = '保存成功'
     fetchLevels()
@@ -48,29 +50,71 @@ async function handleSave() {
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="360px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">等级配置</h2>
-        <button class="action-link" @click="addLevel">+ 添加等级</button>
-      </div>
-      <div class="profile-section">
+      <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">等级配置</h2>
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">经验来自充值赠送与每日签到，达标自动升级</p>
+        </div>
+        <NButton secondary @click="addLevel">
+          <template #icon><NIcon><Plus /></NIcon></template>
+          添加等级
+        </NButton>
+      </header>
+
+      <section class="max-w-2xl rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <form @submit.prevent="handleSave">
-          <div class="level-config-list">
-            <div v-for="(lv, idx) in levels" :key="idx" class="level-config-row">
-              <div class="level-num">Lv.{{ lv.level }}</div>
-              <input type="text" class="form-input level-label-input" placeholder="等级名称" :value="lv.label || ''" @input="(e) => updateLevel(idx, 'label', (e.target as HTMLInputElement).value)" />
-              <input type="number" class="form-input level-exp-input" min="0" placeholder="所需经验" :value="lv.exp_required" @input="(e) => updateLevel(idx, 'exp_required', parseInt((e.target as HTMLInputElement).value) || 0)" />
-              <button type="button" class="action-link" style="color: var(--danger);" @click="removeLevel(idx)">删除</button>
+          <div class="space-y-2.5">
+            <div
+              v-for="(lv, idx) in levels"
+              :key="idx"
+              class="flex items-center gap-3 rounded-xl border border-zinc-200 px-3.5 py-2.5 dark:border-zinc-700/80"
+            >
+              <span class="w-14 shrink-0 font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400">Lv.{{ lv.level }}</span>
+              <NInput
+                size="small"
+                class="flex-1"
+                placeholder="等级名称"
+                :value="lv.label || ''"
+                @update:value="(v: string) => updateLevel(idx, 'label', v)"
+              />
+              <NInputNumber
+                size="small"
+                class="w-36"
+                :min="0"
+                placeholder="所需经验"
+                :show-button="false"
+                :value="lv.exp_required"
+                @update:value="(v: number | null) => updateLevel(idx, 'exp_required', v ?? 0)"
+              >
+                <template #suffix><span class="text-[11px] text-zinc-400">EXP</span></template>
+              </NInputNumber>
+              <button
+                type="button"
+                class="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                title="删除此等级"
+                @click="removeLevel(idx)"
+              >
+                <NIcon :size="14"><X /></NIcon>
+              </button>
             </div>
           </div>
-          <div v-if="message" :class="message === '保存成功' ? 'form-success' : 'form-error'">{{ message }}</div>
-          <div class="form-actions">
-            <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存配置' }}</button>
+
+          <NAlert v-if="message" :type="message === '保存成功' ? 'success' : 'error'" class="mt-4" closable @close="message = ''">
+            {{ message }}
+          </NAlert>
+
+          <div class="mt-5">
+            <NButton attr-type="submit" type="primary" :loading="saving">保存配置</NButton>
           </div>
         </form>
-      </div>
+      </section>
     </template>
   </div>
 </template>

@@ -1,14 +1,21 @@
 <script setup lang="ts">
-// 首页：1:1 移植自原项目 Node-XZJI/frontend/src/HomeApp.jsx
-// 样式全部来自全局 styles/home.css + modal.css + toast.css（移植自原项目）
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+// 首页：搜索、分类浏览、内容块渲染（含付费链接购买）、公告弹窗、支付回跳提示
+// 业务逻辑与后端契约保持不变；UI 重构为 Naive UI + Tailwind
+import { ref, computed, onMounted, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import {
+  NButton, NIcon, NDropdown, NModal, NTag, NEmpty, NSkeleton,
+} from 'naive-ui'
+import {
+  Search, Sun, MoonStars, Copy, ExternalLink, Lock, Crown, ArrowRight, AlertCircle, Check, X,
+} from '@vicons/tabler'
 import api from '@/api'
 import { contentApi, type Page, type Category, type Announcement } from '@/api/content'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useToastStore } from '@/stores/toast'
 import { blockAccess } from '@/utils/blockAccess'
+import type { KeywordBlock } from '@/types/api'
 import DOMPurify from 'dompurify'
 
 const auth = useAuthStore()
@@ -36,8 +43,29 @@ function checkPaymentReturn() {
 }
 
 // ── 状态 ──
+interface SearchResult {
+  keywordId?: number
+  keyword: string
+  response: string | KeywordBlock[]
+  timestamp: string
+  source?: string
+}
+interface PublicKeyword {
+  id: number
+  keyword: string
+  description?: string
+}
+interface PurchaseDialogState {
+  keywordId: number
+  blockIndex: number
+  block: KeywordBlock
+  cost: number
+  access: 'balance' | 'membership'
+  key: string
+}
+
 const keyword = ref('')
-const result = ref<any>(null)
+const result = ref<SearchResult | null>(null)
 const loading = ref(false)
 const error = ref('')
 const settings = ref({
@@ -47,16 +75,14 @@ const settings = ref({
   siteLogoType: 'text',
   siteLogoUrl: '',
 })
-const userDropdownOpen = ref(false)
-const themeDropdownOpen = ref(false)
 const copiedIdx = ref<number | null>(null)
-const purchaseDialog = ref<any>(null)
+const purchaseDialog = ref<PurchaseDialogState | null>(null)
 const purchaseLoading = ref(false)
 const purchasedLinks = ref<Record<string, string>>({})
 const purchasedCodes = ref<Record<string, string>>({})
 
 // 关键词浏览
-const keywords = ref<any[]>([])
+const keywords = ref<PublicKeyword[]>([])
 const keywordsLoading = ref(true)
 const categories = ref<Category[]>([])
 const selectedCategory = ref<number | null>(null)
@@ -64,12 +90,9 @@ const pages = ref<Page[]>([])
 const copiedKeywordId = ref<number | null>(null)
 
 // 公告
-const announcements = ref<Announcement[]>([])
 const visibleAnn = ref<Announcement | null>(null)
 
 const inputRef = ref<HTMLInputElement | null>(null)
-const userDropdownRef = ref<HTMLElement | null>(null)
-const themeDropdownRef = ref<HTMLElement | null>(null)
 
 const isLoggedIn = computed(() => auth.isLoggedIn)
 const isAdmin = computed(() => auth.isAdmin)
@@ -84,10 +107,19 @@ const isMember = computed(() => {
 const currentBalance = computed(() => auth.user?.balance ?? 0)
 
 // Logo 首字母
-const logoLetter = computed(() => (settings.value.siteName?.[0] || '').toUpperCase())
+const logoLetter = computed(() => (settings.value.siteName?.[0] || 'X').toUpperCase())
+
+// 搜索结果内容块（数组形式时）
+const resultBlocks = computed<KeywordBlock[] | null>(() =>
+  Array.isArray(result.value?.response) ? (result.value!.response as KeywordBlock[]) : null
+)
 
 // 公告正文（消毒后）
 const annContent = computed(() => DOMPurify.sanitize(visibleAnn.value?.content || '暂无内容'))
+const annTagType = computed(() => {
+  const t = visibleAnn.value?.type
+  return t === 'warning' ? 'warning' : t === 'success' ? 'success' : 'info'
+})
 const annTypeLabels: Record<string, string> = { info: '通知', warning: '重要', success: '活动' }
 
 // ── 数据加载 ──
@@ -100,10 +132,7 @@ onMounted(async () => {
     fetchPages(),
     fetchAnnouncements(),
   ])
-  attachClickOutside()
 })
-
-onUnmounted(() => detachClickOutside())
 
 async function fetchSettings() {
   try {
@@ -129,7 +158,6 @@ async function fetchAnnouncements() {
       const dismissed = JSON.parse(localStorage.getItem('dismissed_announcements') || '{}')
       const firstUnseen = data.find((a: Announcement) => !dismissed[a.id])
       if (firstUnseen) {
-        announcements.value = data
         visibleAnn.value = firstUnseen
       }
     }
@@ -139,30 +167,20 @@ async function fetchAnnouncements() {
 // 分类切换 → 重新拉取关键词
 watch(selectedCategory, (id) => { fetchKeywords(id) })
 
-// ── 主题下拉 ──
-function applyTheme(t: 'dark' | 'light') {
-  theme.setTheme(t)
-  themeDropdownOpen.value = false
-}
-
-// ── 点击外部关闭下拉菜单 ──
-let clickOutsideHandler: ((e: MouseEvent) => void) | null = null
-function attachClickOutside() {
-  clickOutsideHandler = (e: MouseEvent) => {
-    if (userDropdownRef.value && !userDropdownRef.value.contains(e.target as Node)) userDropdownOpen.value = false
-    if (themeDropdownRef.value && !themeDropdownRef.value.contains(e.target as Node)) themeDropdownOpen.value = false
+// ── 用户下拉菜单 ──
+const userMenuOptions = computed(() => {
+  const opts: { label: string; key: string }[] = [{ label: '用户中心', key: 'user' }]
+  if (isAdmin.value) opts.push({ label: '管理后台', key: 'admin' })
+  opts.push({ label: '退出登录', key: 'logout' })
+  return opts
+})
+function handleUserMenuSelect(key: string) {
+  if (key === 'user') router.push('/user')
+  else if (key === 'admin') router.push('/admin')
+  else if (key === 'logout') {
+    auth.logout()
+    router.push('/')
   }
-  document.addEventListener('mousedown', clickOutsideHandler)
-}
-function detachClickOutside() {
-  if (clickOutsideHandler) document.removeEventListener('mousedown', clickOutsideHandler)
-}
-
-// ── 退出登录 ──
-function handleLogout() {
-  auth.logout()
-  userDropdownOpen.value = false
-  router.push('/')
 }
 
 // ── 复制提取码 ──
@@ -174,7 +192,7 @@ function handleCopyCode(code: string, idx: number) {
 }
 
 // ── 关键词卡片：复制关键词 ──
-function handleKeywordClick(kw: Keyword) {
+function handleKeywordClick(kw: PublicKeyword) {
   navigator.clipboard.writeText(kw.keyword).then(() => {
     copiedKeywordId.value = kw.id
     toast.success(`已复制「${kw.keyword}」，粘贴到搜索框获取资源`)
@@ -183,16 +201,20 @@ function handleKeywordClick(kw: Keyword) {
   }).catch(() => toast.error('复制失败，请手动复制'))
 }
 
-// ── 分类筛选 ──
-function handleCategorySelect(id: number | null) { selectedCategory.value = id }
-
-// ── 链接访问控制（收敛至 utils/blockAccess.ts，与后端 service/content.go:450 保持一致）──
+// ── 链接访问控制（收敛至 utils/blockAccess.ts，与后端 service/content.go 保持一致）──
 
 // 取某块的提取码：免费链接用 response 中的 code；付费链接仅在已购买时用缓存的 code（脱敏后真实 code 不在 response 里）
 function blockCode(block: KeywordBlock, i: number): string {
   if (blockAccess(block) === 'free') return block.code || ''
   const key = `${result.value?.keywordId}-${i}`
   return purchasedCodes.value[key] || ''
+}
+
+function linkIconOf(block: KeywordBlock): Component {
+  const access = blockAccess(block)
+  if (access === 'membership') return Crown
+  if (access === 'balance') return Lock
+  return ExternalLink
 }
 
 function handleLinkClick(e: Event, block: KeywordBlock, idx: number) {
@@ -202,6 +224,7 @@ function handleLinkClick(e: Event, block: KeywordBlock, idx: number) {
   e.preventDefault()
 
   if (!isLoggedIn.value) { router.push('/login'); return }
+  if (!result.value?.keywordId) return
 
   const key = `${result.value.keywordId}-${idx}`
   // 已购买：用缓存的真实 URL 打开（response 里的 url 已脱敏为空）
@@ -229,8 +252,8 @@ async function handlePurchase() {
     purchaseDialog.value = null
     window.open(data.url, '_blank')
     if (data.balance !== undefined && auth.user) auth.user.balance = data.balance
-  } catch (err: any) {
-    const data = err?.response?.data
+  } catch (err: unknown) {
+    const data = (err as { response?: { data?: { error?: string } } })?.response?.data
     const errMsg = data?.error || '购买失败'
     toast.error(errMsg)
     if (d.access === 'membership' && errMsg.includes('会员')) {
@@ -254,8 +277,7 @@ async function handleSearch() {
 
   try {
     const data = await contentApi.public.search(keyword.value.trim())
-    // 解析 response：后端返回 JSON 字符串（块数组或纯文本），原版 Node 在后端 JSON.parse，
-    // Go 版后端返回原始字符串，此处前端解析以兼容块渲染与纯文本。
+    // 解析 response：后端返回 JSON 字符串（块数组或纯文本），前端解析以兼容块渲染与纯文本
     if (typeof data.response === 'string') {
       try { data.response = JSON.parse(data.response) } catch { /* 纯文本，保持字符串 */ }
     }
@@ -281,15 +303,11 @@ async function handleSearch() {
       purchasedLinks.value = paid
       purchasedCodes.value = paidCodes
     }
-  } catch (err: any) {
-    error.value = err?.message || '搜索失败，请重试'
+  } catch (err: unknown) {
+    error.value = (err as Error)?.message || '搜索失败，请重试'
   } finally {
     loading.value = false
   }
-}
-
-function handleKeyPress(e: KeyboardEvent) {
-  if (e.key === 'Enter') handleSearch()
 }
 
 // 时间戳格式化（结果元信息）
@@ -317,360 +335,405 @@ const keywordsSectionTitle = computed(() => {
 </script>
 
 <template>
-  <div class="app">
-    <!-- ── 公告弹窗 ── -->
-    <div v-if="visibleAnn" class="modal-overlay" @click="dismissAnnouncement">
-      <div class="modal-content announcement-modal" @click.stop>
-        <div class="modal-header">
-          <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <span class="announcement-type-badge" :class="visibleAnn.type || 'info'">
-              {{ annTypeLabels[visibleAnn.type] || visibleAnn.type }}
-            </span>
-            <h3>{{ visibleAnn.title }}</h3>
-          </div>
-          <button class="modal-close" @click="dismissAnnouncement">X</button>
-        </div>
-        <div class="announcement-body">
-          <div v-html="annContent" />
-        </div>
-        <div class="announcement-actions">
-          <button class="action-button" @click="dismissAnnouncement">我知道了</button>
-        </div>
-      </div>
-    </div>
-
+  <div class="flex min-h-dvh flex-col">
     <!-- ── Header ── -->
-    <header class="header">
-      <div class="logo">
-        <router-link v-if="settings.siteLogoType === 'image' && settings.siteLogoUrl" to="/">
-          <img :src="settings.siteLogoUrl" :alt="settings.siteName || 'Logo'" class="logo-img" />
+    <header class="sticky top-0 z-30 border-b border-zinc-200/70 bg-white/80 backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80">
+      <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <router-link to="/" class="flex items-center gap-2.5">
+          <img
+            v-if="settings.siteLogoType === 'image' && settings.siteLogoUrl"
+            :src="settings.siteLogoUrl"
+            :alt="settings.siteName || 'Logo'"
+            class="h-8 w-auto"
+          />
+          <template v-else>
+            <span class="grid size-8 place-items-center rounded-lg bg-emerald-600 text-sm font-bold text-white dark:bg-emerald-400 dark:text-zinc-950">
+              {{ logoLetter }}
+            </span>
+            <span class="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{{ settings.siteName }}</span>
+          </template>
         </router-link>
-        <template v-else>
-          <span class="logo-mark">{{ logoLetter }}</span>
-          <span class="logo-text">{{ settings.siteName }}</span>
-        </template>
-      </div>
-      <div class="header-right">
-        <!-- 主题切换下拉 -->
-        <div class="theme-toggle" ref="themeDropdownRef">
+
+        <div class="flex items-center gap-2">
+          <!-- 主题切换 -->
           <button
-            class="theme-toggle-btn"
-            @click="themeDropdownOpen = !themeDropdownOpen"
-            title="切换主题"
+            type="button"
+            class="flex size-9 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
+            @click="theme.toggle()"
           >
-            <svg v-if="!theme.isDark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="5" />
-              <line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-              <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-            </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
+            <NIcon :size="18">
+              <Sun v-if="theme.isDark" />
+              <MoonStars v-else />
+            </NIcon>
           </button>
 
-          <div v-if="themeDropdownOpen" class="dropdown-menu theme-dropdown-menu">
-            <button
-              class="dropdown-item"
-              :class="{ 'theme-active': theme.isDark }"
-              @click="applyTheme('dark')"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-option-icon">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-              深色模式
+          <!-- 已登录：用户下拉 -->
+          <NDropdown v-if="isLoggedIn" :options="userMenuOptions" trigger="click" @select="handleUserMenuSelect">
+            <button type="button" class="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+              <img
+                v-if="auth.user?.avatar"
+                :src="auth.user.avatar"
+                alt=""
+                class="size-9 rounded-full border border-zinc-200 object-cover dark:border-zinc-700"
+              />
+              <span
+                v-else
+                class="grid size-9 place-items-center rounded-full bg-zinc-200 text-sm font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                {{ (auth.user?.nickname || auth.user?.username || 'U')[0]!.toUpperCase() }}
+              </span>
             </button>
-            <button
-              class="dropdown-item"
-              :class="{ 'theme-active': !theme.isDark }"
-              @click="applyTheme('light')"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-option-icon">
-                <circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-              </svg>
-              浅色模式
-            </button>
-          </div>
-        </div>
+          </NDropdown>
 
-        <!-- 已登录：用户下拉 -->
-        <div v-if="isLoggedIn" class="user-dropdown" ref="userDropdownRef">
-          <button class="avatar-trigger" @click="userDropdownOpen = !userDropdownOpen">
-            <img v-if="auth.user?.avatar" :src="auth.user.avatar" alt="" class="avatar-trigger-img" />
-            <div v-else class="avatar-trigger-placeholder">
-              {{ (auth.user?.nickname || auth.user?.username || 'U')[0].toUpperCase() }}
-            </div>
-          </button>
-
-          <div v-if="userDropdownOpen" class="dropdown-menu">
-            <div class="dropdown-header">
-              <span class="dropdown-name">{{ auth.user?.nickname || auth.user?.username }}</span>
-              <span class="dropdown-role">{{ auth.user?.role === 'admin' ? '管理员' : '用户' }}</span>
-            </div>
-            <div class="dropdown-divider" />
-            <router-link to="/user" class="dropdown-item" @click="userDropdownOpen = false">用户中心</router-link>
-            <router-link v-if="isAdmin" to="/admin" class="dropdown-item" @click="userDropdownOpen = false">管理后台</router-link>
-            <button class="dropdown-item dropdown-item-danger" @click="handleLogout">退出登录</button>
-          </div>
-        </div>
-
-        <!-- 未登录：登录/注册 -->
-        <div v-else class="header-actions">
-          <router-link to="/login" class="header-link">登录</router-link>
-          <router-link to="/register" class="header-link header-link-primary">注册</router-link>
+          <!-- 未登录：登录 / 注册 -->
+          <template v-else>
+            <NButton quaternary size="small" @click="router.push('/login')">登录</NButton>
+            <NButton type="primary" size="small" @click="router.push('/register')">注册</NButton>
+          </template>
         </div>
       </div>
     </header>
 
-    <main class="main">
+    <main class="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6">
       <!-- ── Hero + 搜索 ── -->
-      <div class="hero">
-        <p class="hero-tagline">关键词驱动的内容发现</p>
-        <h1 class="title">{{ settings.siteName }}</h1>
-        <p class="subtitle">{{ settings.siteDescription }}</p>
-      </div>
+      <section class="pt-14 pb-4 sm:pt-20">
+        <h1 class="text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl dark:text-zinc-50">
+          {{ settings.siteName }}
+        </h1>
+        <p v-if="settings.siteDescription" class="mt-3 max-w-xl text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+          {{ settings.siteDescription }}
+        </p>
 
-      <!-- ── 搜索区 ── -->
-      <div class="search-section">
-        <div class="input-group">
-          <label for="keyword-input" class="input-label">输入关键词搜索</label>
-          <div class="input-wrapper">
+        <!-- 搜索框 -->
+        <div class="mt-8 max-w-2xl">
+          <div
+            class="flex h-14 items-center gap-3 rounded-2xl border border-zinc-300 bg-white pr-2 pl-4 shadow-sm transition-colors focus-within:border-emerald-500 hover:border-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:focus-within:border-emerald-400 dark:hover:border-zinc-600"
+          >
+            <NIcon :size="20" class="shrink-0 text-zinc-400"><Search /></NIcon>
             <input
-              id="keyword-input"
               ref="inputRef"
-              type="text"
-              class="search-input"
-              placeholder="hello, node, react..."
               v-model="keyword"
-              @keypress="handleKeyPress"
+              type="text"
+              class="h-full min-w-0 flex-1 bg-transparent text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              placeholder="输入关键词，获取对应资源…"
               :disabled="loading"
               autocomplete="off"
               spellcheck="false"
+              @keypress.enter="handleSearch"
             />
-            <button class="search-button" @click="handleSearch" :disabled="loading || !keyword.trim()">
-              <span v-if="loading" class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
-              <span v-else>搜索</span>
-            </button>
+            <NButton type="primary" size="large" round :loading="loading" :disabled="!keyword.trim()" @click="handleSearch">
+              搜索
+            </NButton>
           </div>
-          <p v-if="error" class="error-text">{{ error }}</p>
+          <p v-if="error" class="mt-2 pl-1 text-sm text-red-500 dark:text-red-400">{{ error }}</p>
         </div>
-      </div>
 
-      <!-- ── 分类胶囊 ── -->
-      <div v-if="categories.length > 0" class="category-pills">
-        <button
-          class="category-pill"
-          :class="{ active: selectedCategory === null }"
-          @click="handleCategorySelect(null)"
-        >全部</button>
-        <button
-          v-for="c in categories"
-          :key="c.id"
-          class="category-pill"
-          :class="{ active: selectedCategory === c.id }"
-          @click="handleCategorySelect(c.id)"
-          :title="c.description || c.name"
-        >{{ c.name }}</button>
-      </div>
+        <!-- 分类胶囊 -->
+        <div v-if="categories.length > 0" class="mt-6 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+            :class="selectedCategory === null
+              ? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-zinc-950'
+              : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-200'"
+            @click="selectedCategory = null"
+          >全部</button>
+          <button
+            v-for="c in categories"
+            :key="c.id"
+            type="button"
+            class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+            :class="selectedCategory === c.id
+              ? 'border-emerald-600 bg-emerald-600 text-white dark:border-emerald-400 dark:bg-emerald-400 dark:text-zinc-950'
+              : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-500 dark:hover:text-zinc-200'"
+            :title="c.description || c.name"
+            @click="selectedCategory = c.id"
+          >{{ c.name }}</button>
+        </div>
+      </section>
 
       <!-- ── 搜索结果 ── -->
-      <div v-if="result" class="result-section" :key="result.timestamp">
-        <div class="result-content">
-          <div v-if="Array.isArray(result.response)" class="result-blocks">
-            <template v-for="(block, i) in result.response" :key="i">
-              <div v-if="block.type === 'text' && block.text" class="result-block-text">{{ block.text }}</div>
-              <div v-else-if="block.type === 'image' && block.src" class="result-block-image">
-                <img :src="block.src" :alt="block.alt || ''" />
-              </div>
-              <div
-                v-else-if="block.type === 'link'"
-                class="result-block-link-wrap"
-                :class="{ 'paid-link': blockAccess(block) !== 'free' }"
-              >
+      <section v-if="result" :key="result.timestamp" class="mt-8">
+        <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="p-5 sm:p-6">
+            <div v-if="resultBlocks" class="space-y-3">
+              <template v-for="(block, i) in resultBlocks" :key="i">
+                <!-- 文本块 -->
+                <p v-if="block.type === 'text' && block.text" class="text-[15px] leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">
+                  {{ block.text }}
+                </p>
+
+                <!-- 图片块 -->
+                <img
+                  v-else-if="block.type === 'image' && block.src"
+                  :src="block.src"
+                  :alt="block.alt || ''"
+                  class="max-h-96 rounded-xl border border-zinc-100 dark:border-zinc-800"
+                />
+
+                <!-- 链接块 -->
                 <a
+                  v-else-if="block.type === 'link'"
                   :href="blockAccess(block) === 'free' ? block.url : 'javascript:void(0)'"
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="result-block-link"
-                  :class="{ 'has-cost': blockAccess(block) !== 'free' }"
+                  class="group flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 transition-colors"
+                  :class="blockAccess(block) !== 'free'
+                    ? 'border-amber-200 bg-amber-50/60 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/5 dark:hover:border-amber-400/40'
+                    : 'border-zinc-200 hover:border-emerald-400 dark:border-zinc-700 dark:hover:border-emerald-400/60'"
                   @click="(e) => handleLinkClick(e, block, i)"
                 >
-                  <span class="result-block-link-icon">
-                    {{ blockAccess(block) !== 'free' ? (blockAccess(block) === 'membership' ? 'M' : 'L') : '\u2197' }}
-                  </span>
-                  <span class="result-block-link-label">{{ block.label || '链接' }}</span>
                   <span
+                    class="grid size-9 shrink-0 place-items-center rounded-lg"
+                    :class="blockAccess(block) !== 'free'
+                      ? 'bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
+                      : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'"
+                  >
+                    <NIcon :size="18"><component :is="linkIconOf(block)" /></NIcon>
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-sm font-medium text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white">
+                    {{ block.label || '链接' }}
+                  </span>
+                  <NTag
                     v-if="blockAccess(block) !== 'free' && !purchasedLinks[`${result.keywordId}-${i}`]"
-                    class="result-block-link-cost"
+                    :type="blockAccess(block) === 'membership' ? 'warning' : 'default'"
+                    size="small"
+                    round
                   >
-                    {{ blockAccess(block) === 'membership' ? '会员免费' : `${block.cost || 0} 元` }}
-                  </span>
-                  <span
+                    {{ blockAccess(block) === 'membership' ? '会员免费' : `¥${block.cost || 0}` }}
+                  </NTag>
+                  <NTag
+                    v-if="blockAccess(block) !== 'free' && purchasedLinks[`${result.keywordId}-${i}`]"
+                    type="success"
+                    size="small"
+                    round
+                  >已购买</NTag>
+                  <button
                     v-if="blockCode(block, i)"
-                    class="result-block-link-code"
-                    :class="{ copied: copiedIdx === i }"
-                    @click="(e) => { e.preventDefault(); e.stopPropagation(); handleCopyCode(blockCode(block, i), i) }"
+                    type="button"
+                    class="flex items-center gap-1.5 rounded-md border border-dashed px-2 py-1 font-mono text-xs transition-colors"
+                    :class="copiedIdx === i
+                      ? 'border-emerald-400 text-emerald-600 dark:text-emerald-400'
+                      : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-200'"
                     title="点击复制提取码"
+                    @click.prevent.stop="handleCopyCode(blockCode(block, i), i)"
                   >
-                    {{ copiedIdx === i ? '已复制!' : `提取码: ${blockCode(block, i)}` }}
-                  </span>
+                    <NIcon :size="12"><Check v-if="copiedIdx === i" /><Copy v-else /></NIcon>
+                    {{ copiedIdx === i ? '已复制' : `提取码 ${blockCode(block, i)}` }}
+                  </button>
                 </a>
-              </div>
-            </template>
+              </template>
+            </div>
+            <p v-else class="text-[15px] leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300">{{ result.response }}</p>
           </div>
-          <div v-else class="result-text-response">{{ result.response }}</div>
+
+          <!-- 结果元信息 -->
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-zinc-100 bg-zinc-50/60 px-5 py-2.5 text-xs text-zinc-400 sm:px-6 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-500">
+            <span class="font-mono font-medium text-emerald-600 dark:text-emerald-400">{{ result.keyword }}</span>
+            <span class="font-mono">{{ formatTimestamp(result.timestamp) }}</span>
+            <span v-if="result.source" class="font-mono">{{ result.source }}</span>
+          </div>
         </div>
-        <div class="result-meta">
-          <span class="result-meta-item result-meta-keyword">{{ result.keyword }}</span>
-          <span class="result-meta-sep" />
-          <span class="result-meta-item">{{ formatTimestamp(result.timestamp) }}</span>
-          <span class="result-meta-sep" />
-          <span class="result-meta-item result-meta-source">{{ result.source }}</span>
-        </div>
-      </div>
+      </section>
 
       <!-- ── 关键词浏览区 ── -->
-      <div class="keywords-section">
-        <div class="keywords-section-header">
-          <h2 class="keywords-section-title">{{ keywordsSectionTitle }}</h2>
-          <span v-if="!keywordsLoading" class="keywords-section-count">{{ keywords.length }} 个关键词</span>
+      <section class="mt-14">
+        <div class="mb-4 flex items-baseline justify-between">
+          <h2 class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{{ keywordsSectionTitle }}</h2>
+          <span v-if="!keywordsLoading" class="font-mono text-xs text-zinc-400 dark:text-zinc-500">{{ keywords.length }} 个关键词</span>
         </div>
 
-        <div v-if="keywordsLoading" class="keywords-grid">
-          <div v-for="i in 6" :key="i" class="keyword-skeleton">
-            <div class="skeleton-line" />
-            <div class="skeleton-line" />
-            <div class="skeleton-line" />
+        <!-- 加载骨架 -->
+        <div v-if="keywordsLoading" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-for="i in 6" :key="i" class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+            <NSkeleton text width="55%" />
+            <NSkeleton text width="90%" class="mt-2" />
+            <NSkeleton text width="35%" class="mt-2" />
           </div>
         </div>
-        <div v-else-if="keywords.length === 0" class="keywords-grid">
-          <div class="keywords-empty">
-            <p class="keywords-empty-text">{{ selectedCategory ? '该分类下暂无关键词' : '暂无关键词' }}</p>
-            <p class="keywords-empty-hint">{{ selectedCategory ? '试试其他分类，或在后台添加关键词' : '在管理后台添加关键词后将在此展示' }}</p>
-          </div>
+
+        <!-- 空状态 -->
+        <div v-else-if="keywords.length === 0" class="rounded-xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700">
+          <NEmpty :description="selectedCategory ? '该分类下暂无关键词' : '暂无关键词'">
+            <template #extra>
+              <span class="text-xs text-zinc-400 dark:text-zinc-500">
+                {{ selectedCategory ? '试试其他分类，或在后台添加关键词' : '在管理后台添加关键词后将在此展示' }}
+              </span>
+            </template>
+          </NEmpty>
         </div>
-        <div v-else class="keywords-grid">
-          <div
+
+        <!-- 关键词卡片 -->
+        <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <button
             v-for="kw in keywords"
             :key="kw.id"
-            class="keyword-card"
-            :class="{ 'copied-flash': copiedKeywordId === kw.id }"
-            @click="handleKeywordClick(kw)"
+            type="button"
+            class="group rounded-xl border bg-white p-4 text-left transition-all dark:bg-zinc-900"
+            :class="copiedKeywordId === kw.id
+              ? 'border-emerald-500 ring-1 ring-emerald-500/40 dark:border-emerald-400'
+              : 'border-zinc-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:shadow-sm dark:border-zinc-800 dark:hover:border-emerald-400/50'"
             title="点击复制关键词"
+            @click="handleKeywordClick(kw)"
           >
-            <div class="keyword-card-header">
-              <span class="keyword-card-name">{{ kw.keyword }}</span>
-              <button class="keyword-card-copy-icon" @click.stop="handleKeywordClick(kw)" title="复制关键词">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-              </button>
+            <div class="flex items-center justify-between gap-2">
+              <span class="truncate text-[15px] font-medium text-zinc-900 dark:text-zinc-100">{{ kw.keyword }}</span>
+              <NIcon
+                :size="15"
+                class="shrink-0 transition-colors"
+                :class="copiedKeywordId === kw.id ? 'text-emerald-500' : 'text-zinc-300 group-hover:text-emerald-500 dark:text-zinc-600'"
+              >
+                <Check v-if="copiedKeywordId === kw.id" /><Copy v-else />
+              </NIcon>
             </div>
-            <p v-if="kw.description" class="keyword-card-desc">{{ kw.description }}</p>
-            <div class="keyword-card-meta"><span>点击复制</span></div>
-          </div>
+            <p v-if="kw.description" class="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">{{ kw.description }}</p>
+            <p class="mt-2 text-xs" :class="copiedKeywordId === kw.id ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-600'">
+              {{ copiedKeywordId === kw.id ? '已复制' : '点击复制' }}
+            </p>
+          </button>
         </div>
-      </div>
+      </section>
 
       <!-- ── 自定义页面区 ── -->
-      <div v-if="pages.length > 0" class="pages-section">
-        <div class="pages-section-header">
-          <h2 class="pages-section-title">更多信息</h2>
-        </div>
-        <div class="pages-grid">
+      <section v-if="pages.length > 0" class="mt-14 mb-4">
+        <h2 class="mb-4 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">更多信息</h2>
+        <div class="flex flex-wrap gap-2.5">
           <router-link
             v-for="p in pages"
             :key="p.id"
             :to="`/page/${p.slug}`"
-            class="page-link-card"
+            class="group inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-600 transition-colors hover:border-emerald-400/70 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:border-emerald-400/50 dark:hover:text-zinc-100"
           >
-            <span>{{ p.title }}</span>
-            <span class="page-link-card-arrow">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </span>
+            {{ p.title }}
+            <NIcon :size="14" class="text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-500 dark:text-zinc-600">
+              <ArrowRight />
+            </NIcon>
           </router-link>
         </div>
-      </div>
+      </section>
     </main>
 
-    <footer class="footer">
-      <span class="footer-text">{{ settings.footerText }}</span>
-      <span class="footer-dot">-</span>
-      <span class="footer-text">XZJI</span>
+    <!-- ── Footer ── -->
+    <footer class="mt-16 border-t border-zinc-200 py-8 dark:border-zinc-800/80">
+      <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 text-[13px] text-zinc-400 sm:px-6 dark:text-zinc-500">
+        <span>{{ settings.footerText }}</span>
+        <span v-if="settings.footerText" class="text-zinc-300 dark:text-zinc-700">/</span>
+        <span>{{ settings.siteName || 'XZJI' }}</span>
+      </div>
     </footer>
 
-    <!-- ── 购买确认弹窗 ── -->
-    <div v-if="purchaseDialog" class="modal-overlay" @click="purchaseDialog = null">
-      <div class="modal-content purchase-modal" @click.stop>
-        <div class="modal-header">
-          <h3>{{ purchaseDialog.access === 'membership' ? '会员免费链接' : '链接需要付费' }}</h3>
-          <button class="modal-close" @click="purchaseDialog = null">X</button>
-        </div>
-        <div class="purchase-info">
-          <p class="purchase-label">链接名称</p>
-          <p class="purchase-value">{{ purchaseDialog.block.label || purchaseDialog.block.url }}</p>
-
-          <template v-if="purchaseDialog.access === 'membership'">
-            <p class="purchase-label">会员免费访问</p>
-            <p class="purchase-value" style="color: var(--text-primary);">开通会员后免费下载，每日有次数限制</p>
-            <p class="purchase-label">非会员价格</p>
-            <p class="purchase-cost">{{ purchaseDialog.cost > 0 ? `${purchaseDialog.cost} 元` : '不可购买' }}</p>
-          </template>
-          <template v-else>
-            <div v-if="isMember" class="purchase-discount-badge">
-              <span class="purchase-discount-icon">M</span>
-              <span>会员折扣：购买付费链接将自动享受会员折扣价</span>
-            </div>
-            <p class="purchase-label">所需余额</p>
-            <p class="purchase-cost">{{ purchaseDialog.cost }} 元</p>
-          </template>
-
-          <p class="purchase-label">当前余额</p>
-          <p class="purchase-balance" :class="{ insufficient: currentBalance < purchaseDialog.cost }">
-            {{ currentBalance.toFixed(2) }} 元
-          </p>
-
-          <div
-            v-if="currentBalance < purchaseDialog.cost && purchaseDialog.access !== 'membership'"
-            class="purchase-warning"
-          >
-            <span class="purchase-warning-icon">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </span>
-            <span>余额不足，还需 <strong>{{ (purchaseDialog.cost - currentBalance).toFixed(2) }}</strong> 元</span>
+    <!-- ── 公告弹窗 ── -->
+    <NModal :show="!!visibleAnn" @update:show="(v: boolean) => { if (!v) dismissAnnouncement() }">
+      <div v-if="visibleAnn" class="w-[92vw] max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+          <div class="flex items-center gap-2.5">
+            <NTag :type="annTagType" size="small" round>{{ annTypeLabels[visibleAnn.type] || visibleAnn.type }}</NTag>
+            <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ visibleAnn.title }}</h3>
           </div>
+          <button
+            type="button"
+            class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            aria-label="关闭"
+            @click="dismissAnnouncement"
+          >
+            <NIcon :size="16"><X /></NIcon>
+          </button>
         </div>
-
-        <div class="purchase-actions">
-          <template v-if="purchaseDialog.access === 'membership'">
-            <button class="action-button" @click="handlePurchase" :disabled="purchaseLoading">
-              {{ purchaseLoading ? '验证中...' : '会员验证' }}
-            </button>
-            <button class="action-button" @click="purchaseDialog = null; router.push('/user/membership')">开通会员</button>
-          </template>
-          <template v-else>
-            <template v-if="currentBalance < purchaseDialog.cost">
-              <button class="action-button purchase-recharge-btn" @click="purchaseDialog = null; router.push('/user')">去充值</button>
-              <button class="action-button secondary" @click="purchaseDialog = null">取消</button>
-            </template>
-            <template v-else>
-              <button class="action-button" @click="handlePurchase" :disabled="purchaseLoading">
-                {{ purchaseLoading ? '购买中...' : '确认购买' }}
-              </button>
-              <button class="action-button secondary" @click="purchaseDialog = null">取消</button>
-            </template>
-          </template>
+        <div class="rich-content max-h-[60vh] overflow-y-auto px-6 py-4 text-sm" v-html="annContent" />
+        <div class="border-t border-zinc-100 px-6 py-4 dark:border-zinc-800">
+          <NButton type="primary" block @click="dismissAnnouncement">我知道了</NButton>
         </div>
       </div>
-    </div>
+    </NModal>
+
+    <!-- ── 购买确认弹窗 ── -->
+    <NModal :show="!!purchaseDialog" :mask-closable="!purchaseLoading" @update:show="(v: boolean) => { if (!v) purchaseDialog = null }">
+      <div v-if="purchaseDialog" class="w-[92vw] max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+          <div class="flex items-center gap-2">
+            <NIcon :size="18" :class="purchaseDialog.access === 'membership' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'">
+              <Crown v-if="purchaseDialog.access === 'membership'" /><Lock v-else />
+            </NIcon>
+            <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+              {{ purchaseDialog.access === 'membership' ? '会员专属链接' : '付费链接' }}
+            </h3>
+          </div>
+          <button
+            type="button"
+            class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            aria-label="关闭"
+            @click="purchaseDialog = null"
+          >
+            <NIcon :size="16"><X /></NIcon>
+          </button>
+        </div>
+
+        <div class="space-y-4 px-6 py-5">
+          <div>
+            <p class="text-xs text-zinc-400 dark:text-zinc-500">链接名称</p>
+            <p class="mt-1 truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+              {{ purchaseDialog.block.label || purchaseDialog.block.url || '链接' }}
+            </p>
+          </div>
+
+          <template v-if="purchaseDialog.access === 'membership'">
+            <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700 dark:bg-amber-400/10 dark:text-amber-400">
+              开通会员后免费下载，每日有次数限制
+            </p>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-zinc-500 dark:text-zinc-400">非会员价格</span>
+              <span class="font-mono font-medium text-zinc-900 dark:text-zinc-100">
+                {{ purchaseDialog.cost > 0 ? `¥${purchaseDialog.cost}` : '不可购买' }}
+              </span>
+            </div>
+          </template>
+          <template v-else>
+            <p v-if="isMember" class="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">
+              <NIcon :size="14" class="mt-0.5 shrink-0"><Crown /></NIcon>
+              会员折扣：购买付费链接将自动享受会员折扣价
+            </p>
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-zinc-500 dark:text-zinc-400">所需余额</span>
+              <span class="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100">¥{{ purchaseDialog.cost }}</span>
+            </div>
+          </template>
+
+          <div class="flex items-center justify-between border-t border-zinc-100 pt-3 text-sm dark:border-zinc-800">
+            <span class="text-zinc-500 dark:text-zinc-400">当前余额</span>
+            <span
+              class="font-mono"
+              :class="currentBalance < purchaseDialog.cost && purchaseDialog.access !== 'membership'
+                ? 'text-red-500 dark:text-red-400'
+                : 'text-zinc-700 dark:text-zinc-300'"
+            >¥{{ currentBalance.toFixed(2) }}</span>
+          </div>
+
+          <p
+            v-if="currentBalance < purchaseDialog.cost && purchaseDialog.access !== 'membership'"
+            class="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400"
+          >
+            <NIcon :size="14"><AlertCircle /></NIcon>
+            余额不足，还需 <span class="font-mono font-semibold">¥{{ (purchaseDialog.cost - currentBalance).toFixed(2) }}</span>
+          </p>
+
+          <!-- 操作 -->
+          <div class="space-y-2 pt-1">
+            <template v-if="purchaseDialog.access === 'membership'">
+              <NButton type="primary" block :loading="purchaseLoading" @click="handlePurchase">会员验证下载</NButton>
+              <NButton block secondary @click="purchaseDialog = null; router.push('/user/membership')">开通会员</NButton>
+            </template>
+            <template v-else-if="currentBalance < purchaseDialog.cost">
+              <NButton type="primary" block @click="purchaseDialog = null; router.push('/user')">去充值</NButton>
+              <NButton quaternary block @click="purchaseDialog = null">取消</NButton>
+            </template>
+            <template v-else>
+              <NButton type="primary" block :loading="purchaseLoading" @click="handlePurchase">确认购买</NButton>
+              <NButton quaternary block @click="purchaseDialog = null">取消</NButton>
+            </template>
+          </div>
+        </div>
+      </div>
+    </NModal>
   </div>
 </template>

@@ -27,6 +27,8 @@ export interface KeywordBlock {
   _id?: string
   type: 'text' | 'image' | 'link'
   text?: string
+  src?: string
+  alt?: string
   url?: string
   code?: string
   label?: string

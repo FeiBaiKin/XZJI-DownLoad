@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XZJI</title>
+    <script>
+      // 首屏渲染前同步主题，避免暗色用户看到闪白（与 theme store 共用 localStorage 键）
+      document.documentElement.dataset.theme =
+        localStorage.getItem('theme') === 'light' ? 'light' : 'dark'
+    </script>
+    <style>
+      html { background: #09090b }
+      html[data-theme='light'] { background: #f6f6f7 }
+    </style>
   </head>
   <body>
     <div id="app"></div>

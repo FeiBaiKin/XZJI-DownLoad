@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// 登录页：1:1 移植自原项目 Node-XZJI/frontend/src/pages/LoginPage.jsx
-// 样式来自全局 styles/auth.css + verification.css
+// 登录页：密码登录 + 邮箱验证码免密登录（受后台开关控制）
+// 业务逻辑保持不变；UI 重构为 AuthShell + Naive UI
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { NButton, NInput, NTabs, NTabPane } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { contentApi } from '@/api/content'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -56,8 +58,8 @@ async function handleSendCode() {
   try {
     await authApi.sendCode(email.value.trim(), 'login')
     cooldown.value = 60
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '发送失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '发送失败'
   } finally {
     sendingCode.value = false
   }
@@ -70,8 +72,8 @@ async function handlePasswordSubmit() {
   try {
     await auth.login(username.value.trim(), password.value)
     router.push(redirect)
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '登录失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '登录失败'
   } finally {
     loading.value = false
   }
@@ -85,138 +87,117 @@ async function handleCodeSubmit() {
     const res = await authApi.passwordlessLogin(email.value.trim(), code.value.trim())
     auth.setAuth(res.token, res.user)
     router.push(redirect)
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '登录失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '登录失败'
   } finally {
     loading.value = false
   }
 }
 
-function switchMode(mode: 'password' | 'code') {
-  loginMode.value = mode
+function switchMode(mode: string | number) {
+  loginMode.value = mode as 'password' | 'code'
   error.value = ''
 }
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-container">
-      <div class="auth-header">
-        <router-link to="/" class="auth-back">
-          <span class="auth-back-icon">&#8592;</span>
-          <span>返回首页</span>
-        </router-link>
-        <h1 class="auth-title">登录账户</h1>
-        <p class="auth-subtitle">登录以使用全部功能</p>
+  <AuthShell title="登录账户" subtitle="登录以使用全部功能">
+    <!-- 登录方式切换 -->
+    <NTabs
+      v-if="enablePasswordless"
+      :value="loginMode"
+      type="segment"
+      animated
+      class="mb-6"
+      @update:value="switchMode"
+    >
+      <NTabPane name="password" tab="密码登录" />
+      <NTabPane name="code" tab="验证码登录" />
+    </NTabs>
+
+    <!-- 密码登录 -->
+    <form v-if="loginMode === 'password'" class="space-y-5" @submit.prevent="handlePasswordSubmit">
+      <div>
+        <label for="username" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">用户名</label>
+        <NInput
+          id="username"
+          v-model:value="username"
+          size="large"
+          placeholder="输入用户名"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'username' }"
+        />
       </div>
 
-      <!-- 登录方式切换 -->
-      <div v-if="enablePasswordless" class="login-mode-tabs">
-        <button
-          type="button"
-          class="login-mode-tab"
-          :class="{ active: loginMode === 'password' }"
-          @click="switchMode('password')"
-        >密码登录</button>
-        <button
-          type="button"
-          class="login-mode-tab"
-          :class="{ active: loginMode === 'code' }"
-          @click="switchMode('code')"
-        >验证码登录</button>
+      <div>
+        <div class="mb-1.5 flex items-center justify-between">
+          <label for="password" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">密码</label>
+          <router-link to="/forgot-password" class="text-xs text-emerald-600 hover:underline dark:text-emerald-400">忘记密码？</router-link>
+        </div>
+        <NInput
+          id="password"
+          v-model:value="password"
+          type="password"
+          show-password-on="click"
+          size="large"
+          placeholder="输入密码"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'current-password' }"
+        />
       </div>
 
-      <!-- 密码登录 -->
-      <form v-if="loginMode === 'password'" class="auth-form" @submit.prevent="handlePasswordSubmit">
-        <div class="form-group">
-          <label for="username" class="form-label">用户名</label>
-          <input
-            id="username"
-            type="text"
-            class="form-input"
-            placeholder="输入用户名"
-            v-model="username"
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+
+      <NButton attr-type="submit" type="primary" size="large" block :loading="loading">登录</NButton>
+    </form>
+
+    <!-- 验证码登录 -->
+    <form v-else class="space-y-5" @submit.prevent="handleCodeSubmit">
+      <div>
+        <label for="email" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">邮箱</label>
+        <div class="flex gap-2">
+          <NInput
+            id="email"
+            v-model:value="email"
+            size="large"
+            class="flex-1"
+            placeholder="输入注册邮箱"
             :disabled="loading"
-            autocomplete="username"
+            :input-props="{ type: 'email', autocomplete: 'email' }"
           />
+          <NButton
+            size="large"
+            secondary
+            :disabled="sendingCode || cooldown > 0 || loading"
+            :loading="sendingCode"
+            @click="handleSendCode"
+          >
+            {{ cooldown > 0 ? `${cooldown}s` : '发送验证码' }}
+          </NButton>
         </div>
-
-        <div class="form-group">
-          <div class="form-label-row">
-            <label for="password" class="form-label">密码</label>
-            <router-link to="/forgot-password" class="form-label-link">忘记密码？</router-link>
-          </div>
-          <input
-            id="password"
-            type="password"
-            class="form-input"
-            placeholder="输入密码"
-            v-model="password"
-            :disabled="loading"
-            autocomplete="current-password"
-          />
-        </div>
-
-        <div v-if="error" class="form-error">{{ error }}</div>
-
-        <button type="submit" class="auth-button" :disabled="loading">
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
-      </form>
-
-      <!-- 验证码登录 -->
-      <form v-else class="auth-form" @submit.prevent="handleCodeSubmit">
-        <div class="form-group">
-          <label for="email" class="form-label">邮箱</label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input
-              id="email"
-              type="email"
-              class="form-input"
-              style="flex: 1;"
-              placeholder="输入注册邮箱"
-              v-model="email"
-              :disabled="loading"
-              autocomplete="email"
-            />
-            <button
-              type="button"
-              class="code-send-btn"
-              @click="handleSendCode"
-              :disabled="sendingCode || cooldown > 0 || loading"
-            >
-              {{ sendingCode ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="code" class="form-label">验证码</label>
-          <input
-            id="code"
-            type="text"
-            class="form-input"
-            placeholder="6位数字验证码"
-            maxlength="6"
-            v-model="code"
-            :disabled="loading"
-            autocomplete="one-time-code"
-            style="letter-spacing: 0.2em; text-align: center; font-size: 1.1rem;"
-          />
-        </div>
-
-        <div v-if="error" class="form-error">{{ error }}</div>
-
-        <button type="submit" class="auth-button" :disabled="loading">
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        <p class="auth-switch">
-          没有账户？<router-link to="/register" class="auth-link">立即注册</router-link>
-        </p>
       </div>
-    </div>
-  </div>
+
+      <div>
+        <label for="code" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">验证码</label>
+        <NInput
+          id="code"
+          v-model:value="code"
+          size="large"
+          placeholder="6 位数字验证码"
+          maxlength="6"
+          :disabled="loading"
+          class="text-center font-mono tracking-[0.3em]"
+          :input-props="{ autocomplete: 'one-time-code', inputmode: 'numeric' }"
+        />
+      </div>
+
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+
+      <NButton attr-type="submit" type="primary" size="large" block :loading="loading">登录</NButton>
+    </form>
+
+    <template #footer>
+      没有账户？<router-link to="/register" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">立即注册</router-link>
+    </template>
+  </AuthShell>
 </template>

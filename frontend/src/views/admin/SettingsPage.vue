@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// 网站设置：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/SiteSettings.jsx
-// 样式来自全局 styles/admin-layout.css + admin-email.css + home.css
+// 网站设置：站点 Logo（图片/文字）、名称、描述、页脚
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, computed, onMounted } from 'vue'
+import { NButton, NInput, NAlert, NSwitch, NSkeleton } from 'naive-ui'
 import api from '@/api'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 
@@ -80,68 +81,85 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="180px" :sharp="false" />
+      <NSkeleton height="220px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">网站设置</h2>
-        <span class="content-sub">站点名称、Logo 及页脚信息</span>
-      </div>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-card">
-          <div class="form-card-title">站点 Logo</div>
-          <div class="email-toggles" style="margin-bottom: 1rem;">
-            <div class="email-toggle-row">
-              <div class="email-toggle-info">
-                <span class="email-toggle-label">使用图片 Logo</span>
-                <span class="email-toggle-desc">关闭则使用文字 Logo</span>
-              </div>
-              <button type="button" class="email-toggle-switch" :class="{ on: isImageLogo }" :aria-checked="isImageLogo" role="switch" @click="updateSetting('siteLogoType', isImageLogo ? 'text' : 'image')">
-                <span class="email-toggle-knob" />
-              </button>
-            </div>
-          </div>
-          <div v-if="isImageLogo" class="logo-upload-area">
-            <div v-if="settings.siteLogoUrl" class="logo-upload-preview">
-              <img :src="settings.siteLogoUrl" alt="Logo" class="logo-upload-img" />
-              <div class="logo-upload-actions">
-                <input ref="fileInputRef" type="file" accept="image/*" @change="handleLogoUpload" style="display: none;" id="logo-file-input" />
-                <button type="button" class="action-button secondary" :disabled="uploading" @click="fileInputRef?.click()">{{ uploading ? '上传中...' : '更换图片' }}</button>
-                <button type="button" class="action-button secondary" @click="updateSetting('siteLogoUrl', '')">移除</button>
-              </div>
-            </div>
-            <div v-else class="logo-upload-empty">
-              <input ref="fileInputRef" type="file" accept="image/*" @change="handleLogoUpload" style="display: none;" id="logo-file-input" />
-              <span class="logo-upload-hint">支持 JPG、PNG、GIF、WebP、SVG，不超过 2MB</span>
-              <button type="button" class="action-button secondary" :disabled="uploading" @click="fileInputRef?.click()">{{ uploading ? '上传中...' : '选择图片' }}</button>
-            </div>
-          </div>
-          <div v-else class="logo-text-preview">
-            <span class="logo-text-preview-mark">{{ (settings.siteName || 'K').charAt(0).toUpperCase() }}</span>
-            <span class="logo-text-preview-name">{{ settings.siteName || 'Keyword' }}</span>
-          </div>
-        </div>
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">网站设置</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">站点名称、Logo 及页脚信息</p>
+      </header>
 
-        <div class="form-card">
-          <div class="form-card-title">基本信息</div>
-          <div class="form-group">
-            <label class="form-label">网站名称</label>
-            <input type="text" class="form-input" v-model="settings.siteName" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">网站描述</label>
-            <input type="text" class="form-input" v-model="settings.siteDescription" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">页脚文字</label>
-            <input type="text" class="form-input" v-model="settings.footerText" />
-          </div>
-        </div>
+      <form class="space-y-5" @submit.prevent="handleSubmit">
+        <!-- 站点 Logo -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">站点 Logo</h3>
 
-        <div v-if="message" class="form-message">{{ message }}</div>
-        <div class="form-actions">
-          <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存设置' }}</button>
-        </div>
+          <div class="mt-4 flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+            <div>
+              <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">使用图片 Logo</p>
+              <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">关闭则使用文字 Logo</p>
+            </div>
+            <NSwitch
+              :value="isImageLogo"
+              size="small"
+              @update:value="(v: boolean) => updateSetting('siteLogoType', v ? 'image' : 'text')"
+            />
+          </div>
+
+          <!-- 图片 Logo：上传与预览 -->
+          <div v-if="isImageLogo" class="mt-4">
+            <input ref="fileInputRef" type="file" accept="image/*" class="hidden" @change="handleLogoUpload" />
+            <div v-if="settings.siteLogoUrl" class="flex flex-wrap items-center gap-4">
+              <span class="inline-flex rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
+                <img :src="settings.siteLogoUrl" alt="Logo" class="h-10 w-auto" />
+              </span>
+              <div class="flex gap-2">
+                <NButton size="small" secondary :loading="uploading" @click="fileInputRef?.click()">更换图片</NButton>
+                <NButton size="small" quaternary @click="updateSetting('siteLogoUrl', '')">移除</NButton>
+              </div>
+            </div>
+            <div v-else class="flex flex-col items-start gap-2 rounded-xl border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
+              <p class="text-xs text-zinc-400 dark:text-zinc-500">支持 JPG、PNG、GIF、WebP、SVG，不超过 2MB</p>
+              <NButton size="small" secondary :loading="uploading" @click="fileInputRef?.click()">选择图片</NButton>
+            </div>
+          </div>
+
+          <!-- 文字 Logo 预览 -->
+          <div v-else class="mt-4 flex items-center gap-2.5 rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+            <span class="grid size-8 place-items-center rounded-lg bg-emerald-600 text-sm font-bold text-white dark:bg-emerald-400 dark:text-zinc-950">
+              {{ (settings.siteName || 'X').charAt(0).toUpperCase() }}
+            </span>
+            <span class="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">{{ settings.siteName || '站点名称' }}</span>
+          </div>
+        </section>
+
+        <!-- 基本信息 -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">基本信息</h3>
+          <div class="max-w-lg space-y-4">
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网站名称</label>
+              <NInput v-model:value="settings.siteName" placeholder="站点名称" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网站描述</label>
+              <NInput v-model:value="settings.siteDescription" placeholder="首页副标题 / SEO 描述" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">页脚文字</label>
+              <NInput v-model:value="settings.footerText" placeholder="页脚展示文本" />
+            </div>
+          </div>
+        </section>
+
+        <NAlert v-if="message" :type="message.includes('失败') ? 'error' : 'success'" closable @close="message = ''">{{ message }}</NAlert>
+
+        <NButton attr-type="submit" type="primary" :loading="saving">保存设置</NButton>
       </form>
     </template>
   </div>

@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useLicenseStore } from '@/stores/license'
 
 const api = axios.create({
   baseURL: '/api',
@@ -29,9 +30,7 @@ api.interceptors.response.use(
   (err) => {
     // 授权停服：业务接口被拦截时点亮全局停服遮罩
     if (err.response?.status === 403 && err.response?.data?.code === 'license_blocked') {
-      import('@/stores/license')
-        .then(({ useLicenseStore }) => useLicenseStore().markBlocked(err.response?.data?.error))
-        .catch(() => {})
+      useLicenseStore().markBlocked(err.response?.data?.error)
     }
     if (err.response?.status === 401) {
       try {

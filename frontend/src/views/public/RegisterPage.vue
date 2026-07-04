@@ -1,11 +1,13 @@
 <script setup lang="ts">
-// 注册页：1:1 移植自原项目 Node-XZJI/frontend/src/pages/RegisterPage.jsx
-// 样式来自全局 styles/auth.css + verification.css
+// 注册页：用户名/密码 + 邮箱（后台开启强制验证时需验证码）
+// 业务逻辑保持不变；UI 重构为 AuthShell + Naive UI
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { NButton, NInput } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { contentApi } from '@/api/content'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -49,8 +51,8 @@ async function handleSendCode() {
     await authApi.sendCode(email.value.trim(), 'register')
     success.value = '验证码已发送，请查收邮箱'
     cooldown.value = 60
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '发送失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '发送失败'
   } finally {
     sendingCode.value = false
   }
@@ -82,8 +84,8 @@ async function handleSubmit() {
     await auth.register(body)
     success.value = '注册成功，正在跳转...'
     setTimeout(() => router.push('/user'), 800)
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '注册失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '注册失败'
   } finally {
     loading.value = false
   }
@@ -91,90 +93,99 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-container">
-      <div class="auth-header">
-        <router-link to="/" class="auth-back">
-          <span class="auth-back-icon">&#8592;</span>
-          <span>返回首页</span>
-        </router-link>
-        <h1 class="auth-title">创建账户</h1>
-        <p class="auth-subtitle">注册一个新账户以使用全部功能</p>
+  <AuthShell title="创建账户" subtitle="注册一个新账户以使用全部功能">
+    <form class="space-y-5" @submit.prevent="handleSubmit">
+      <div>
+        <label for="username" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">用户名</label>
+        <NInput
+          id="username"
+          v-model:value="username"
+          size="large"
+          placeholder="至少 3 个字符"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'username' }"
+        />
       </div>
 
-      <form class="auth-form" @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="username" class="form-label">用户名</label>
-          <input id="username" type="text" class="form-input" placeholder="至少3个字符" v-model="username" :disabled="loading" autocomplete="username" />
-        </div>
-
-        <div class="form-group">
-          <label for="email" class="form-label">
-            邮箱
-            <span v-if="!forceVerify" class="form-label-optional">选填</span>
-            <span v-if="forceVerify" style="color: var(--danger);"> *</span>
-          </label>
-          <div style="display: flex; gap: 0.5rem;">
-            <input
-              id="email"
-              type="email"
-              class="form-input"
-              style="flex: 1;"
-              :placeholder="forceVerify ? '必填，用于接收验证码' : '用于找回密码'"
-              v-model="email"
-              :disabled="loading"
-              autocomplete="email"
-            />
-            <button
-              v-if="forceVerify"
-              type="button"
-              class="code-send-btn"
-              @click="handleSendCode"
-              :disabled="sendingCode || cooldown > 0 || loading"
-            >
-              {{ sendingCode ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码' }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="forceVerify" class="form-group">
-          <label for="code" class="form-label">验证码</label>
-          <input
-            id="code"
-            type="text"
-            class="form-input"
-            placeholder="6位数字验证码"
-            maxlength="6"
-            v-model="code"
+      <div>
+        <label for="email" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          邮箱
+          <span v-if="forceVerify" class="text-red-500">*</span>
+          <span v-else class="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">选填</span>
+        </label>
+        <div class="flex gap-2">
+          <NInput
+            id="email"
+            v-model:value="email"
+            size="large"
+            class="flex-1"
+            :placeholder="forceVerify ? '必填，用于接收验证码' : '用于找回密码'"
             :disabled="loading"
-            autocomplete="one-time-code"
-            style="letter-spacing: 0.2em; text-align: center; font-size: 1.1rem;"
+            :input-props="{ type: 'email', autocomplete: 'email' }"
           />
+          <NButton
+            v-if="forceVerify"
+            size="large"
+            secondary
+            :disabled="sendingCode || cooldown > 0 || loading"
+            :loading="sendingCode"
+            @click="handleSendCode"
+          >
+            {{ cooldown > 0 ? `${cooldown}s` : '发送验证码' }}
+          </NButton>
         </div>
-
-        <div class="form-group">
-          <label for="password" class="form-label">密码</label>
-          <input id="password" type="password" class="form-input" placeholder="至少6个字符" v-model="password" :disabled="loading" autocomplete="new-password" />
-        </div>
-
-        <div class="form-group">
-          <label for="confirmPassword" class="form-label">确认密码</label>
-          <input id="confirmPassword" type="password" class="form-input" placeholder="再次输入密码" v-model="confirmPassword" :disabled="loading" autocomplete="new-password" />
-        </div>
-
-        <div v-if="error" class="form-error">{{ error }}</div>
-        <div v-if="success" class="form-success">{{ success }}</div>
-
-        <button type="submit" class="auth-button" :disabled="loading">
-          {{ loading ? '注册中...' : '注册' }}
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        <p class="auth-switch">
-          已有账户？<router-link to="/login" class="auth-link">立即登录</router-link>
-        </p>
       </div>
-    </div>
-  </div>
+
+      <div v-if="forceVerify">
+        <label for="code" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">验证码</label>
+        <NInput
+          id="code"
+          v-model:value="code"
+          size="large"
+          placeholder="6 位数字验证码"
+          maxlength="6"
+          :disabled="loading"
+          class="text-center font-mono tracking-[0.3em]"
+          :input-props="{ autocomplete: 'one-time-code', inputmode: 'numeric' }"
+        />
+      </div>
+
+      <div>
+        <label for="password" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">密码</label>
+        <NInput
+          id="password"
+          v-model:value="password"
+          type="password"
+          show-password-on="click"
+          size="large"
+          placeholder="至少 6 个字符"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'new-password' }"
+        />
+      </div>
+
+      <div>
+        <label for="confirmPassword" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">确认密码</label>
+        <NInput
+          id="confirmPassword"
+          v-model:value="confirmPassword"
+          type="password"
+          show-password-on="click"
+          size="large"
+          placeholder="再次输入密码"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'new-password' }"
+        />
+      </div>
+
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+      <p v-if="success" class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">{{ success }}</p>
+
+      <NButton attr-type="submit" type="primary" size="large" block :loading="loading">注册</NButton>
+    </form>
+
+    <template #footer>
+      已有账户？<router-link to="/login" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">立即登录</router-link>
+    </template>
+  </AuthShell>
 </template>

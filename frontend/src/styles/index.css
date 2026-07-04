@@ -1,0 +1,177 @@
+@import 'tailwindcss';
+
+/* 暗色模式跟随 <html data-theme="dark">（由 theme store 控制，Naive UI 同步切换） */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', 'JetBrains Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-emerald-400) 30%, transparent);
+  }
+
+  /* 细滚动条：后台长列表更清爽 */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-zinc-300) transparent;
+  }
+  [data-theme='dark'] * {
+    scrollbar-color: var(--color-zinc-700) transparent;
+  }
+}
+
+/* 隐藏滚动条（移动端横向导航等） */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── 富文本渲染（自定义页面 / 公告 v-html 内容） ── */
+.rich-content {
+  line-height: 1.75;
+  color: var(--color-zinc-700);
+  word-break: break-word;
+}
+[data-theme='dark'] .rich-content {
+  color: var(--color-zinc-300);
+}
+.rich-content h1,
+.rich-content h2,
+.rich-content h3,
+.rich-content h4 {
+  font-weight: 600;
+  color: var(--color-zinc-900);
+  margin: 1.5em 0 0.6em;
+  line-height: 1.35;
+}
+[data-theme='dark'] .rich-content h1,
+[data-theme='dark'] .rich-content h2,
+[data-theme='dark'] .rich-content h3,
+[data-theme='dark'] .rich-content h4 {
+  color: var(--color-zinc-100);
+}
+.rich-content h1 { font-size: 1.5rem; }
+.rich-content h2 { font-size: 1.25rem; }
+.rich-content h3 { font-size: 1.125rem; }
+.rich-content h4 { font-size: 1rem; }
+.rich-content p { margin: 0.75em 0; }
+.rich-content a {
+  color: var(--color-emerald-600);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-theme='dark'] .rich-content a {
+  color: var(--color-emerald-400);
+}
+.rich-content ul,
+.rich-content ol {
+  padding-left: 1.5em;
+  margin: 0.75em 0;
+}
+.rich-content ul { list-style: disc; }
+.rich-content ol { list-style: decimal; }
+.rich-content li { margin: 0.25em 0; }
+.rich-content img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 1em 0;
+}
+.rich-content blockquote {
+  border-left: 3px solid var(--color-emerald-500);
+  padding: 0.25em 0 0.25em 1em;
+  margin: 1em 0;
+  color: var(--color-zinc-500);
+}
+[data-theme='dark'] .rich-content blockquote {
+  color: var(--color-zinc-400);
+}
+.rich-content code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-zinc-100);
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+}
+[data-theme='dark'] .rich-content code {
+  background: var(--color-zinc-800);
+}
+.rich-content pre {
+  background: var(--color-zinc-100);
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+[data-theme='dark'] .rich-content pre {
+  background: var(--color-zinc-900);
+}
+.rich-content pre code {
+  background: none;
+  padding: 0;
+}
+.rich-content table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+}
+.rich-content th,
+.rich-content td {
+  border: 1px solid var(--color-zinc-200);
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+[data-theme='dark'] .rich-content th,
+[data-theme='dark'] .rich-content td {
+  border-color: var(--color-zinc-700);
+}
+
+/* ── wangEditor 5 主题适配（通过官方 CSS 变量） ── */
+.rich-editor {
+  border: 1px solid var(--color-zinc-200);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+.rich-editor .editor-toolbar {
+  border-bottom: 1px solid var(--color-zinc-200);
+}
+[data-theme='dark'] .rich-editor {
+  border-color: var(--color-zinc-800);
+  background: var(--color-zinc-900);
+}
+[data-theme='dark'] .rich-editor .editor-toolbar {
+  border-bottom-color: var(--color-zinc-800);
+}
+
+[data-theme='dark'] {
+  --w-e-toolbar-bg-color: #18181b;
+  --w-e-toolbar-color: #d4d4d8;
+  --w-e-toolbar-active-bg-color: #27272a;
+  --w-e-toolbar-active-color: #fafafa;
+  --w-e-toolbar-disabled-color: #52525b;
+  --w-e-toolbar-border-color: #27272a;
+  --w-e-textarea-bg-color: #101012;
+  --w-e-textarea-color: #e4e4e7;
+  --w-e-textarea-border-color: #27272a;
+  --w-e-textarea-slight-border-color: #3f3f46;
+  --w-e-textarea-slight-color: #71717a;
+  --w-e-textarea-slight-bg-color: #18181b;
+  --w-e-textarea-selected-border-color: #34d399;
+  --w-e-textarea-handler-bg-color: #34d399;
+  --w-e-modal-bg-color: #1c1c1f;
+  --w-e-modal-border-color: #303033;
+  --w-e-modal-button-bg-color: #27272a;
+  --w-e-modal-button-border-color: #3f3f46;
+}

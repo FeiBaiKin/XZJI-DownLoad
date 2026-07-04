@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // 富文本编辑器：基于 wangEditor 5 核心 API（createEditor/createToolbar）
 // 不使用 @wangeditor/editor-for-vue（其 `import default from "vue"` 与 Vue 3.5 ESM 不兼容）
-// Brutalist 主题定制见 styles/rich-text.css
+// 主题适配见 styles/index.css 的 --w-e-* 变量（跟随 data-theme）
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { createEditor, createToolbar, type IDomEditor, type IToolbarConfig, type IEditorConfig } from '@wangeditor/editor'
 import '@wangeditor/editor/dist/css/style.css'
@@ -16,7 +16,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const toolbarRef = ref<HTMLDivElement | null>(null)
 const editorRef = ref<HTMLDivElement | null>(null)
 let editor: IDomEditor | null = null
-let toolbar: IDomEditor | null = null
+let toolbar: ReturnType<typeof createToolbar> | null = null
 
 // 简化工具栏（公告用），完整工具栏用默认
 const toolbarConfig: Partial<IToolbarConfig> = props.simple
@@ -64,8 +64,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="rich-text-editor" :class="{ simple: simple }">
-    <div ref="toolbarRef"></div>
-    <div ref="editorRef"></div>
+  <div class="rich-editor">
+    <div ref="toolbarRef" class="editor-toolbar"></div>
+    <div ref="editorRef" :style="{ height: simple ? '180px' : '320px' }"></div>
   </div>
 </template>

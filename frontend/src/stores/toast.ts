@@ -1,40 +1,33 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { createDiscreteApi, darkTheme, type ConfigProviderProps } from 'naive-ui'
+import { useThemeStore } from '@/stores/theme'
+import { lightThemeOverrides, darkThemeOverrides } from '@/theme'
 
-// 移植自原项目 ToastContext.jsx：Brutalist toast 通知
-export interface ToastItem {
-  id: number
-  message: string
-  type: 'info' | 'success' | 'error'
-}
-
-let toastId = 0
-
+// 全局消息通知：对外保持 success/error/info API（历史沿用「toast」命名），
+// 内部改由 Naive UI 离散 API 渲染，随主题联动，无需挂载容器组件。
 export const useToastStore = defineStore('toast', () => {
-  const toasts = ref<ToastItem[]>([])
+  const theme = useThemeStore()
 
-  function addToast(message: string, type: ToastItem['type'] = 'info', duration = 3500) {
-    const id = ++toastId
-    toasts.value.push({ id, message, type })
-    if (duration > 0) {
-      setTimeout(() => remove(id), duration)
-    }
-    return id
-  }
+  const configProviderProps = computed<ConfigProviderProps>(() => ({
+    theme: theme.isDark ? darkTheme : null,
+    themeOverrides: theme.isDark ? darkThemeOverrides : lightThemeOverrides,
+  }))
 
-  function remove(id: number) {
-    toasts.value = toasts.value.filter((t) => t.id !== id)
-  }
+  const { message } = createDiscreteApi(['message'], { configProviderProps })
 
   function success(msg: string) {
-    return addToast(msg, 'success', 2500)
+    message.success(msg)
   }
   function error(msg: string) {
-    return addToast(msg, 'error')
+    message.error(msg, { duration: 4000 })
   }
   function info(msg: string) {
-    return addToast(msg, 'info')
+    message.info(msg)
+  }
+  function addToast(msg: string, type: 'info' | 'success' | 'error' = 'info') {
+    message[type](msg)
   }
 
-  return { toasts, addToast, remove, success, error, info }
+  return { success, error, info, addToast }
 })

@@ -1,10 +1,18 @@
 <script setup lang="ts">
-// 签到配置：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/CheckinConfig.jsx
-// 样式来自全局 styles/admin-layout.css + user.css
+// 签到配置：每日余额/经验、连续签到天数与额外奖励
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted } from 'vue'
+import { NButton, NInputNumber, NAlert, NSkeleton } from 'naive-ui'
 import api from '@/api'
 
-const config = ref<any>({ daily_balance: 0.50, consecutive_days: 7, consecutive_bonus_balance: 2.00, daily_exp: 10 })
+interface CheckinConfig {
+  daily_balance: number
+  consecutive_days: number
+  consecutive_bonus_balance: number
+  daily_exp: number
+}
+
+const config = ref<CheckinConfig>({ daily_balance: 0.5, consecutive_days: 7, consecutive_bonus_balance: 2.0, daily_exp: 10 })
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
@@ -31,36 +39,64 @@ async function handleSave() {
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="300px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">签到配置</h2>
-      </div>
-      <div class="profile-section">
-        <form @submit.prevent="handleSave">
-          <div class="form-group">
-            <label class="form-label">每日签到余额 (元)</label>
-            <input type="number" class="form-input" min="0" step="0.01" v-model.number="config.daily_balance" />
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">签到配置</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">每日签到奖励与连续签到激励</p>
+      </header>
+
+      <section class="max-w-lg rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
+        <form class="space-y-4" @submit.prevent="handleSave">
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">每日签到余额（元）</label>
+            <NInputNumber
+              :value="config.daily_balance"
+              :min="0"
+              :step="0.01"
+              class="w-full"
+              @update:value="(v: number | null) => config.daily_balance = v ?? 0"
+            />
           </div>
-          <div class="form-group">
-            <label class="form-label">每日签到经验</label>
-            <input type="number" class="form-input" min="1" v-model.number="config.daily_exp" />
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">每日签到经验</label>
+            <NInputNumber
+              :value="config.daily_exp"
+              :min="1"
+              class="w-full"
+              @update:value="(v: number | null) => config.daily_exp = v ?? 1"
+            />
           </div>
-          <div class="form-group">
-            <label class="form-label">连续签到天数（触发奖励）</label>
-            <input type="number" class="form-input" min="2" v-model.number="config.consecutive_days" />
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">连续签到天数（触发奖励）</label>
+            <NInputNumber
+              :value="config.consecutive_days"
+              :min="2"
+              class="w-full"
+              @update:value="(v: number | null) => config.consecutive_days = v ?? 2"
+            />
           </div>
-          <div class="form-group">
-            <label class="form-label">连续签到额外余额 (元)</label>
-            <input type="number" class="form-input" min="0" step="0.01" v-model.number="config.consecutive_bonus_balance" />
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">连续签到额外余额（元）</label>
+            <NInputNumber
+              :value="config.consecutive_bonus_balance"
+              :min="0"
+              :step="0.01"
+              class="w-full"
+              @update:value="(v: number | null) => config.consecutive_bonus_balance = v ?? 0"
+            />
           </div>
-          <div v-if="message" :class="message === '保存成功' ? 'form-success' : 'form-error'">{{ message }}</div>
-          <div class="form-actions">
-            <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存配置' }}</button>
-          </div>
+
+          <NAlert v-if="message" :type="message === '保存成功' ? 'success' : 'error'" closable @close="message = ''">{{ message }}</NAlert>
+
+          <NButton attr-type="submit" type="primary" :loading="saving">保存配置</NButton>
         </form>
-      </div>
+      </section>
     </template>
   </div>
 </template>

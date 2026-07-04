@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// 确认弹窗：1:1 移植自原项目 Node-XZJI/frontend/src/components/ConfirmDialog.jsx
-// 复用全局 modal.css 样式
+// 确认弹窗：保持原有 props/emits 契约（各管理页复用），内部改为 Naive UI 实现
+import { NModal, NButton } from 'naive-ui'
+
 defineProps<{
   open: boolean
   title?: string
@@ -10,35 +11,24 @@ defineProps<{
   danger?: boolean
 }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
-
-function handleOverlayClick(e: MouseEvent, loading?: boolean) {
-  if (e.target === e.currentTarget && !loading) emit('cancel')
-}
 </script>
 
 <template>
-  <div v-if="open" class="modal-overlay" @click="(e) => handleOverlayClick(e, loading)">
-    <div class="modal-content" style="max-width: 360px;">
-      <div class="modal-header">
-        <h3>{{ title || '确认操作' }}</h3>
-        <button class="modal-close" @click="emit('cancel')" :disabled="loading">X</button>
-      </div>
-      <div style="padding: 1.25rem;">
-        <p style="margin: 0 0 1.25rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.6;">
-          {{ message }}
-        </p>
-        <div style="display: flex; gap: 0.75rem; justify-content: flex-end;">
-          <button class="action-button secondary" @click="emit('cancel')" :disabled="loading">取消</button>
-          <button
-            class="action-button"
-            :style="danger ? { background: 'var(--danger)', color: '#fff', borderColor: 'var(--danger)' } : {}"
-            @click="emit('confirm')"
-            :disabled="loading"
-          >
-            {{ loading ? '处理中...' : confirmLabel || '确认' }}
-          </button>
-        </div>
+  <NModal
+    :show="open"
+    :mask-closable="!loading"
+    :close-on-esc="!loading"
+    @update:show="(v: boolean) => { if (!v) emit('cancel') }"
+  >
+    <div class="w-[92vw] max-w-90 rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+      <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ title || '确认操作' }}</h3>
+      <p class="mt-2 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">{{ message }}</p>
+      <div class="mt-6 flex justify-end gap-3">
+        <NButton quaternary :disabled="loading" @click="emit('cancel')">取消</NButton>
+        <NButton :type="danger ? 'error' : 'primary'" :loading="loading" @click="emit('confirm')">
+          {{ confirmLabel || '确认' }}
+        </NButton>
       </div>
     </div>
-  </div>
+  </NModal>
 </template>

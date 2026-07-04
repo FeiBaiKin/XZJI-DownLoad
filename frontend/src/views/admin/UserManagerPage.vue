@@ -1,7 +1,12 @@
 <script setup lang="ts">
-// 用户管理：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/UserManager.jsx
-// 样式来自全局 styles/admin-layout.css
-import { ref, onMounted, computed } from 'vue'
+// 用户管理：分页列表 + 编辑（余额/经验/等级/会员/角色）+ 删除
+// 业务逻辑与接口契约保持不变；UI 重构为 Naive UI + Tailwind
+import { ref, onMounted, computed, h } from 'vue'
+import {
+  NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NPagination, NModal, NIcon, NSkeleton,
+  type DataTableColumns,
+} from 'naive-ui'
+import { X } from '@vicons/tabler'
 import api from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { useToastStore } from '@/stores/toast'
@@ -32,12 +37,17 @@ const editForm = ref<UserEditForm>({
   membership_expires_at: null,
   role: 'user',
   nickname: '',
-  email: ''
+  email: '',
 })
 const saving = ref(false)
 const message = ref('')
 const confirmDeleteId = ref<number | null>(null)
 const limit = 15
+
+const roleOptions = [
+  { label: '普通用户', value: 'user' },
+  { label: '管理员', value: 'admin' },
+]
 
 onMounted(() => { fetchUsers() })
 
@@ -98,104 +108,162 @@ async function doDelete() {
     else toast.error('删除失败')
   } catch { toast.error('删除失败') }
 }
+
+const columns: DataTableColumns<UserBrief> = [
+  { title: 'ID', key: 'id', width: 64, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.id) },
+  { title: '用户名', key: 'username', width: 130, ellipsis: true, render: (row) => h('span', { class: 'font-medium' }, row.username) },
+  { title: '邮箱', key: 'email', ellipsis: true, render: (row) => h('span', { class: 'text-[13px] text-zinc-500 dark:text-zinc-400' }, row.email || '-') },
+  { title: '余额', key: 'balance', width: 90, render: (row) => h('span', { class: 'font-mono text-[13px]' }, Number(row.balance || 0).toFixed(2)) },
+  { title: '经验', key: 'exp', width: 76, render: (row) => h('span', { class: 'font-mono text-[13px]' }, row.exp || 0) },
+  { title: '等级', key: 'level', width: 76, render: (row) => h('span', { class: 'font-mono text-[13px]' }, `Lv.${row.level || 1}`) },
+  {
+    title: '会员',
+    key: 'membership_level',
+    width: 100,
+    render: (row) =>
+      row.membership_level
+        ? h(NTag, { size: 'small', round: true, type: 'warning', bordered: false }, { default: () => row.membership_level })
+        : h('span', { class: 'text-xs text-zinc-400' }, '无'),
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 130,
+    render: (row) =>
+      h('div', { class: 'flex gap-1' }, [
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => openEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row.id) }, { default: () => '删除' }),
+      ]),
+  },
+]
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading && users.length === 0" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading && users.length === 0" class="space-y-3">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton v-for="i in 6" :key="i" height="42px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">用户管理</h2>
-        <span class="content-sub">共 {{ total }} 个用户</span>
-      </div>
-      <div v-if="message" :class="message === '保存成功' ? 'form-success' : 'form-error'">{{ message }}</div>
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">用户管理</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个用户</p>
+      </header>
 
-      <div class="data-table">
-        <div class="table-header" style="grid-template-columns: 50px 100px 1fr 80px 60px 60px 80px 80px;">
-          <span class="table-cell">ID</span>
-          <span class="table-cell">用户名</span>
-          <span class="table-cell">邮箱</span>
-          <span class="table-cell">余额</span>
-          <span class="table-cell">经验</span>
-          <span class="table-cell">等级</span>
-          <span class="table-cell">会员</span>
-          <span class="table-cell">操作</span>
-        </div>
-        <div v-for="u in users" :key="u.id" class="table-row" style="grid-template-columns: 50px 100px 1fr 80px 60px 60px 80px 80px;">
-          <span class="mono">{{ u.id }}</span>
-          <span>{{ u.username }}</span>
-          <span class="text-secondary">{{ u.email || '-' }}</span>
-          <span class="mono">{{ parseFloat(u.balance || 0).toFixed(2) }}</span>
-          <span class="mono">{{ u.exp || 0 }}</span>
-          <span class="mono">Lv.{{ u.level || 1 }}</span>
-          <span :class="u.membership_level ? 'membership-badge' : 'text-tertiary'">{{ u.membership_level || '无' }}</span>
-          <span class="table-actions">
-            <button class="action-link" @click="openEdit(u)">编辑</button>
-            <button class="action-link" style="color: var(--danger);" @click="handleDelete(u.id)">删除</button>
-          </span>
-        </div>
-      </div>
+      <NAlert
+        v-if="message"
+        :type="message === '保存成功' ? 'success' : 'error'"
+        class="mb-4"
+        closable
+        @close="message = ''"
+      >{{ message }}</NAlert>
 
-      <div v-if="totalPages > 1" class="pagination">
-        <button :disabled="page <= 1" @click="setPage(page - 1)">上一页</button>
-        <span>{{ page }} / {{ totalPages }}</span>
-        <button :disabled="page >= totalPages" @click="setPage(page + 1)">下一页</button>
+      <NDataTable
+        :columns="columns"
+        :data="users"
+        :row-key="(row: UserBrief) => row.id"
+        :bordered="false"
+        :loading="loading"
+        class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+      />
+
+      <div v-if="totalPages > 1" class="mt-4 flex justify-end">
+        <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
       </div>
 
       <!-- 编辑弹窗 -->
-      <div v-if="editingUser" class="modal-overlay" @click="editingUser = null">
-        <div class="modal-content" style="max-width: 480px;" @click.stop>
-          <div class="modal-header">
-            <h3>编辑用户: {{ editingUser.username }}</h3>
-            <button class="modal-close" @click="editingUser = null">X</button>
+      <NModal :show="!!editingUser" :mask-closable="!saving" @update:show="(v: boolean) => { if (!v) editingUser = null }">
+        <div v-if="editingUser" class="w-[92vw] max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+            <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">编辑用户：{{ editingUser.username }}</h3>
+            <button
+              type="button"
+              class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+              aria-label="关闭"
+              @click="editingUser = null"
+            >
+              <NIcon :size="16"><X /></NIcon>
+            </button>
           </div>
-          <div style="padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem;">
-            <div class="form-group">
-              <label class="form-label">昵称</label>
-              <input class="form-input" v-model="editForm.nickname" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">邮箱</label>
-              <input class="form-input" v-model="editForm.email" />
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;">
-              <div class="form-group">
-                <label class="form-label">余额</label>
-                <input type="number" class="form-input" step="0.01" v-model="editForm.balance" />
+
+          <div class="space-y-4 px-6 py-5">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">昵称</label>
+                <NInput v-model:value="editForm.nickname" placeholder="昵称" />
               </div>
-              <div class="form-group">
-                <label class="form-label">经验</label>
-                <input type="number" class="form-input" v-model="editForm.exp" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">等级</label>
-                <input type="number" class="form-input" min="1" v-model="editForm.level" />
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">邮箱</label>
+                <NInput v-model:value="editForm.email" placeholder="邮箱" :input-props="{ type: 'email' }" />
               </div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-              <div class="form-group">
-                <label class="form-label">会员等级</label>
-                <input class="form-input" placeholder="留空=无会员" v-model="editForm.membership_level" />
+
+            <div class="grid grid-cols-3 gap-3">
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">余额</label>
+                <NInputNumber
+                  :value="editForm.balance"
+                  :step="0.01"
+                  :show-button="false"
+                  class="w-full"
+                  @update:value="(v: number | null) => editForm.balance = v ?? 0"
+                />
               </div>
-              <div class="form-group">
-                <label class="form-label">会员到期</label>
-                <input type="datetime-local" class="form-input" v-model="editForm.membership_expires_at" />
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">经验</label>
+                <NInputNumber
+                  :value="editForm.exp"
+                  :show-button="false"
+                  class="w-full"
+                  @update:value="(v: number | null) => editForm.exp = v ?? 0"
+                />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">等级</label>
+                <NInputNumber
+                  :value="editForm.level"
+                  :min="1"
+                  :show-button="false"
+                  class="w-full"
+                  @update:value="(v: number | null) => editForm.level = v ?? 1"
+                />
               </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">角色</label>
-              <select class="form-input" v-model="editForm.role">
-                <option value="user">普通用户</option>
-                <option value="admin">管理员</option>
-              </select>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">会员等级</label>
+                <NInput
+                  :value="editForm.membership_level || ''"
+                  placeholder="留空 = 无会员"
+                  @update:value="(v: string) => editForm.membership_level = v"
+                />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">会员到期</label>
+                <!-- 保持 datetime-local 原生控件与 'YYYY-MM-DDTHH:mm' 字符串契约 -->
+                <input
+                  type="datetime-local"
+                  class="h-[34px] w-full rounded-lg border border-zinc-300 bg-transparent px-3 text-sm text-zinc-900 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:text-zinc-100 dark:[color-scheme:dark]"
+                  :value="editForm.membership_expires_at || ''"
+                  @input="(e) => editForm.membership_expires_at = (e.target as HTMLInputElement).value"
+                />
+              </div>
             </div>
-            <div class="form-actions">
-              <button class="action-button" @click="handleSave" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
-              <button class="action-button secondary" @click="editingUser = null">取消</button>
+
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">角色</label>
+              <NSelect v-model:value="editForm.role" :options="roleOptions" />
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
+              <NButton quaternary @click="editingUser = null">取消</NButton>
             </div>
           </div>
         </div>
-      </div>
+      </NModal>
     </template>
 
     <ConfirmDialog

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// 充值弹窗：1:1 移植自原项目 Node-XZJI/frontend/src/RechargeModal.jsx
-// 样式来自全局 styles/modal.css（.recharge-modal-v2 / .rm-*）
-// 联动后台 payment_enabled_providers：拉取 /user/payment-methods 仅返回已开启的方式
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+// 充值弹窗：三步流程 select → paying → done
+// 业务逻辑保持不变（支付方式联动后台 payment_enabled_providers；扫码类 2s 轮询订单状态）
+import { ref, computed, onBeforeUnmount } from 'vue'
+import { NModal, NButton, NInput, NIcon } from 'naive-ui'
+import { X, Qrcode, Wallet, CreditCard, Check, ArrowLeft, ExternalLink } from '@vicons/tabler'
 import QRCode from 'qrcode'
 import { economyApi, type PaymentMethod, type RechargeResult } from '@/api/economy'
 
@@ -15,6 +16,8 @@ const PRESET_AMOUNTS = [
   { label: '500 元', value: 500, exp: 1000 },
 ]
 
+type RechargeState = RechargeResult & { paid?: boolean }
+
 const emit = defineEmits<{ refresh: [] }>()
 
 const show = ref(false)
@@ -23,7 +26,7 @@ const amount = ref('')
 const displayAmount = ref(0)
 const error = ref('')
 const loading = ref(false)
-const result = ref<RechargeResult | null>(null)
+const result = ref<RechargeState | null>(null)
 const method = ref('')
 const availableMethods = ref<PaymentMethod[]>([])
 const methodsLoaded = ref(false)
@@ -32,24 +35,27 @@ let pollTimer: ReturnType<typeof setInterval> | null = null
 
 const numAmount = computed(() => parseFloat(amount.value) || 0)
 const bonusExp = computed(() => Math.floor(numAmount.value * 2))
+const resultBonusExp = computed(() => result.value?.bonusExp ?? 0)
 const methodLabel = (name: string) => availableMethods.value.find((m) => m.name === name)?.label || name
-const methodIcon = (name: string) => (name === 'wechat' ? 'W' : name === 'alipay' ? 'A' : 'E')
-const methodBrief = (name: string) => (name === 'wechat' ? '扫码' : name === 'alipay' ? '网页' : name === 'epay' ? '聚合' : '')
+const methodIconOf = (name: string) => (name === 'wechat' ? Qrcode : name === 'alipay' ? Wallet : CreditCard)
+const methodBrief = (name: string) => (name === 'wechat' ? '扫码支付' : name === 'alipay' ? '网页支付' : name === 'epay' ? '聚合收银台' : '')
 
 // paying 步骤派生
 const isWechat = computed(() => result.value?.type === 'wechat')
 const isAlipay = computed(() => result.value?.type === 'alipay')
 const isEpay = computed(() => result.value?.type === 'epay')
-	const isAlipayPage = computed(() => isAlipay.value && (result.value?.scene === 'page' || result.value?.scene === 'wap'))
-	const isAlipayPrecreate = computed(() => isAlipay.value && result.value?.scene === 'precreate')
-	const isQrStyle = computed(() => isWechat.value || isAlipayPrecreate.value)
-	const headerTitle = computed(() => {
-	  if (isWechat.value) return '微信扫码支付'
-	  if (isAlipayPage.value) return '支付宝网页支付'
-	  if (isAlipayPrecreate.value) return '支付宝扫码支付'
-	  if (isEpay.value) return '易支付收银台'
-	  return '确认支付'
-	})
+const isAlipayPage = computed(() => isAlipay.value && (result.value?.scene === 'page' || result.value?.scene === 'wap'))
+const isAlipayPrecreate = computed(() => isAlipay.value && result.value?.scene === 'precreate')
+const isQrStyle = computed(() => isWechat.value || isAlipayPrecreate.value)
+const headerTitle = computed(() => {
+  if (step.value === 'done') return '充值成功'
+  if (step.value === 'select') return '账户充值'
+  if (isWechat.value) return '微信扫码支付'
+  if (isAlipayPage.value) return '支付宝网页支付'
+  if (isAlipayPrecreate.value) return '支付宝扫码支付'
+  if (isEpay.value) return '易支付收银台'
+  return '确认支付'
+})
 
 function open() {
   show.value = true
@@ -74,7 +80,7 @@ async function fetchPaymentMethods() {
     const methods = await economyApi.paymentMethods()
     if (Array.isArray(methods) && methods.length > 0) {
       availableMethods.value = methods
-      method.value = methods[0].name
+      method.value = methods[0]!.name
     } else {
       availableMethods.value = []
       method.value = ''
@@ -93,16 +99,20 @@ async function handleCreateOrder() {
   error.value = ''
   try {
     const data = await economyApi.recharge(numAmount.value, method.value)
-    if ((data as any).error) { error.value = (data as any).error; loading.value = false; return }
+    if ((data as { error?: string }).error) {
+      error.value = (data as { error?: string }).error || '创建订单失败'
+      loading.value = false
+      return
+    }
     result.value = data
     step.value = 'paying'
     // 微信 / 支付宝当面付 需要轮询订单状态
     if (data.type === 'wechat' || (data.type === 'alipay' && data.scene === 'precreate')) {
       if (data.qrCode) renderQR(data.qrCode)
-      startPolling(data.orderNo, displayAmount.value, data.bonusExp || 0)
+      startPolling(data.orderNo)
     }
-  } catch (e: any) {
-    error.value = e?.message || '创建订单失败'
+  } catch (e: unknown) {
+    error.value = (e as Error)?.message || '创建订单失败'
   }
   loading.value = false
 }
@@ -113,7 +123,7 @@ async function renderQR(url: string) {
   } catch { qrSrc.value = '' }
 }
 
-function startPolling(orderNo: string, orderAmount: number, exp: number) {
+function startPolling(orderNo: string) {
   if (pollTimer) clearInterval(pollTimer)
   pollTimer = setInterval(async () => {
     try {
@@ -121,19 +131,14 @@ function startPolling(orderNo: string, orderAmount: number, exp: number) {
       if (data.status === 'paid') {
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
         step.value = 'done'
-        result.value = { ...result.value, paid: true }
+        if (result.value) result.value = { ...result.value, paid: true }
         emit('refresh')
       }
     } catch { /* 忽略，继续轮询 */ }
   }, 2000)
 }
 
-function handleAlipayPage() {
-  if (result.value?.payUrl) {
-    location.href = result.value.payUrl
-  }
-}
-function handleEpayRedirect() {
+function handleRedirect() {
   if (result.value?.payUrl) {
     location.href = result.value.payUrl
   }
@@ -147,188 +152,174 @@ function backToSelect() {
   error.value = ''
 }
 
-function onOverlayClick(e: MouseEvent) {
-  if (e.target === e.currentTarget && step.value !== 'paying') close()
-}
-
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && step.value !== 'paying') close()
-}
-
-onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => {
-  document.removeEventListener('keydown', onKeydown)
   if (pollTimer) clearInterval(pollTimer)
 })
 </script>
 
 <template>
-  <div v-if="show" class="modal-overlay" @click="onOverlayClick">
-    <!-- ===== Step: Select ===== -->
-    <div v-if="step === 'select'" class="recharge-modal-v2" role="dialog" aria-modal="true" aria-labelledby="rm-title" tabindex="-1">
-      <div class="rm-header">
-        <div class="rm-header-left">
-          <span class="rm-header-icon" aria-hidden="true">¥</span>
-          <h3 class="rm-title" id="rm-title">账户充值</h3>
-        </div>
-        <button class="rm-close" @click="close" aria-label="关闭">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <line x1="1" y1="1" x2="13" y2="13" /><line x1="13" y1="1" x2="1" y2="13" />
-          </svg>
+  <NModal
+    :show="show"
+    :mask-closable="step !== 'paying'"
+    :close-on-esc="step !== 'paying'"
+    @update:show="(v: boolean) => { if (!v) close() }"
+  >
+    <div class="w-[92vw] max-w-md rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+      <!-- 头部 -->
+      <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+        <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ headerTitle }}</h3>
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          aria-label="关闭"
+          @click="close"
+        >
+          <NIcon :size="16"><X /></NIcon>
         </button>
       </div>
 
-      <div class="rm-body">
-        <!-- 后台未开启任何支付方式 -->
-        <div v-if="noMethods" class="rm-no-methods">
-          <p class="rm-qr-hint">未开启支付方式，请联系管理员</p>
+      <!-- ===== Step: Select ===== -->
+      <div v-if="step === 'select'" class="space-y-5 px-6 py-5">
+        <div v-if="noMethods" class="rounded-lg bg-zinc-50 py-10 text-center text-sm text-zinc-500 dark:bg-zinc-800/60 dark:text-zinc-400">
+          未开启支付方式，请联系管理员
         </div>
 
         <template v-else>
-        <!-- 支付方式（多于一种时展示） -->
-        <div v-if="availableMethods.length > 1" class="rm-section">
-          <span class="rm-label">支付方式</span>
-          <div class="rm-method-list">
-            <button
-              v-for="m in availableMethods"
-              :key="m.name"
-              type="button"
-              class="rm-method-card"
-              :class="{ active: method === m.name }"
-              @click="method = m.name"
-            >
-              <span class="rm-method-icon">{{ methodIcon(m.name) }}</span>
-              <span class="rm-method-label">{{ m.label }}</span>
-              <span class="rm-method-brief">{{ methodBrief(m.name) }}</span>
-            </button>
+          <!-- 支付方式（多于一种时展示） -->
+          <div v-if="availableMethods.length > 1">
+            <p class="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">支付方式</p>
+            <div class="grid gap-2" :class="availableMethods.length >= 3 ? 'grid-cols-3' : 'grid-cols-2'">
+              <button
+                v-for="m in availableMethods"
+                :key="m.name"
+                type="button"
+                class="flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
+                :class="method === m.name
+                  ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-400 dark:bg-emerald-400/10'
+                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'"
+                @click="method = m.name"
+              >
+                <NIcon :size="22" :class="method === m.name ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'">
+                  <component :is="methodIconOf(m.name)" />
+                </NIcon>
+                <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200">{{ m.label }}</span>
+                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">{{ methodBrief(m.name) }}</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- 预设金额 -->
-        <div class="rm-section">
-          <span class="rm-label">选择金额</span>
-          <div class="rm-amount-grid">
-            <button
-              v-for="item in PRESET_AMOUNTS"
-              :key="item.value"
-              type="button"
-              class="rm-amount-chip"
-              :class="{ active: numAmount === item.value }"
-              @click="amount = String(item.value); error = ''"
-            >
-              <span class="rm-amount-value">{{ item.label }}</span>
-              <span class="rm-amount-unit">+{{ item.exp }} EXP</span>
-            </button>
+          <!-- 预设金额 -->
+          <div>
+            <p class="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">选择金额</p>
+            <div class="grid grid-cols-3 gap-2">
+              <button
+                v-for="item in PRESET_AMOUNTS"
+                :key="item.value"
+                type="button"
+                class="rounded-xl border py-2.5 transition-colors"
+                :class="numAmount === item.value
+                  ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-400 dark:bg-emerald-400/10'
+                  : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'"
+                @click="amount = String(item.value); error = ''"
+              >
+                <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ item.label }}</span>
+                <span class="mt-0.5 block font-mono text-[10px] text-zinc-400 dark:text-zinc-500">+{{ item.exp }} EXP</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- 自定义金额 -->
-        <div class="rm-section">
-          <span class="rm-label">自定义金额</span>
-          <div class="rm-amount-custom">
-            <input
-              type="number"
-              class="rm-custom-input"
-              v-model="amount"
-              placeholder="输入金额"
-              min="0.01"
-              max="50000"
-              step="0.01"
+          <!-- 自定义金额 -->
+          <div>
+            <p class="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">自定义金额</p>
+            <NInput
+              v-model:value="amount"
+              placeholder="输入金额（0.01 - 50000）"
+              :input-props="{ inputmode: 'decimal' }"
               @input="error = ''"
-            />
+            >
+              <template #prefix><span class="text-zinc-400">¥</span></template>
+            </NInput>
+            <p v-if="numAmount > 0" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              到账后赠送 <span class="font-mono font-medium text-emerald-600 dark:text-emerald-400">{{ bonusExp }} 经验</span>
+            </p>
           </div>
-          <div v-if="numAmount > 0" class="rm-bonus-hint">
-            <span>赠送</span>
-            <span class="rm-bonus-value">{{ bonusExp }} 经验</span>
-          </div>
-        </div>
 
-        <div v-if="error" class="rm-error">{{ error }}</div>
+          <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
 
-        <button
-          type="button"
-          class="rm-submit-btn"
-          :disabled="loading || numAmount <= 0"
-          @click="handleCreateOrder"
-        >
-          {{ loading ? '创建订单中...' : numAmount > 0 ? `确认充值 ¥${numAmount}` : '确认充值' }}
-        </button>
+          <NButton type="primary" block size="large" :loading="loading" :disabled="numAmount <= 0" @click="handleCreateOrder">
+            {{ numAmount > 0 ? `确认充值 ¥${numAmount}` : '确认充值' }}
+          </NButton>
         </template>
       </div>
-    </div>
 
-    <!-- ===== Step: Paying ===== -->
-    <div v-else-if="step === 'paying'" class="recharge-modal-v2" role="dialog" aria-modal="true" aria-labelledby="rm-title" tabindex="-1">
-      <div class="rm-header">
-        <div class="rm-header-left">
-          <span class="rm-header-icon" aria-hidden="true">¥</span>
-          <h3 class="rm-title" id="rm-title">{{ headerTitle }}</h3>
-        </div>
-        <button class="rm-close" @click="close" aria-label="关闭">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <line x1="1" y1="1" x2="13" y2="13" /><line x1="13" y1="1" x2="1" y2="13" />
-          </svg>
-        </button>
-      </div>
-
-      <div class="rm-body">
-        <div class="rm-summary">
-          <div class="rm-summary-row"><span>订单号</span><span class="rm-order-no">{{ result?.orderNo }}</span></div>
-          <div class="rm-summary-row"><span>金额</span><span class="rm-summary-value">¥{{ displayAmount }}</span></div>
-          <div class="rm-summary-row"><span>方式</span><span class="rm-summary-value">{{ methodLabel(method) }}</span></div>
-          <div v-if="result?.bonusExp > 0" class="rm-summary-row"><span>赠送经验</span><span class="rm-summary-value">+{{ result.bonusExp }} EXP</span></div>
-        </div>
+      <!-- ===== Step: Paying ===== -->
+      <div v-else-if="step === 'paying'" class="space-y-5 px-6 py-5">
+        <!-- 订单摘要 -->
+        <dl class="space-y-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm dark:bg-zinc-800/60">
+          <div class="flex items-center justify-between gap-4">
+            <dt class="shrink-0 text-zinc-500 dark:text-zinc-400">订单号</dt>
+            <dd class="truncate font-mono text-xs text-zinc-700 dark:text-zinc-300">{{ result?.orderNo }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-zinc-500 dark:text-zinc-400">金额</dt>
+            <dd class="font-mono font-semibold text-zinc-900 dark:text-zinc-100">¥{{ displayAmount }}</dd>
+          </div>
+          <div class="flex items-center justify-between">
+            <dt class="text-zinc-500 dark:text-zinc-400">方式</dt>
+            <dd class="text-zinc-700 dark:text-zinc-300">{{ methodLabel(method) }}</dd>
+          </div>
+          <div v-if="resultBonusExp > 0" class="flex items-center justify-between">
+            <dt class="text-zinc-500 dark:text-zinc-400">赠送经验</dt>
+            <dd class="font-mono text-emerald-600 dark:text-emerald-400">+{{ resultBonusExp }} EXP</dd>
+          </div>
+        </dl>
 
         <!-- 二维码：微信 Native / 支付宝当面付 -->
-        <div v-if="isQrStyle" class="rm-qr-section">
-          <div v-if="qrSrc" class="rm-qr-frame">
-            <img :src="qrSrc" alt="支付二维码" width="180" height="180" style="display:block;image-rendering:pixelated;" />
+        <div v-if="isQrStyle" class="flex flex-col items-center gap-3">
+          <div class="rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700">
+            <img v-if="qrSrc" :src="qrSrc" alt="支付二维码" width="180" height="180" class="block [image-rendering:pixelated]" />
+            <div v-else class="size-45 animate-pulse rounded bg-zinc-100"></div>
           </div>
-          <div v-else class="rm-qr-frame" style="min-height:180px;"></div>
-          <p class="rm-qr-hint">{{ isWechat ? '请使用微信扫描二维码完成支付' : '请使用支付宝扫描二维码完成支付' }}</p>
-          <p class="rm-qr-sub">支付完成后将自动确认到账</p>
+          <p class="text-sm text-zinc-700 dark:text-zinc-300">
+            {{ isWechat ? '请使用微信扫描二维码完成支付' : '请使用支付宝扫描二维码完成支付' }}
+          </p>
+          <p class="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+            <span class="inline-block size-1.5 animate-pulse rounded-full bg-emerald-500"></span>
+            支付完成后将自动确认到账
+          </p>
         </div>
 
-        <!-- 支付宝网页支付：跳转 -->
-	        <div v-else-if="isAlipayPage" class="rm-redirect-section">
-	          <p class="rm-qr-hint">点击下方按钮，前往支付宝完成支付</p>
-	          <p class="rm-qr-sub">支付完成后将自动跳转回本站</p>
-	          <button type="button" class="rm-submit-btn" @click="handleAlipayPage">前往支付宝支付</button>
-	        </div>
-
-        <!-- 易支付：跳转收银台 -->
-        <div v-else-if="isEpay" class="rm-redirect-section">
-          <p class="rm-qr-hint">点击下方按钮，跳转到易支付收银台完成支付</p>
-          <p class="rm-qr-sub">支持微信、支付宝等多种方式</p>
-          <button type="button" class="rm-submit-btn" @click="handleEpayRedirect">前往易支付收银台</button>
+        <!-- 跳转类：支付宝网页 / 易支付收银台 -->
+        <div v-else class="flex flex-col items-center gap-2 py-2 text-center">
+          <p class="text-sm text-zinc-700 dark:text-zinc-300">
+            {{ isEpay ? '点击下方按钮，跳转到易支付收银台完成支付' : '点击下方按钮，前往支付宝完成支付' }}
+          </p>
+          <p class="text-xs text-zinc-400 dark:text-zinc-500">
+            {{ isEpay ? '支持微信、支付宝等多种方式' : '支付完成后将自动跳转回本站' }}
+          </p>
+          <NButton type="primary" size="large" class="mt-3 w-full" @click="handleRedirect">
+            <template #icon><NIcon><ExternalLink /></NIcon></template>
+            {{ isEpay ? '前往易支付收银台' : '前往支付宝支付' }}
+          </NButton>
         </div>
 
-        <div v-if="error" class="rm-error">{{ error }}</div>
-        <button type="button" class="rm-back-btn" @click="backToSelect">返回重选</button>
+        <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+
+        <NButton quaternary block @click="backToSelect">
+          <template #icon><NIcon><ArrowLeft /></NIcon></template>
+          返回重选
+        </NButton>
+      </div>
+
+      <!-- ===== Step: Done ===== -->
+      <div v-else class="flex flex-col items-center gap-2 px-6 py-8">
+        <div class="flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400">
+          <NIcon :size="28"><Check /></NIcon>
+        </div>
+        <p class="mt-2 font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-100">¥{{ displayAmount }} 已到账</p>
+        <p v-if="resultBonusExp > 0" class="font-mono text-sm text-emerald-600 dark:text-emerald-400">+{{ resultBonusExp }} 经验</p>
+        <NButton type="primary" block size="large" class="mt-4" @click="close">完成</NButton>
       </div>
     </div>
-
-    <!-- ===== Step: Done ===== -->
-    <div v-else class="recharge-modal-v2" role="dialog" aria-modal="true" aria-labelledby="rm-title" tabindex="-1">
-      <div class="rm-header">
-        <div class="rm-header-left">
-          <span class="rm-header-icon" aria-hidden="true">✓</span>
-          <h3 class="rm-title" id="rm-title">充值成功</h3>
-        </div>
-        <button class="rm-close" @click="close" aria-label="关闭">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <line x1="1" y1="1" x2="13" y2="13" /><line x1="13" y1="1" x2="1" y2="13" />
-          </svg>
-        </button>
-      </div>
-      <div class="rm-body rm-done">
-        <svg class="rm-done-icon" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <circle cx="16" cy="16" r="14" /><path d="M9 16l5 5 9-9" />
-        </svg>
-        <p class="rm-done-text">¥{{ displayAmount }} 已到账</p>
-        <p v-if="result?.bonusExp > 0" class="rm-done-sub">+{{ result.bonusExp }} 经验</p>
-        <button type="button" class="rm-submit-btn" style="margin-top:0.5rem;" @click="close">完成</button>
-      </div>
-    </div>
-  </div>
+  </NModal>
 </template>

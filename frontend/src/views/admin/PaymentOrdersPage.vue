@@ -1,22 +1,30 @@
 <script setup lang="ts">
-// 支付订单：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/PaymentOrders.jsx
-// 样式来自全局 styles/admin-orders.css
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+// 支付订单：统计、筛选（状态/方式/搜索防抖）、批量删除、分页
+// 业务逻辑与后端契约保持不变（后端返回 camelCase 行）；UI 重构为 Naive UI + Tailwind
+import { ref, onMounted, onUnmounted, h } from 'vue'
+import {
+  NButton, NInput, NDataTable, NAlert, NSelect, NTag, NPagination, NSkeleton,
+  type DataTableColumns,
+} from 'naive-ui'
 import api from '@/api'
 import { formatTime } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 
+// 后端 adminOrderRow（handler/economy.go）返回 camelCase 字段
 interface Order {
   id: number
-  order_no: string
-  user_id: number
+  orderNo: string
+  userId: number
   amount: number
   points: number
   status: string
-  payment_method: string
-  trade_no: string
-  created_at: string
-  paid_at: string | null
+  paymentMethod: string
+  paymentScene: string
+  tradeNo: string
+  createdAt: string
+  paidAt: string | null
+  username: string
+  avatar: string
 }
 
 interface OrderStats {
@@ -41,6 +49,13 @@ interface QueryParams {
   search?: string
 }
 
+interface ConfirmMeta {
+  title: string
+  message: string
+  confirmLabel: string
+  danger: boolean
+}
+
 const orders = ref<Order[]>([])
 const stats = ref<OrderStats>({ total: 0, paidCount: 0, pendingCount: 0, totalRevenue: 0 })
 const loading = ref(true)
@@ -50,7 +65,19 @@ const selectedIds = ref<number[]>([])
 const deleting = ref(false)
 const message = ref('')
 const confirmAction = ref<null | (() => void)>(null)
-const confirmMeta = ref<{ type: string; count?: number; id?: number } | null>(null)
+const confirmMeta = ref<ConfirmMeta | null>(null)
+
+const statusOptions = [
+  { label: '全部状态', value: 'all' },
+  { label: '已支付', value: 'paid' },
+  { label: '待支付', value: 'pending' },
+]
+const methodOptions = [
+  { label: '全部方式', value: 'all' },
+  { label: '微信支付', value: 'wechat' },
+  { label: '支付宝', value: 'alipay' },
+  { label: '易支付', value: 'epay' },
+]
 
 onMounted(() => { fetchOrders() })
 onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
@@ -86,16 +113,6 @@ function handleFilterChange(key: 'status' | 'method' | 'search', value: string) 
 }
 function setPage(p: number) { pagination.value.page = p; fetchOrders() }
 
-function toggleSelect(id: number) {
-  selectedIds.value = selectedIds.value.includes(id)
-    ? selectedIds.value.filter((x) => x !== id)
-    : [...selectedIds.value, id]
-}
-const allSelected = computed(() => orders.value.length > 0 && selectedIds.value.length === orders.value.length)
-function toggleSelectAll() {
-  selectedIds.value = allSelected.value ? [] : orders.value.map((o) => o.id)
-}
-
 function handleDelete(id: number) {
   confirmMeta.value = { title: '删除订单', message: '确定删除该订单吗？', confirmLabel: '删除', danger: true }
   confirmAction.value = async () => {
@@ -123,81 +140,147 @@ function handleBatchDelete() {
   }
 }
 
-function statusLabel(s: string) { return s === 'paid' ? '已支付' : s === 'pending' ? '待支付' : s }
 function methodLabel(m: string) {
   return m === 'wechat' ? '微信' : m === 'alipay' ? '支付宝' : (m === 'epay' || m === 'yipay') ? '易支付' : m === 'mock' ? '模拟' : (m || '-')
 }
-function statusClass(s: string) { return s === 'paid' ? 'order-status-paid' : 'order-status-pending' }
+
+const columns: DataTableColumns<Order> = [
+  { type: 'selection' },
+  {
+    title: '订单号',
+    key: 'orderNo',
+    width: 130,
+    render: (row) => h('span', { class: 'font-mono text-xs text-zinc-600 dark:text-zinc-300', title: row.tradeNo || '' }, (row.orderNo || '').slice(-12)),
+  },
+  {
+    title: '用户',
+    key: 'username',
+    width: 140,
+    ellipsis: true,
+    render: (row) =>
+      h('div', { class: 'flex items-center gap-2 min-w-0' }, [
+        row.avatar
+          ? h('img', { src: row.avatar, alt: '', class: 'size-6 shrink-0 rounded-full object-cover' })
+          : h('span', { class: 'grid size-6 shrink-0 place-items-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300' }, (row.username || '?')[0]?.toUpperCase()),
+        h('span', { class: 'truncate text-[13px]' }, row.username),
+      ]),
+  },
+  { title: '金额', key: 'amount', width: 90, render: (row) => h('span', { class: 'font-mono text-[13px] font-medium' }, (row.amount || 0).toFixed(2)) },
+  { title: 'EXP', key: 'points', width: 70, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.points || 0) },
+  { title: '方式', key: 'paymentMethod', width: 84, render: (row) => h('span', { class: 'text-[13px]' }, methodLabel(row.paymentMethod)) },
+  { title: '场景', key: 'paymentScene', width: 90, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.paymentScene || '-') },
+  {
+    title: '状态',
+    key: 'status',
+    width: 88,
+    render: (row) =>
+      h(
+        NTag,
+        { size: 'small', round: true, bordered: false, type: row.status === 'paid' ? 'success' : 'warning' },
+        { default: () => (row.status === 'paid' ? '已支付' : row.status === 'pending' ? '待支付' : row.status) },
+      ),
+  },
+  { title: '时间', key: 'createdAt', width: 110, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.createdAt)) },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 72,
+    render: (row) => h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row.id) }, { default: () => '删除' }),
+  },
+]
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading && orders.length === 0" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading && orders.length === 0" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <NSkeleton v-for="i in 4" :key="i" height="84px" :sharp="false" />
+      </div>
+      <NSkeleton height="320px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">支付订单</h2>
-        <span class="content-sub">管理充值订单，支持筛选、删除</span>
+      <header class="mb-6">
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">支付订单</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理充值订单，支持筛选、删除</p>
+      </header>
+
+      <!-- 统计 -->
+      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p class="font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.total }}</p>
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">总订单</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p class="font-mono text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{{ stats.paidCount }}</p>
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">已支付</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p class="font-mono text-2xl font-semibold text-amber-600 dark:text-amber-400">{{ stats.pendingCount }}</p>
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">待支付</p>
+        </div>
+        <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+          <p class="font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ Number(stats.totalRevenue || 0).toFixed(2) }}</p>
+          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">收入（元）</p>
+        </div>
       </div>
 
-      <div class="order-stats-bar">
-        <div class="order-stat-item"><span class="order-stat-value">{{ stats.total }}</span><span class="order-stat-label">总订单</span></div>
-        <div class="order-stat-item"><span class="order-stat-value order-paid">{{ stats.paidCount }}</span><span class="order-stat-label">已支付</span></div>
-        <div class="order-stat-item"><span class="order-stat-value order-pending">{{ stats.pendingCount }}</span><span class="order-stat-label">待支付</span></div>
-        <div class="order-stat-item"><span class="order-stat-value">{{ parseFloat(stats.totalRevenue || 0).toFixed(2) }}</span><span class="order-stat-label">收入 (元)</span></div>
+      <!-- 筛选 -->
+      <div class="mt-5 flex flex-wrap items-center gap-2.5">
+        <NSelect
+          class="w-32"
+          :value="filter.status"
+          :options="statusOptions"
+          @update:value="(v: string) => handleFilterChange('status', v)"
+        />
+        <NSelect
+          class="w-32"
+          :value="filter.method"
+          :options="methodOptions"
+          @update:value="(v: string) => handleFilterChange('method', v)"
+        />
+        <NInput
+          class="w-56"
+          placeholder="搜索订单号 / 用户名"
+          clearable
+          :value="filter.search"
+          @update:value="(v: string) => handleFilterChange('search', v)"
+        />
+        <NButton
+          v-if="selectedIds.length > 0"
+          type="error"
+          :loading="deleting"
+          @click="handleBatchDelete"
+        >
+          删除选中（{{ selectedIds.length }}）
+        </NButton>
       </div>
 
-      <div class="order-filters">
-        <select class="form-input order-filter-select" :value="filter.status" @change="(e) => handleFilterChange('status', (e.target as HTMLSelectElement).value)">
-          <option value="all">全部状态</option><option value="paid">已支付</option><option value="pending">待支付</option>
-        </select>
-        <select class="form-input order-filter-select" :value="filter.method" @change="(e) => handleFilterChange('method', (e.target as HTMLSelectElement).value)">
-          <option value="all">全部方式</option><option value="wechat">微信支付</option><option value="alipay">支付宝</option><option value="epay">易支付</option>
-        </select>
-        <input type="text" class="form-input order-filter-search" placeholder="搜索订单号 / 用户名" :value="filter.search" @input="(e) => handleFilterChange('search', (e.target as HTMLInputElement).value)" />
-        <button v-if="selectedIds.length > 0" class="action-button" style="background: var(--danger); color: #fff; border-color: var(--danger);" :disabled="deleting" @click="handleBatchDelete">
-          {{ deleting ? '删除中...' : `删除选中 (${selectedIds.length})` }}
-        </button>
-      </div>
+      <NAlert
+        v-if="message"
+        :type="message.includes('失败') ? 'error' : 'success'"
+        class="mt-4"
+        closable
+        @close="message = ''"
+      >{{ message }}</NAlert>
 
-      <div v-if="message" class="form-message" style="margin-bottom: 0.75rem;">{{ message }}</div>
+      <!-- 订单表 -->
+      <NDataTable
+        class="mt-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+        :columns="columns"
+        :data="orders"
+        :row-key="(row: Order) => row.id"
+        :bordered="false"
+        :loading="loading"
+        :checked-row-keys="selectedIds"
+        :scroll-x="920"
+        @update:checked-row-keys="(keys) => selectedIds = keys as number[]"
+      />
 
-      <div class="order-table-wrap">
-        <table class="order-table">
-          <thead>
-            <tr>
-              <th style="width: 36px;"><input type="checkbox" :checked="allSelected" @change="toggleSelectAll" class="order-checkbox" /></th>
-              <th>订单号</th><th>用户</th><th>金额</th><th>EXP</th><th>方式</th><th>场景</th><th>状态</th><th>时间</th><th style="width: 50px;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="orders.length === 0"><td colspan="10" class="order-empty">暂无订单数据</td></tr>
-            <tr v-for="o in orders" :key="o.id">
-              <td><input type="checkbox" :checked="selectedIds.includes(o.id)" @change="toggleSelect(o.id)" class="order-checkbox" /></td>
-              <td class="mono-td" :title="o.tradeNo || ''">{{ (o.orderNo || '').slice(-12) }}</td>
-              <td class="user-cell">
-                <img v-if="o.avatar" :src="o.avatar" alt="" class="order-avatar" />
-                <span>{{ o.username }}</span>
-              </td>
-              <td class="mono-td">{{ (o.amount || 0).toFixed(2) }}</td>
-              <td class="mono-td">{{ o.points || 0 }}</td>
-              <td>{{ methodLabel(o.paymentMethod) }}</td>
-              <td class="mono-td dim">{{ o.paymentScene || '-' }}</td>
-              <td><span :class="statusClass(o.status)">{{ statusLabel(o.status) }}</span></td>
-              <td class="mono-td dim">{{ formatTime(o.createdAt) }}</td>
-              <td>
-                <button class="order-delete-btn" title="删除" @click="handleDelete(o.id)">
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 4h10M5 4V2.5a.5.5 0 01.5-.5h3a.5.5 0 01.5.5V4M11 4v7.5a1 1 0 01-1 1H4a1 1 0 01-1-1V4" /><line x1="5.5" y1="6.5" x2="5.5" y2="10.5" /><line x1="8.5" y1="6.5" x2="8.5" y2="10.5" /></svg>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="pagination.totalPages > 1" class="order-pagination">
-        <button class="action-button secondary" :disabled="pagination.page <= 1" @click="setPage(pagination.page - 1)">上一页</button>
-        <span class="pagination-info">{{ pagination.page }} / {{ pagination.totalPages }} (共 {{ pagination.total }} 条)</span>
-        <button class="action-button secondary" :disabled="pagination.page >= pagination.totalPages" @click="setPage(pagination.page + 1)">下一页</button>
+      <div v-if="pagination.totalPages > 1" class="mt-4 flex flex-wrap items-center justify-end gap-3">
+        <span class="font-mono text-xs text-zinc-400 dark:text-zinc-500">共 {{ pagination.total }} 条</span>
+        <NPagination :page="pagination.page" :page-count="pagination.totalPages" @update:page="setPage" />
       </div>
     </template>
 

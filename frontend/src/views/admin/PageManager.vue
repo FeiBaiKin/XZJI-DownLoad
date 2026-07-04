@@ -1,8 +1,9 @@
 <script setup lang="ts">
-// 页面管理：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/PageManager.jsx
-// 富文本用 wangEditor（RichTextEditor）替代 react-quill
-// 样式来自全局 styles/admin-layout.css + admin-orders.css + rich-text.css
-import { ref, onMounted } from 'vue'
+// 页面管理：创建独立页面（隐私协议、用户协议等），wangEditor 富文本编辑
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
+import { ref, onMounted, h } from 'vue'
+import { NButton, NInput, NDataTable, NAlert, NSwitch, NTag, NSkeleton, NIcon, type DataTableColumns } from 'naive-ui'
+import { Plus } from '@vicons/tabler'
 import { contentApi, type Page } from '@/api/content'
 import { formatTime } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -83,76 +84,96 @@ async function doDelete() {
     fetchPages()
   } catch { /* 忽略 */ }
 }
+
+const columns: DataTableColumns<Page> = [
+  { title: '标题', key: 'title', render: (row) => h('span', { class: 'font-medium' }, row.title) },
+  { title: '标识', key: 'slug', width: 140, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.slug) },
+  {
+    title: '状态',
+    key: 'is_published',
+    width: 90,
+    render: (row) =>
+      h(NTag, { size: 'small', round: true, type: row.is_published ? 'success' : 'default', bordered: false }, { default: () => (row.is_published ? '已发布' : '草稿') }),
+  },
+  { title: '更新时间', key: 'updated_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.updated_at)) },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 170,
+    render: (row) =>
+      h('div', { class: 'flex gap-1' }, [
+        h(NButton, { size: 'tiny', quaternary: true, onClick: () => window.open(`/page/${row.slug}`, '_blank') }, { default: () => '查看' }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+      ]),
+  },
+]
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="240px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">页面管理</h2>
-        <span class="content-sub">创建独立页面，如隐私协议、用户协议等</span>
-      </div>
+      <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">页面管理</h2>
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">创建独立页面，如隐私协议、用户协议等</p>
+        </div>
+        <NButton v-if="!editing" type="primary" @click="openNew">
+          <template #icon><NIcon><Plus /></NIcon></template>
+          新建页面
+        </NButton>
+      </header>
 
-      <div v-if="!editing" style="margin-bottom: 1rem;">
-        <button class="action-button" @click="openNew">新建页面</button>
-      </div>
-
-      <div v-if="editing" class="form-card" style="margin-bottom: 1.5rem;">
-        <div class="form-card-title">{{ editing.id ? `编辑页面: ${editing.title}` : '新建页面' }}</div>
-        <form @submit.prevent="handleSave">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">页面标题</label>
-              <input type="text" class="form-input" v-model="form.title" />
+      <!-- 编辑表单 -->
+      <section v-if="editing" class="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+          {{ editing.id ? `编辑页面：${editing.title}` : '新建页面' }}
+        </h3>
+        <form class="space-y-4" @submit.prevent="handleSave">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">页面标题</label>
+              <NInput v-model:value="form.title" placeholder="页面标题" />
             </div>
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">URL 标识</label>
-              <input type="text" class="form-input" v-model="form.slug" placeholder="privacy" />
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">URL 标识</label>
+              <NInput v-model:value="form.slug" placeholder="privacy" />
             </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">内容</label>
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">内容</label>
             <RichTextEditor v-model="form.content" placeholder="开始编辑页面内容..." />
           </div>
-          <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.75rem;">
-            <label class="form-label" style="margin: 0;">发布状态</label>
-            <button type="button" class="email-toggle-switch" :class="{ on: form.is_published }" :aria-checked="form.is_published" role="switch" @click="form.is_published = !form.is_published">
-              <span class="email-toggle-knob" />
-            </button>
-            <span style="font-size: 0.75rem; color: var(--text-tertiary);">{{ form.is_published ? '已发布' : '未发布' }}</span>
+          <div class="flex items-center gap-3">
+            <label class="text-sm text-zinc-600 dark:text-zinc-400">发布状态</label>
+            <NSwitch v-model:value="form.is_published" size="small" />
+            <span class="text-xs text-zinc-400 dark:text-zinc-500">{{ form.is_published ? '已发布' : '未发布' }}</span>
           </div>
-          <div v-if="message" class="form-message" style="margin-bottom: 0.75rem;">{{ message }}</div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : '保存' }}</button>
-            <button type="button" class="action-button secondary" @click="resetForm">取消</button>
+
+          <NAlert v-if="message" :type="message.includes('失败') || message.includes('不能') ? 'error' : 'success'" closable @close="message = ''">
+            {{ message }}
+          </NAlert>
+
+          <div class="flex gap-2">
+            <NButton attr-type="submit" type="primary" :loading="saving">保存</NButton>
+            <NButton quaternary @click="resetForm">取消</NButton>
           </div>
         </form>
-      </div>
+      </section>
 
-      <div class="order-table-wrap">
-        <table class="order-table">
-          <thead>
-            <tr>
-              <th>标题</th><th>标识</th><th>状态</th><th>更新时间</th><th style="width: 140px;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="pages.length === 0"><td colspan="5" class="order-empty">暂无页面</td></tr>
-            <tr v-for="p in pages" :key="p.id">
-              <td style="font-weight: 500;">{{ p.title }}</td>
-              <td class="mono-td">{{ p.slug }}</td>
-              <td>{{ p.is_published ? '已发布' : '草稿' }}</td>
-              <td class="mono-td dim">{{ formatTime(p.updated_at) }}</td>
-              <td style="display: flex; gap: 0.75rem;">
-                <a :href="`/page/${p.slug}`" target="_blank" class="action-link" style="text-decoration: none;">查看</a>
-                <button class="action-link" @click="handleEdit(p)">编辑</button>
-                <button class="action-link danger" @click="handleDelete(p)">删除</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- 页面列表 -->
+      <NDataTable
+        :columns="columns"
+        :data="pages"
+        :row-key="(row: Page) => row.id"
+        :bordered="false"
+        class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+      />
     </template>
 
     <ConfirmDialog

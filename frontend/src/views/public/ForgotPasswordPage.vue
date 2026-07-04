@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// 忘记密码页：1:1 移植自原项目 Node-XZJI/frontend/src/pages/ForgotPasswordPage.jsx
-// 三步：request(发码) → verify(验码) → reset(重置)
-// 样式来自全局 styles/auth.css + verification.css
-import { ref, onUnmounted, watch } from 'vue'
+// 忘记密码页：三步流程 request(发码) → verify(验码) → reset(重置)
+// 业务逻辑保持不变；UI 重构为 AuthShell + Naive UI（步骤条指示进度）
+import { ref, computed, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { NButton, NInput, NSteps, NStep } from 'naive-ui'
 import { authApi } from '@/api/auth'
+import AuthShell from '@/components/AuthShell.vue'
 
 const router = useRouter()
 
@@ -18,6 +19,13 @@ const error = ref('')
 const message = ref('')
 const sendingCode = ref(false)
 const cooldown = ref(0)
+
+const stepIndex = computed(() => (step.value === 'request' ? 1 : step.value === 'verify' ? 2 : 3))
+const subtitle = computed(() => {
+  if (step.value === 'request') return '输入注册邮箱，获取验证码'
+  if (step.value === 'verify') return `验证码已发送至 ${email.value}`
+  return '请输入您的新密码'
+})
 
 // 倒计时
 let timer: ReturnType<typeof setInterval> | null = null
@@ -42,8 +50,8 @@ async function handleSendCode() {
     message.value = '验证码已发送，请查收邮箱'
     cooldown.value = 60
     step.value = 'verify'
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '发送失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '发送失败'
   } finally {
     sendingCode.value = false
   }
@@ -61,8 +69,8 @@ async function handleVerifyCode() {
     await authApi.verifyCode(email.value.trim(), code.value.trim(), 'forgot-password')
     message.value = ''
     step.value = 'reset'
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '验证失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '验证失败'
   } finally {
     loading.value = false
   }
@@ -81,8 +89,8 @@ async function handleResetPassword() {
     await authApi.resetPassword(email.value.trim(), code.value.trim(), password.value)
     message.value = '密码重置成功，即将跳转到登录页...'
     setTimeout(() => router.push('/login'), 1500)
-  } catch (err: any) {
-    error.value = err?.response?.data?.error || '重置失败'
+  } catch (err: unknown) {
+    error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '重置失败'
   } finally {
     loading.value = false
   }
@@ -90,98 +98,109 @@ async function handleResetPassword() {
 </script>
 
 <template>
-  <div class="auth-page">
-    <div class="auth-container">
-      <div class="auth-header">
-        <router-link to="/login" class="auth-back">
-          <span class="auth-back-icon">&#8592;</span>
-          <span>返回登录</span>
-        </router-link>
-        <h1 class="auth-title">{{ step === 'reset' ? '重置密码' : '找回密码' }}</h1>
-        <p class="auth-subtitle">
-          <template v-if="step === 'request'">输入注册邮箱，获取验证码</template>
-          <template v-else-if="step === 'verify'">验证码已发送至 {{ email }}</template>
-          <template v-else>请输入您的新密码</template>
-        </p>
+  <AuthShell
+    :title="step === 'reset' ? '重置密码' : '找回密码'"
+    :subtitle="subtitle"
+    back-to="/login"
+    back-label="返回登录"
+  >
+    <NSteps :current="stepIndex" size="small" class="mb-8">
+      <NStep title="获取验证码" />
+      <NStep title="验证邮箱" />
+      <NStep title="重置密码" />
+    </NSteps>
+
+    <!-- 步骤1：发送验证码 -->
+    <form v-if="step === 'request'" class="space-y-5" @submit.prevent="handleSendCode">
+      <div>
+        <label for="email" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">注册邮箱</label>
+        <NInput
+          id="email"
+          v-model:value="email"
+          size="large"
+          placeholder="输入您的注册邮箱"
+          :disabled="sendingCode"
+          :input-props="{ type: 'email', autocomplete: 'email' }"
+        />
       </div>
 
-      <!-- 步骤1：发送验证码 -->
-      <form v-if="step === 'request'" class="auth-form" @submit.prevent="handleSendCode">
-        <div class="form-group">
-          <label for="email" class="form-label">注册邮箱</label>
-          <input id="email" type="email" class="form-input" placeholder="输入您的注册邮箱" v-model="email" :disabled="sendingCode" autocomplete="email" />
-        </div>
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+      <p v-if="message" class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">{{ message }}</p>
 
-        <div v-if="error" class="form-error">{{ error }}</div>
-        <div v-if="message" class="form-success">{{ message }}</div>
+      <NButton attr-type="submit" type="primary" size="large" block :loading="sendingCode">发送验证码</NButton>
+    </form>
 
-        <button type="submit" class="auth-button" :disabled="sendingCode">
-          {{ sendingCode ? '发送中...' : '发送验证码' }}
-        </button>
-      </form>
-
-      <!-- 步骤2：验证验证码 -->
-      <form v-else-if="step === 'verify'" class="auth-form" @submit.prevent="handleVerifyCode">
-        <div class="form-group">
-          <label for="code" class="form-label">验证码</label>
-          <input
+    <!-- 步骤2：验证验证码 -->
+    <form v-else-if="step === 'verify'" class="space-y-5" @submit.prevent="handleVerifyCode">
+      <div>
+        <label for="code" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">验证码</label>
+        <div class="flex gap-2">
+          <NInput
             id="code"
-            type="text"
-            class="form-input"
-            placeholder="6位数字验证码"
+            v-model:value="code"
+            size="large"
+            class="flex-1 text-center font-mono tracking-[0.3em]"
+            placeholder="6 位数字验证码"
             maxlength="6"
-            v-model="code"
             :disabled="loading"
-            autocomplete="one-time-code"
-            style="letter-spacing: 0.2em; text-align: center; font-size: 1.1rem;"
+            :input-props="{ autocomplete: 'one-time-code', inputmode: 'numeric' }"
           />
-        </div>
-
-        <div style="display: flex; gap: 0.5rem;">
-          <button
-            type="button"
-            class="code-send-btn"
-            @click="handleSendCode"
+          <NButton
+            size="large"
+            secondary
             :disabled="sendingCode || cooldown > 0 || loading"
-            style="flex: 0 0 auto;"
+            :loading="sendingCode"
+            @click="handleSendCode"
           >
-            {{ sendingCode ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '重新发送' }}
-          </button>
+            {{ cooldown > 0 ? `${cooldown}s` : '重新发送' }}
+          </NButton>
         </div>
-
-        <div v-if="error" class="form-error">{{ error }}</div>
-        <div v-if="message" class="form-success">{{ message }}</div>
-
-        <button type="submit" class="auth-button" :disabled="loading">
-          {{ loading ? '验证中...' : '验证' }}
-        </button>
-      </form>
-
-      <!-- 步骤3：重置密码 -->
-      <form v-else class="auth-form" @submit.prevent="handleResetPassword">
-        <div class="form-group">
-          <label for="password" class="form-label">新密码</label>
-          <input id="password" type="password" class="form-input" placeholder="至少6个字符" v-model="password" :disabled="loading" autocomplete="new-password" />
-        </div>
-
-        <div class="form-group">
-          <label for="confirmPassword" class="form-label">确认新密码</label>
-          <input id="confirmPassword" type="password" class="form-input" placeholder="再次输入新密码" v-model="confirmPassword" :disabled="loading" autocomplete="new-password" />
-        </div>
-
-        <div v-if="error" class="form-error">{{ error }}</div>
-        <div v-if="message" class="form-success">{{ message }}</div>
-
-        <button type="submit" class="auth-button" :disabled="loading">
-          {{ loading ? '重置中...' : '重置密码' }}
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        <p class="auth-switch">
-          <router-link to="/login" class="auth-link">返回登录</router-link>
-        </p>
       </div>
-    </div>
-  </div>
+
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+      <p v-if="message" class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">{{ message }}</p>
+
+      <NButton attr-type="submit" type="primary" size="large" block :loading="loading">验证</NButton>
+    </form>
+
+    <!-- 步骤3：重置密码 -->
+    <form v-else class="space-y-5" @submit.prevent="handleResetPassword">
+      <div>
+        <label for="password" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">新密码</label>
+        <NInput
+          id="password"
+          v-model:value="password"
+          type="password"
+          show-password-on="click"
+          size="large"
+          placeholder="至少 6 个字符"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'new-password' }"
+        />
+      </div>
+
+      <div>
+        <label for="confirmPassword" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">确认新密码</label>
+        <NInput
+          id="confirmPassword"
+          v-model:value="confirmPassword"
+          type="password"
+          show-password-on="click"
+          size="large"
+          placeholder="再次输入新密码"
+          :disabled="loading"
+          :input-props="{ autocomplete: 'new-password' }"
+        />
+      </div>
+
+      <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
+      <p v-if="message" class="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400">{{ message }}</p>
+
+      <NButton attr-type="submit" type="primary" size="large" block :loading="loading">重置密码</NButton>
+    </form>
+
+    <template #footer>
+      <router-link to="/login" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">返回登录</router-link>
+    </template>
+  </AuthShell>
 </template>

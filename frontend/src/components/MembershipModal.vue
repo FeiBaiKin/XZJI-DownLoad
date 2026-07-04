@@ -1,19 +1,21 @@
 <script setup lang="ts">
-// 会员购买弹窗：1:1 移植自原项目 Node-XZJI/frontend/src/MembershipModal.jsx
-// 样式来自全局 styles/modal.css（.mm-* 类）
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+// 会员购买弹窗：余额支付；有效期叠加续期提示
+// 业务逻辑不变，UI 重构为 Naive UI + Tailwind
+import { ref, computed } from 'vue'
+import { NModal, NButton, NIcon } from 'naive-ui'
+import { X, Crown } from '@vicons/tabler'
 import api from '@/api'
 import type { MembershipConfig, UserBrief } from '@/types/api'
 
 const props = defineProps<{ plan: MembershipConfig; profile: UserBrief }>()
-const emit = defineEmits<{ close: []; success: [data: any] }>()
+const emit = defineEmits<{ close: []; success: [data: unknown] }>()
 
 const loading = ref(false)
 const error = ref('')
-const modalRef = ref<HTMLElement | null>(null)
 
-const balance = computed(() => parseFloat(props.profile?.balance || 0))
-const canAfford = computed(() => balance.value >= parseFloat(props.plan?.price || 0))
+const balance = computed(() => Number(props.profile?.balance ?? 0))
+const price = computed(() => Number(props.plan?.price ?? 0))
+const canAfford = computed(() => balance.value >= price.value)
 const daysText = computed(() => {
   const d = props.plan?.days || 0
   if (d >= 365) return `${Math.floor(d / 365)} 年`
@@ -25,17 +27,6 @@ const hasMembership = computed(() => {
     && new Date(props.profile.membership_expires_at) > new Date()
 })
 const isCurrentPlan = computed(() => hasMembership.value && props.profile?.membership_level === props.plan?.level_name)
-
-function onKey(e: KeyboardEvent) { if (e.key === 'Escape') emit('close') }
-onMounted(() => {
-  modalRef.value?.focus()
-  document.addEventListener('keydown', onKey)
-})
-onUnmounted(() => document.removeEventListener('keydown', onKey))
-
-function handleOverlayClick(e: MouseEvent) {
-  if (e.target === e.currentTarget) emit('close')
-}
 
 async function handleBuy() {
   loading.value = true
@@ -54,81 +45,77 @@ async function handleBuy() {
 </script>
 
 <template>
-  <div class="modal-overlay" @click="handleOverlayClick">
-    <div
-      class="membership-modal"
-      @click.stop
-      ref="modalRef"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="mm-title"
-      tabindex="-1"
-    >
-      <!-- Header -->
-      <div class="mm-header">
-        <div class="mm-header-left">
-          <span class="mm-header-icon" aria-hidden="true">M</span>
-          <h3 class="mm-title" id="mm-title">开通会员</h3>
+  <NModal :show="true" :mask-closable="!loading" :close-on-esc="!loading" @update:show="(v: boolean) => { if (!v) emit('close') }">
+    <div class="w-[92vw] max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+      <!-- 头部 -->
+      <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+        <div class="flex items-center gap-2">
+          <NIcon :size="18" class="text-amber-500"><Crown /></NIcon>
+          <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">开通会员</h3>
         </div>
-        <button class="mm-close" @click="emit('close')" aria-label="关闭">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-            <line x1="1" y1="1" x2="13" y2="13" /><line x1="13" y1="1" x2="1" y2="13" />
-          </svg>
+        <button
+          type="button"
+          class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          aria-label="关闭"
+          @click="emit('close')"
+        >
+          <NIcon :size="16"><X /></NIcon>
         </button>
       </div>
 
-      <!-- Body -->
-      <div class="mm-body">
-        <!-- Plan summary -->
-        <div class="mm-plan-summary">
-          <div class="mm-plan-name" :style="plan.color ? { color: plan.color } : {}">{{ plan.level_name }}</div>
-          <div class="mm-plan-meta">
-            <div class="mm-meta-item">
-              <span class="mm-meta-label">有效期</span>
-              <span class="mm-meta-value">{{ plan.days }} 天 ({{ daysText }})</span>
+      <div class="space-y-4 px-6 py-5">
+        <!-- 方案摘要 -->
+        <div class="rounded-xl border border-zinc-200 px-4 py-3 dark:border-zinc-700">
+          <p class="text-lg font-semibold" :style="plan.color ? { color: plan.color } : {}">{{ plan.level_name }}</p>
+          <dl class="mt-2 space-y-1.5 text-sm">
+            <div class="flex justify-between">
+              <dt class="text-zinc-500 dark:text-zinc-400">有效期</dt>
+              <dd class="text-zinc-800 dark:text-zinc-200">{{ plan.days }} 天（{{ daysText }}）</dd>
             </div>
-            <div class="mm-meta-item">
-              <span class="mm-meta-label">每日下载</span>
-              <span class="mm-meta-value">{{ plan.daily_download_limit === -1 ? '无限制' : `${plan.daily_download_limit} 次` }}</span>
+            <div class="flex justify-between">
+              <dt class="text-zinc-500 dark:text-zinc-400">每日下载</dt>
+              <dd class="text-zinc-800 dark:text-zinc-200">{{ plan.daily_download_limit === -1 ? '无限制' : `${plan.daily_download_limit} 次` }}</dd>
             </div>
-            <div v-if="plan.discount > 0 && plan.discount < 1" class="mm-meta-item">
-              <span class="mm-meta-label">付费链接折扣</span>
-              <span class="mm-meta-value">{{ Math.round(plan.discount * 100) }} 折</span>
+            <div v-if="plan.discount > 0 && plan.discount < 1" class="flex justify-between">
+              <dt class="text-zinc-500 dark:text-zinc-400">付费链接折扣</dt>
+              <dd class="text-zinc-800 dark:text-zinc-200">{{ Math.round(plan.discount * 100) }} 折</dd>
             </div>
-          </div>
+          </dl>
         </div>
 
-        <!-- Price -->
-        <div class="mm-price-section">
-          <div class="mm-price-row">
-            <span class="mm-label">支付金额</span>
-            <span class="mm-price-value">{{ parseFloat(plan.price).toFixed(0) }} 元</span>
+        <!-- 价格 -->
+        <div class="space-y-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm dark:bg-zinc-800/60">
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500 dark:text-zinc-400">支付金额</span>
+            <span class="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100">¥{{ price.toFixed(0) }}</span>
           </div>
-          <div class="mm-price-row">
-            <span class="mm-label">当前余额</span>
-            <span class="mm-balance-value" :class="{ insufficient: !canAfford }">{{ balance.toFixed(2) }} 元</span>
+          <div class="flex items-center justify-between">
+            <span class="text-zinc-500 dark:text-zinc-400">当前余额</span>
+            <span class="font-mono" :class="canAfford ? 'text-zinc-700 dark:text-zinc-300' : 'text-red-500 dark:text-red-400'">
+              ¥{{ balance.toFixed(2) }}
+            </span>
           </div>
-          <div v-if="!canAfford" class="mm-insufficient-hint">余额不足，请先充值后再购买</div>
+          <p v-if="!canAfford" class="text-xs text-red-500 dark:text-red-400">余额不足，请先充值后再购买</p>
         </div>
 
-        <!-- Extension note -->
-        <div v-if="hasMembership && !isCurrentPlan" class="mm-extension-note">
+        <!-- 续期 / 重复提示 -->
+        <p v-if="hasMembership && !isCurrentPlan" class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-400/10 dark:text-amber-400">
           您当前是 {{ profile.membership_level }}，购买后有效期将从现有到期日延长
-        </div>
-        <div v-if="isCurrentPlan" class="mm-current-note">
+        </p>
+        <p v-if="isCurrentPlan" class="rounded-lg bg-zinc-100 px-3 py-2 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
           您当前已是 {{ plan.level_name }}，无需重复购买
-        </div>
+        </p>
 
-        <div v-if="error" class="mm-error">{{ error }}</div>
+        <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
 
-        <!-- Actions -->
-        <div class="mm-actions">
-          <button class="mm-submit-btn" @click="handleBuy" :disabled="loading || !canAfford || isCurrentPlan">
-            {{ loading ? '处理中...' : isCurrentPlan ? '当前方案' : `确认支付 ${parseFloat(plan.price).toFixed(0)} 元` }}
-          </button>
-          <button class="mm-cancel-btn" @click="emit('close')">取消</button>
+        <!-- 操作 -->
+        <div class="space-y-2 pt-1">
+          <NButton type="primary" block size="large" :loading="loading" :disabled="!canAfford || isCurrentPlan" @click="handleBuy">
+            {{ isCurrentPlan ? '当前方案' : `确认支付 ¥${price.toFixed(0)}` }}
+          </NButton>
+          <NButton quaternary block @click="emit('close')">取消</NButton>
         </div>
       </div>
     </div>
-  </div>
+  </NModal>
 </template>

@@ -1,7 +1,12 @@
 <script setup lang="ts">
-// 公告管理：1:1 移植自原项目 Node-XZJI/frontend/src/pages/admin/AnnouncementManager.jsx
-// 富文本用 wangEditor（RichTextEditor simple）替代 react-quill
-import { ref, onMounted } from 'vue'
+// 公告管理：前台弹窗公告，用户关闭后不再显示
+// 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
+import { ref, onMounted, h } from 'vue'
+import {
+  NButton, NInput, NDataTable, NAlert, NSwitch, NTag, NSkeleton, NIcon, NRadioGroup, NRadioButton,
+  type DataTableColumns,
+} from 'naive-ui'
+import { Plus } from '@vicons/tabler'
 import { contentApi, type Announcement } from '@/api/content'
 import { formatTime } from '@/utils/format'
 import { typeLabels, typeOptions } from '@/constants/admin'
@@ -84,76 +89,102 @@ async function doDelete() {
     fetchAnnouncements()
   } catch { /* 忽略 */ }
 }
+
+const typeTagType = (t: string): 'info' | 'warning' | 'success' =>
+  (t === 'warning' ? 'warning' : t === 'success' ? 'success' : 'info')
+
+const columns: DataTableColumns<Announcement> = [
+  { title: '标题', key: 'title', render: (row) => h('span', { class: 'font-medium' }, row.title) },
+  {
+    title: '类型',
+    key: 'type',
+    width: 90,
+    render: (row) =>
+      h(NTag, { size: 'small', round: true, bordered: false, type: typeTagType(row.type) }, { default: () => typeLabels[row.type] || row.type }),
+  },
+  {
+    title: '状态',
+    key: 'is_active',
+    width: 90,
+    render: (row) => h('span', { class: row.is_active ? 'text-emerald-600 dark:text-emerald-400 text-[13px]' : 'text-zinc-400 text-[13px]' }, row.is_active ? '启用' : '已停用'),
+  },
+  { title: '时间', key: 'created_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.created_at)) },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 130,
+    render: (row) =>
+      h('div', { class: 'flex gap-1' }, [
+        h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row) }, { default: () => '删除' }),
+      ]),
+  },
+]
 </script>
 
 <template>
-  <div class="admin-content">
-    <div v-if="loading" class="loading-state">加载中...</div>
+  <div>
+    <div v-if="loading" class="space-y-4">
+      <NSkeleton text width="20%" size="large" />
+      <NSkeleton height="240px" :sharp="false" />
+    </div>
+
     <template v-else>
-      <div class="content-header">
-        <h2 class="content-title">公告管理</h2>
-        <span class="content-sub">管理前台弹窗公告，用户关闭后不再显示</span>
-      </div>
+      <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">公告管理</h2>
+          <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理前台弹窗公告，用户关闭后不再显示</p>
+        </div>
+        <NButton v-if="!showForm" type="primary" @click="openNew">
+          <template #icon><NIcon><Plus /></NIcon></template>
+          新建公告
+        </NButton>
+      </header>
 
-      <div v-if="!showForm" style="margin-bottom: 1rem;">
-        <button class="action-button" @click="openNew">新建公告</button>
-      </div>
-
-      <div v-if="showForm" class="form-card" style="margin-bottom: 1.5rem;">
-        <div class="form-card-title">{{ editing ? '编辑公告' : '新建公告' }}</div>
-        <form @submit.prevent="handleSave">
-          <div class="form-group">
-            <label class="form-label">标题</label>
-            <input type="text" class="form-input" v-model="form.title" />
+      <!-- 编辑表单 -->
+      <section v-if="showForm" class="mb-6 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{{ editing ? '编辑公告' : '新建公告' }}</h3>
+        <form class="space-y-4" @submit.prevent="handleSave">
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">标题</label>
+            <NInput v-model:value="form.title" placeholder="公告标题" />
           </div>
-          <div class="form-group">
-            <label class="form-label">内容</label>
+          <div>
+            <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">内容</label>
             <RichTextEditor v-model="form.content" simple placeholder="开始编辑公告内容..." />
           </div>
-          <div style="display: flex; gap: 1.5rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 0.75rem;">
-            <div class="form-group" style="margin: 0;">
-              <label class="form-label">类型</label>
-              <div class="pay-scene-toggle" style="display: inline-flex;">
-                <button v-for="t in typeOptions" :key="t" type="button" class="pay-scene-btn" :class="{ active: form.type === t }" @click="form.type = t">{{ typeLabels[t] }}</button>
-              </div>
+          <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+            <div class="flex items-center gap-3">
+              <label class="text-sm text-zinc-600 dark:text-zinc-400">类型</label>
+              <NRadioGroup v-model:value="form.type" size="small">
+                <NRadioButton v-for="t in typeOptions" :key="t" :value="t">{{ typeLabels[t] }}</NRadioButton>
+              </NRadioGroup>
             </div>
-            <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.75rem; margin: 0;">
-              <label class="form-label" style="margin: 0;">启用</label>
-              <button type="button" class="email-toggle-switch" :class="{ on: form.is_active }" :aria-checked="form.is_active" role="switch" @click="form.is_active = !form.is_active">
-                <span class="email-toggle-knob" />
-              </button>
+            <div class="flex items-center gap-3">
+              <label class="text-sm text-zinc-600 dark:text-zinc-400">启用</label>
+              <NSwitch v-model:value="form.is_active" size="small" />
             </div>
           </div>
-          <div v-if="message" class="form-message" style="margin-bottom: 0.75rem;">{{ message }}</div>
-          <div style="display: flex; gap: 0.5rem;">
-            <button type="submit" class="action-button" :disabled="saving">{{ saving ? '保存中...' : (editing ? '更新' : '创建') }}</button>
-            <button type="button" class="action-button secondary" @click="resetForm">取消</button>
+
+          <NAlert v-if="message" :type="message.includes('失败') || message.includes('不能') ? 'error' : 'success'" closable @close="message = ''">
+            {{ message }}
+          </NAlert>
+
+          <div class="flex gap-2">
+            <NButton attr-type="submit" type="primary" :loading="saving">{{ editing ? '更新' : '创建' }}</NButton>
+            <NButton quaternary @click="resetForm">取消</NButton>
           </div>
         </form>
-      </div>
+      </section>
 
-      <div class="order-table-wrap">
-        <table class="order-table">
-          <thead>
-            <tr>
-              <th>标题</th><th>类型</th><th>状态</th><th>时间</th><th style="width: 100px;">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="announcements.length === 0"><td colspan="5" class="order-empty">暂无公告</td></tr>
-            <tr v-for="a in announcements" :key="a.id">
-              <td style="font-weight: 500;">{{ a.title }}</td>
-              <td>{{ typeLabels[a.type] || a.type }}</td>
-              <td>{{ a.is_active ? '启用' : '已停用' }}</td>
-              <td class="mono-td dim">{{ formatTime(a.created_at) }}</td>
-              <td style="display: flex; gap: 0.75rem;">
-                <button class="action-link" @click="handleEdit(a)">编辑</button>
-                <button class="action-link danger" @click="handleDelete(a)">删除</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- 公告列表 -->
+      <NDataTable
+        :columns="columns"
+        :data="announcements"
+        :row-key="(row: Announcement) => row.id"
+        :bordered="false"
+        class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+      />
     </template>
 
     <ConfirmDialog
