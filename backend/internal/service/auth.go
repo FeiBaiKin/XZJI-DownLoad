@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,9 @@ import (
 	"xzji/backend/internal/models"
 	"xzji/backend/internal/util"
 )
+
+// usernameRegex 用户名仅允许英文字母、数字和下划线（不支持中文等字符）
+var usernameRegex = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
 // AuthService 认证相关业务逻辑
 type AuthService struct {
@@ -110,6 +114,12 @@ func (s *AuthService) Register(req RegisterRequest) (*LoginResult, error) {
 	req.Username = strings.TrimSpace(req.Username)
 	if len(req.Username) < 3 {
 		return nil, fmt.Errorf("用户名至少需要3个字符")
+	}
+	if len(req.Username) > 50 {
+		return nil, fmt.Errorf("用户名最多50个字符")
+	}
+	if !usernameRegex.MatchString(req.Username) {
+		return nil, fmt.Errorf("用户名仅支持英文字母、数字和下划线，不支持中文")
 	}
 	if len(req.Password) < 6 {
 		return nil, fmt.Errorf("密码至少需要6个字符")

@@ -17,6 +17,7 @@ frontend/tsconfig.tsbuildinfo
 # 构建产物
 deploy-package/
 xzji-deploy.tar.gz
+xzji-upgrade.tar.gz
 
 # pnpm
 node_modules/

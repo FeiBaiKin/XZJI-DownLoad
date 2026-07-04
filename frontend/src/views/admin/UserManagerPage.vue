@@ -112,6 +112,7 @@ async function doDelete() {
 const columns: DataTableColumns<UserBrief> = [
   { title: 'ID', key: 'id', width: 64, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.id) },
   { title: '用户名', key: 'username', width: 130, ellipsis: true, render: (row) => h('span', { class: 'font-medium' }, row.username) },
+  { title: '昵称', key: 'nickname', width: 130, ellipsis: true, render: (row) => h('span', { class: 'text-[13px] text-zinc-700 dark:text-zinc-200' }, row.nickname || row.username || '-') },
   { title: '邮箱', key: 'email', ellipsis: true, render: (row) => h('span', { class: 'text-[13px] text-zinc-500 dark:text-zinc-400' }, row.email || '-') },
   { title: '余额', key: 'balance', width: 90, render: (row) => h('span', { class: 'font-mono text-[13px]' }, Number(row.balance || 0).toFixed(2)) },
   { title: '经验', key: 'exp', width: 76, render: (row) => h('span', { class: 'font-mono text-[13px]' }, row.exp || 0) },

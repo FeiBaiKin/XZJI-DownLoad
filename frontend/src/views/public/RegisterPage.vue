@@ -64,6 +64,7 @@ async function handleSubmit() {
 
   if (!username.value.trim() || !password.value) { error.value = '请填写用户名和密码'; return }
   if (username.value.trim().length < 3) { error.value = '用户名至少需要3个字符'; return }
+  if (!/^[A-Za-z0-9_]+$/.test(username.value.trim())) { error.value = '用户名仅支持英文字母、数字和下划线，不支持中文'; return }
   if (password.value.length < 6) { error.value = '密码至少需要6个字符'; return }
   if (password.value !== confirmPassword.value) { error.value = '两次输入的密码不一致'; return }
 
@@ -101,7 +102,7 @@ async function handleSubmit() {
           id="username"
           v-model:value="username"
           size="large"
-          placeholder="至少 3 个字符"
+          placeholder="至少 3 个字符，仅限英文/数字/下划线"
           :disabled="loading"
           :input-props="{ autocomplete: 'username' }"
         />
