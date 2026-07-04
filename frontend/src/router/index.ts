@@ -15,7 +15,14 @@ function requireAdmin() {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'home', component: () => import('@/views/public/HomePage.vue'), meta: { public: true } },
+  {
+    path: '/',
+    component: () => import('@/layouts/PublicLayout.vue'),
+    children: [
+      { path: '', name: 'home', component: () => import('@/views/public/HomePage.vue'), meta: { public: true } },
+      { path: 'categories', name: 'categories', component: () => import('@/views/public/CategoriesPage.vue'), meta: { public: true } },
+    ],
+  },
   { path: '/install', name: 'install', component: () => import('@/views/public/InstallView.vue'), meta: { public: true } },
   { path: '/login', name: 'login', component: () => import('@/views/public/LoginPage.vue'), meta: { public: true } },
   { path: '/register', name: 'register', component: () => import('@/views/public/RegisterPage.vue'), meta: { public: true } },
@@ -30,6 +37,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: '', name: 'dashboard', component: () => import('@/views/user/UserDashboard.vue') },
       { path: 'profile', name: 'profile', component: () => import('@/views/user/ProfilePage.vue') },
+      { path: 'favorites', name: 'favorites', component: () => import('@/views/user/FavoritesPage.vue') },
       { path: 'membership', name: 'membership', component: () => import('@/views/user/MembershipPage.vue') },
       { path: 'security', name: 'security', component: () => import('@/views/user/PasswordPage.vue') },
     ],

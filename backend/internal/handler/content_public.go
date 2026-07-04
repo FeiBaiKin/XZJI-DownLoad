@@ -60,7 +60,7 @@ func PublicCategories(c *gin.Context) {
 	c.JSON(http.StatusOK, list)
 }
 
-// === 关键词（公开列表，支持按分类筛选） ===
+// === 关键词（公开列表，支持按分类筛选 + 分页） ===
 
 func PublicKeywords(c *gin.Context) {
 	var catID *uint
@@ -71,6 +71,18 @@ func PublicKeywords(c *gin.Context) {
 			catID = &uid
 		}
 	}
-	list, _ := contentSvc(c).PublicKeywords(catID)
-	c.JSON(http.StatusOK, list)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "12"))
+	res, _ := contentSvc(c).PublicKeywords(catID, page, pageSize)
+	c.JSON(http.StatusOK, res)
+}
+
+// === 精选资源（每分类取前N条拼成精选，整体分页） ===
+
+func PublicFeaturedKeywords(c *gin.Context) {
+	perCategory, _ := strconv.Atoi(c.DefaultQuery("per_category", "4"))
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "12"))
+	res, _ := contentSvc(c).PublicFeaturedKeywords(perCategory, page, pageSize)
+	c.JSON(http.StatusOK, res)
 }

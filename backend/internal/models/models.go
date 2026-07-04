@@ -191,6 +191,16 @@ type LinkPurchase struct {
 
 func (LinkPurchase) TableName() string { return "link_purchases" }
 
+// KeywordFavorite 关键词收藏记录（user_id + keyword_id 复合唯一索引防重复）
+type KeywordFavorite struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	UserID    uint      `gorm:"uniqueIndex:unique_favorite" json:"user_id"`
+	KeywordID uint      `gorm:"uniqueIndex:unique_favorite" json:"keyword_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (KeywordFavorite) TableName() string { return "keyword_favorites" }
+
 // PointsTransaction 余额/经验流水（对齐 points_transactions）
 type PointsTransaction struct {
 	ID             uint      `gorm:"primaryKey" json:"id"`
@@ -256,6 +266,7 @@ func AllModels() []interface{} {
 		&MembershipOrder{},
 		&PaymentOrder{},
 		&LinkPurchase{},
+		&KeywordFavorite{},
 		&PointsTransaction{},
 		&MembershipReminder{},
 		&EmailVerification{},

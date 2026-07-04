@@ -64,6 +64,35 @@ export interface Category {
   updated_at: string
 }
 
+// 公开关键词预览（不含完整 response，完整内容需走 /search）
+export interface PublicKeyword {
+  id: number
+  keyword: string
+  description: string
+  created_at?: string
+  updated_at?: string
+}
+
+// 公开关键词分页结果
+export interface PaginatedKeywords {
+  items: PublicKeyword[]
+  total: number
+  page: number
+  page_size: number
+}
+
+// 公开站点配置（首页 footer / logo 用）
+export interface PublicSiteSettings {
+  siteName: string
+  siteDescription: string
+  footerText: string
+  siteLogoType: string
+  siteLogoUrl: string
+  siteIcp: string
+  sitePolice: string
+  [key: string]: string
+}
+
 export interface CategoryCreate {
   name: string
   description?: string

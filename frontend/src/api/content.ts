@@ -3,10 +3,11 @@ import type {
   Keyword, KeywordCreate, KeywordUpdate,
   Category, CategoryCreate, CategoryUpdate,
   Page, PageCreate, PageUpdate,
-  Announcement, AnnouncementCreate, AnnouncementUpdate
+  Announcement, AnnouncementCreate, AnnouncementUpdate,
+  PublicKeyword, PaginatedKeywords, PublicSiteSettings
 } from '@/types/api'
 
-export type { Keyword, Category, Page, Announcement }
+export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKeywords, PublicSiteSettings }
 
 export const contentApi = {
   // 关键词
@@ -45,10 +46,17 @@ export const contentApi = {
     search: (keyword: string) => api.post('/search', { keyword }).then(r => r.data),
     page: (slug: string) => api.get(`/page/${slug}`).then(r => r.data),
     pages: () => api.get('/pages').then(r => r.data),
-    keywords: (category?: number) => api.get('/keywords', { params: category ? { category } : {} }).then(r => r.data),
+    keywords: (category?: number, page = 1, pageSize = 12) =>
+      api.get<PaginatedKeywords>('/keywords', {
+        params: { ...(category ? { category } : {}), page, page_size: pageSize },
+      }).then(r => r.data),
+    featured: (perCategory = 4, page = 1, pageSize = 12) =>
+      api.get<PaginatedKeywords>('/keywords/featured', {
+        params: { per_category: perCategory, page, page_size: pageSize },
+      }).then(r => r.data),
     announcements: () => api.get('/announcements/active').then(r => r.data),
-    categories: () => api.get('/categories').then(r => r.data),
-    settings: () => api.get('/settings').then(r => r.data),
+    categories: () => api.get<Category[]>('/categories').then(r => r.data),
+    settings: () => api.get<PublicSiteSettings>('/settings').then(r => r.data),
     siteConfig: () => api.get('/site/config').then(r => r.data),
   },
 }

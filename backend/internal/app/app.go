@@ -19,6 +19,7 @@ type App struct {
 	UserService *service.UserService
 	ContentSvc  *service.ContentService
 	EconomySvc  *service.EconomyService
+	FavoriteSvc *service.FavoriteService
 
 	// Cache 配置缓存
 	Cache *cache.ConfigCache
@@ -35,8 +36,9 @@ func NewApp(db *gorm.DB, jwtSecret string, lic *license.Manager) *App {
 		AuthService: &service.AuthService{DB: db, JWTSecret: jwtSecret},
 		UserService: &service.UserService{DB: db},
 		ContentSvc:  &service.ContentService{DB: db},
-		EconomySvc:  &service.EconomyService{DB: db},
-		Cache:       cache.NewConfigCache(),
+			EconomySvc:  &service.EconomyService{DB: db},
+			FavoriteSvc: &service.FavoriteService{DB: db},
+			Cache:       cache.NewConfigCache(),
 		License:     lic,
 	}
 }

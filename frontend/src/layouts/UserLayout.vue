@@ -4,7 +4,7 @@
 import { computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NIcon } from 'naive-ui'
-import { ArrowLeft, Dashboard, User, Crown, ShieldLock, Logout } from '@vicons/tabler'
+import { ArrowLeft, Dashboard, User, Heart, Crown, ShieldLock, Logout } from '@vicons/tabler'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -19,6 +19,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/user', label: '个人中心', icon: Dashboard },
   { to: '/user/profile', label: '个人资料', icon: User },
+  { to: '/user/favorites', label: '我的收藏', icon: Heart },
   { to: '/user/membership', label: '会员中心', icon: Crown },
   { to: '/user/security', label: '安全设置', icon: ShieldLock },
 ]

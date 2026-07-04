@@ -4,7 +4,7 @@ import api from '.'
 
 // ── 类型 ──
 export interface DashboardStats { totalUsers: number; totalRevenue: number; totalOrders: number; activeMembers: number; revenueByMethod: any[]; userGrowth: any[]; contentStats: any }
-export interface SiteSettings { siteName: string; siteDescription: string; footerText: string; siteLogoType: string; siteLogoUrl: string; [key: string]: string }
+export interface SiteSettings { siteName: string; siteDescription: string; footerText: string; siteLogoType: string; siteLogoUrl: string; siteIcp: string; sitePolice: string; [key: string]: string }
 export interface EmailConfig { email_smtp_host: string; email_smtp_port: string; email_smtp_user: string; email_smtp_pass: string; email_from_name: string; email_force_verify: string; email_enable_passwordless: string; [key: string]: string }
 export interface UserRecord { id: number; username: string; role: string; email: string; nickname: string; avatar: string; balance: number; exp: number; level: number; membership_level: string | null; membership_expires_at: string | null; email_verified: boolean; created_at: string }
 export interface PaymentOrderRow { id: number; order_no: string; user_id: number; amount: number; points: number; status: string; payment_method: string; payment_scene: string; trade_no: string; created_at: string; paid_at: string | null; username: string; avatar: string }

@@ -12,11 +12,13 @@ interface SiteSettingsData {
   footerText: string
   siteLogoType: string
   siteLogoUrl: string
+  siteIcp: string
+  sitePolice: string
   [key: string]: string
 }
 
 const siteStore = useSiteSettingsStore()
-const settings = ref<SiteSettingsData>({ siteName: '', siteDescription: '', footerText: '', siteLogoType: 'text', siteLogoUrl: '' })
+const settings = ref<SiteSettingsData>({ siteName: '', siteDescription: '', footerText: '', siteLogoType: 'text', siteLogoUrl: '', siteIcp: '', sitePolice: '' })
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
@@ -35,6 +37,8 @@ async function fetchSettings() {
       footerText: data.footerText || '',
       siteLogoType: data.siteLogoType || 'text',
       siteLogoUrl: data.siteLogoUrl || '',
+      siteIcp: data.siteIcp || '',
+      sitePolice: data.sitePolice || '',
     }
   } catch (err) { console.error('获取设置失败:', err) }
   finally { loading.value = false }
@@ -52,6 +56,8 @@ async function handleSubmit() {
     siteStore.footerText = settings.value.footerText
     siteStore.siteLogoType = settings.value.siteLogoType
     siteStore.siteLogoUrl = settings.value.siteLogoUrl
+    siteStore.siteIcp = settings.value.siteIcp
+    siteStore.sitePolice = settings.value.sitePolice
     siteStore.loaded = true
     message.value = '设置已保存'
   } catch (err) { console.error('保存设置失败:', err); message.value = '保存失败' }
@@ -153,6 +159,16 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">页脚文字</label>
               <NInput v-model:value="settings.footerText" placeholder="页脚展示文本" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网站备案号</label>
+              <NInput v-model:value="settings.siteIcp" placeholder="如：渝ICP备2024XXXXXX号，留空不显示" />
+              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">留空则不在前台页脚显示，前台将链接到 beian.miit.gov.cn</p>
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">公安备案号</label>
+              <NInput v-model:value="settings.sitePolice" placeholder="如：渝公网安备500XXXXXXXX号，留空不显示" />
+              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">留空则不在前台页脚显示，前台将链接到 beian.mps.gov.cn</p>
             </div>
           </div>
         </section>

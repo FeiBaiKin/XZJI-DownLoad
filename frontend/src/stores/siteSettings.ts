@@ -8,6 +8,8 @@ export const useSiteSettingsStore = defineStore('siteSettings', () => {
   const footerText = ref('')
   const siteLogoType = ref('text')
   const siteLogoUrl = ref('')
+  const siteIcp = ref('')
+  const sitePolice = ref('')
   const loaded = ref(false)
 
   async function fetch() {
@@ -19,11 +21,13 @@ export const useSiteSettingsStore = defineStore('siteSettings', () => {
       footerText.value = data.footerText || ''
       siteLogoType.value = data.siteLogoType || 'text'
       siteLogoUrl.value = data.siteLogoUrl || ''
+      siteIcp.value = data.siteIcp || ''
+      sitePolice.value = data.sitePolice || ''
       loaded.value = true
     } catch {
       // use defaults
     }
   }
 
-  return { siteName, siteDescription, footerText, siteLogoType, siteLogoUrl, loaded, fetch }
+  return { siteName, siteDescription, footerText, siteLogoType, siteLogoUrl, siteIcp, sitePolice, loaded, fetch }
 })

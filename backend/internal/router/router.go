@@ -59,6 +59,7 @@ func SetupFull(application *app.App) *gin.Engine {
 			pub.GET("/page/:slug", handler.PublicPage)
 			pub.GET("/pages", handler.PublicPages)
 			pub.GET("/keywords", handler.PublicKeywords)
+			pub.GET("/keywords/featured", handler.PublicFeaturedKeywords)
 			pub.GET("/announcements/active", handler.PublicAnnouncements)
 			pub.GET("/categories", handler.PublicCategories)
 		}
@@ -102,6 +103,10 @@ func SetupFull(application *app.App) *gin.Engine {
 			userBiz.POST("/buy-membership", handler.BuyMembership)
 			userBiz.GET("/transactions", handler.GetTransactions)
 			userBiz.GET("/downloads-today", handler.DownloadsToday)
+			// 收藏
+			userBiz.POST("/favorites/:keywordId", handler.ToggleFavorite)
+			userBiz.GET("/favorites", handler.ListFavorites)
+			userBiz.GET("/favorites/ids", handler.ListFavoriteIDs)
 			userBiz.GET("/checkin-status", handler.CheckInStatus)
 			userBiz.POST("/checkin", handler.CheckIn)
 			userBiz.GET("/level-info", handler.LevelInfo)

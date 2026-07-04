@@ -316,33 +316,115 @@ func (s *ContentService) AnnouncementDelete(id uint) error {
 
 // ====== 公开端点辅助 ======
 
-// PublicKeywords 公开关键词列表（支持按分类筛选，返回预览描述）
+// PublicKeyword 公开关键词预览（含创建/更新时间，便于前台"最近更新"展示）
 type PublicKeyword struct {
-	ID          uint   `json:"id"`
-	Keyword     string `json:"keyword"`
-	Description string `json:"description"`
+	ID          uint      `json:"id"`
+	Keyword     string    `json:"keyword"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func (s *ContentService) PublicKeywords(categoryID *uint) ([]PublicKeyword, error) {
-	var rows []models.KeywordResponse
-	q := s.DB.Order("id DESC")
+// PaginatedKeywords 公开关键词分页结果
+type PaginatedKeywords struct {
+	Items    []PublicKeyword `json:"items"`
+	Total    int64           `json:"total"`
+	Page     int             `json:"page"`
+	PageSize int             `json:"page_size"`
+}
+
+// toPublicKeyword 把 KeywordResponse 行转换为公开预览（描述截断 120 字符，附时间戳）
+func toPublicKeyword(r models.KeywordResponse) PublicKeyword {
+	preview := extractDescription(r.Response)
+	if len([]rune(preview)) > 120 {
+		preview = string([]rune(preview)[:120]) + "..."
+	}
+	return PublicKeyword{
+		ID:          r.ID,
+		Keyword:     r.Keyword,
+		Description: preview,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
+	}
+}
+
+// normalizePage 规范化分页参数，返回 (page, pageSize)
+func normalizePage(page, pageSize, maxPageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 12
+	}
+	if maxPageSize > 0 && pageSize > maxPageSize {
+		pageSize = maxPageSize
+	}
+	return page, pageSize
+}
+
+// PublicKeywords 公开关键词列表（支持按分类筛选 + 分页）
+func (s *ContentService) PublicKeywords(categoryID *uint, page, pageSize int) (*PaginatedKeywords, error) {
+	page, pageSize = normalizePage(page, pageSize, 60)
+	q := s.DB.Model(&models.KeywordResponse{})
 	if categoryID != nil && *categoryID > 0 {
 		q = q.Where("id IN (?)",
 			s.DB.Table("keyword_category_links").Select("keyword_id").Where("category_id = ?", *categoryID))
 	}
-	if err := q.Find(&rows).Error; err != nil {
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
 		return nil, err
 	}
-	result := make([]PublicKeyword, len(rows))
-	for i, r := range rows {
-		desc := extractDescription(r.Response)
-		preview := desc
-		if len([]rune(preview)) > 120 {
-			preview = string([]rune(preview)[:120]) + "..."
-		}
-		result[i] = PublicKeyword{ID: r.ID, Keyword: r.Keyword, Description: preview}
+	var rows []models.KeywordResponse
+	if err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
+		return nil, err
 	}
-	return result, nil
+	items := make([]PublicKeyword, len(rows))
+	for i, r := range rows {
+		items[i] = toPublicKeyword(r)
+	}
+	return &PaginatedKeywords{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
+}
+
+// PublicFeaturedKeywords 精选资源：每个分类按 id DESC 取前 perCategory 条，flatten 后整体分页。
+// 精选总量有限（分类数 × perCategory），采用内存分页可接受。
+func (s *ContentService) PublicFeaturedKeywords(perCategory, page, pageSize int) (*PaginatedKeywords, error) {
+	if perCategory < 1 {
+		perCategory = 4
+	}
+	page, pageSize = normalizePage(page, pageSize, 60)
+
+	cats, err := s.CategoriesList()
+	if err != nil {
+		return nil, err
+	}
+	// 每分类取前 perCategory 条
+	var all []PublicKeyword
+	for _, cat := range cats {
+		var rows []models.KeywordResponse
+		if err := s.DB.
+			Where("id IN (?)", s.DB.Table("keyword_category_links").
+				Select("keyword_id").Where("category_id = ?", cat.ID)).
+			Order("id DESC").Limit(perCategory).Find(&rows).Error; err != nil {
+			return nil, err
+		}
+		for _, r := range rows {
+			all = append(all, toPublicKeyword(r))
+		}
+	}
+	total := int64(len(all))
+	start := (page - 1) * pageSize
+	if start > len(all) {
+		start = len(all)
+	}
+	end := start + pageSize
+	if end > len(all) {
+		end = len(all)
+	}
+	items := all[start:end]
+	if items == nil {
+		items = []PublicKeyword{}
+	}
+	return &PaginatedKeywords{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 // PublicPage 按 slug 获取已发布页面
