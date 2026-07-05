@@ -11,6 +11,18 @@
 }
 
 @layer base {
+  html,
+  body,
+  #app {
+    min-width: 0;
+  }
+
+  img,
+  video,
+  canvas {
+    max-width: 100%;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -27,6 +39,17 @@
   }
   [data-theme='dark'] * {
     scrollbar-color: var(--color-zinc-700) transparent;
+  }
+
+  @media (max-width: 640px) {
+    .n-pagination {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .n-pagination .n-pagination-quick-jumper {
+      display: none;
+    }
   }
 }
 
@@ -123,7 +146,10 @@
 }
 .rich-content table {
   border-collapse: collapse;
+  display: block;
   margin: 1em 0;
+  max-width: 100%;
+  overflow-x: auto;
   width: 100%;
 }
 .rich-content th,

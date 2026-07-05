@@ -105,7 +105,7 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
         <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">站点 Logo</h3>
 
-          <div class="mt-4 flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+          <div class="mt-4 flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
             <div>
               <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">使用图片 Logo</p>
               <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">关闭则使用文字 Logo</p>
@@ -124,7 +124,7 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
               <span class="inline-flex rounded-xl border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
                 <img :src="settings.siteLogoUrl" alt="Logo" class="h-10 w-auto" />
               </span>
-              <div class="flex gap-2">
+              <div class="flex flex-col gap-2 sm:flex-row">
                 <NButton size="small" secondary :loading="uploading" @click="fileInputRef?.click()">更换图片</NButton>
                 <NButton size="small" quaternary @click="updateSetting('siteLogoUrl', '')">移除</NButton>
               </div>

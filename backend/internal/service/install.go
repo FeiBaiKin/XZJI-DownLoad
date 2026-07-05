@@ -57,10 +57,26 @@ func (r *InstallRequest) Validate() error {
 	if r.DBName == "" {
 		r.DBName = "xzji"
 	}
+	if !isSafeDatabaseName(r.DBName) {
+		return fmt.Errorf("数据库名称仅允许英文字母、数字和下划线")
+	}
 	if r.DBPort == 0 {
 		r.DBPort = 3306
 	}
 	return nil
+}
+
+func isSafeDatabaseName(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // PerformInstall 执行安装全流程

@@ -68,15 +68,15 @@ async function handleSave() {
         </NButton>
       </header>
 
-      <section class="max-w-2xl rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+      <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <form @submit.prevent="handleSave">
           <div class="space-y-2.5">
             <div
               v-for="(lv, idx) in levels"
               :key="idx"
-              class="flex items-center gap-3 rounded-xl border border-zinc-200 px-3.5 py-2.5 dark:border-zinc-700/80"
+              class="grid grid-cols-1 gap-2 rounded-xl border border-zinc-200 px-3.5 py-2.5 sm:flex sm:items-center sm:gap-3 dark:border-zinc-700/80"
             >
-              <span class="w-14 shrink-0 font-mono text-sm font-semibold text-emerald-600 dark:text-emerald-400">Lv.{{ lv.level }}</span>
+              <span class="shrink-0 font-mono text-sm font-semibold text-emerald-600 sm:w-14 dark:text-emerald-400">Lv.{{ lv.level }}</span>
               <NInput
                 size="small"
                 class="flex-1"
@@ -86,7 +86,7 @@ async function handleSave() {
               />
               <NInputNumber
                 size="small"
-                class="w-36"
+                class="w-full sm:w-36"
                 :min="0"
                 placeholder="所需经验"
                 :show-button="false"
@@ -97,7 +97,7 @@ async function handleSave() {
               </NInputNumber>
               <button
                 type="button"
-                class="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                class="flex size-7 shrink-0 items-center justify-center justify-self-end rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:justify-self-auto dark:hover:bg-red-500/10"
                 title="删除此等级"
                 @click="removeLevel(idx)"
               >

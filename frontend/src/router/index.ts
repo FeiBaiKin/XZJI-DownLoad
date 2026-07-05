@@ -50,6 +50,7 @@ const routes: RouteRecordRaw[] = [
       { path: '', name: 'admin-dashboard', component: () => import('@/views/admin/DashboardPage.vue') },
       { path: 'keywords', name: 'admin-keywords', component: () => import('@/views/admin/KeywordManager.vue') },
       { path: 'categories', name: 'admin-categories', component: () => import('@/views/admin/CategoryManager.vue') },
+      { path: 'media', name: 'admin-media', component: () => import('@/views/admin/MediaLibraryPage.vue') },
       { path: 'pages', name: 'admin-pages', component: () => import('@/views/admin/PageManager.vue') },
       { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/admin/AnnouncementManager.vue') },
       { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/SettingsPage.vue') },

@@ -6,14 +6,16 @@ import api from '.'
 export interface PaymentMethod { name: string; label: string }
 export interface RechargeResult { type: string; scene: string; payUrl: string; qrCode: string; orderNo: string; bonusExp?: number; paymentMethod: string }
 export interface RechargeStatus { orderNo: string; amount: number; status: string; points: number; paymentMethod: string; paidAt: string | null }
-export interface PurchaseResult { success: boolean; url?: string; code?: string; message?: string }
+export interface PurchaseResult { message: string; alreadyPurchased?: boolean; membership?: boolean; balance?: number; balanceSpent?: number; originalCost?: number; discountApplied?: number; url?: string; code?: string }
 export interface PurchaseStatus { purchased: boolean; url?: string; code?: string }
-export interface MembershipStatus { active: boolean; level?: string; expiresAt?: string; dailyDownloads?: number; dailyLimit?: number; plans: MembershipPlan[] }
-export interface MembershipPlan { levelName: string; days: number; price: number; dailyDownloadLimit: number; discount: number; color: string }
+export interface MembershipBrief { level: string; expiresAt: string }
+export interface MembershipStatus { membership: MembershipBrief | null; downloads: number; dailyLimit: number; configs: MembershipPlan[] }
+export interface MembershipPlan { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string }
 export interface Transaction { id: number; type: string; amount: number; balance_amount: number; exp_earned: number; description: string; created_at: string }
-export interface CheckInStatus { checkedToday: boolean; consecutive: number; nextBalance: number; nextExp: number }
-export interface CheckInResult { balance: number; exp: number; consecutive: number; isBonus: boolean }
-export interface LevelInfo { level: number; label: string; exp: number; nextExp: number; progress: number }
+export interface TransactionsResult { transactions: Transaction[]; total: number; page: number; limit: number }
+export interface CheckInStatus { checkedIn: boolean; streak: number; todayBalance: number; todayExp: number; isBonus: boolean; config: { dailyBalance: number; consecutiveDays: number; consecutiveBonusBalance: number; dailyExp: number }; tomorrowBalance: number }
+export interface CheckInResult { message: string; balanceEarned: number; expEarned: number; totalBalance: number; totalExp: number; level: number; streak: number; isBonus: boolean; leveledUp: boolean; newLevel?: number; levelLabel?: string }
+export interface LevelInfo { level: number; label: string; exp: number; expInCurrentLevel: number; expNeeded: number; progress: number; nextLevel: number; nextLabel: string }
 
 // ── API ──
 export const economyApi = {
@@ -24,16 +26,16 @@ export const economyApi = {
     api.post<RechargeResult>('/user/recharge', { amount, method }).then(r => r.data),
   rechargeStatus: (orderNo: string) =>
     api.get<RechargeStatus>(`/user/recharge-status/${orderNo}`).then(r => r.data),
-  purchaseLink: (keywordId: number, blockIndex: number, balanceCost: number, access: string) =>
-    api.post<PurchaseResult>('/user/purchase-link', { keywordId, blockIndex, balanceCost, access }).then(r => r.data),
+  purchaseLink: (keywordId: number, blockIndex: number) =>
+    api.post<PurchaseResult>('/user/purchase-link', { keywordId, blockIndex }).then(r => r.data),
   purchaseStatus: (keywordId: number, blockIndex: number) =>
     api.get<PurchaseStatus>('/user/purchase-status', { params: { keywordId, blockIndex } }).then(r => r.data),
   membership: () => api.get<MembershipStatus>('/user/membership').then(r => r.data),
   buyMembership: (level: string) =>
-    api.post<{ success: boolean }>('/user/buy-membership', { level }).then(r => r.data),
+    api.post<{ message: string; balance: number; membershipLevel: string | null; membershipExpiresAt: string | null }>('/user/buy-membership', { level }).then(r => r.data),
   transactions: (page?: number, limit?: number) =>
-    api.get<{ list: Transaction[]; pagination: any }>('/user/transactions', { params: { page, limit } }).then(r => r.data),
-  downloadsToday: () => api.get<{ count: number }>('/user/downloads-today').then(r => r.data),
+    api.get<TransactionsResult>('/user/transactions', { params: { page, limit } }).then(r => r.data),
+  downloadsToday: () => api.get<{ downloads: number; date: string }>('/user/downloads-today').then(r => r.data),
   checkInStatus: () => api.get<CheckInStatus>('/user/checkin-status').then(r => r.data),
   checkIn: () => api.post<CheckInResult>('/user/checkin').then(r => r.data),
   levelInfo: () => api.get<LevelInfo>('/user/level-info').then(r => r.data),

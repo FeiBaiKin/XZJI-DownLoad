@@ -86,10 +86,10 @@ async function fetchDashboard() {
       auth.user.level = pro.level
     }
 
-    checkin.value = check as unknown as CheckinState
-    transactions.value = (trans as { list?: TransactionRow[] }).list || []
-    levelInfo.value = lvl as unknown as LevelInfoState
-    membershipStatus.value = mb as unknown as MembershipState
+    checkin.value = check
+    transactions.value = trans.transactions || []
+    levelInfo.value = lvl
+    membershipStatus.value = mb
   } catch (err) {
     console.error('获取仪表盘数据失败:', err)
   } finally {

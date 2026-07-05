@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,7 +22,7 @@ func CSRF() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 确保持有 CSRF cookie（缺失时自动下发）
 		if _, err := c.Cookie(csrfCookieName); err != nil {
-			c.SetCookie(csrfCookieName, GenerateCSRFToken(), 86400, "/", "", false, false)
+			SetCSRFCookie(c, GenerateCSRFToken(), 86400)
 		}
 
 		if safeMethods[c.Request.Method] {
@@ -37,6 +38,28 @@ func CSRF() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func SecureCookie(c *gin.Context) bool {
+	if c.Request.TLS != nil {
+		return true
+	}
+	if strings.EqualFold(c.GetHeader("X-Forwarded-Proto"), "https") {
+		return true
+	}
+	return strings.EqualFold(c.GetHeader("X-Forwarded-Ssl"), "on")
+}
+
+func SetCSRFCookie(c *gin.Context, value string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     csrfCookieName,
+		Value:    value,
+		Path:     "/",
+		MaxAge:   maxAge,
+		Secure:   SecureCookie(c),
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+	})
 }
 
 // GenerateCSRFToken 生成 32 字节随机 hex 令牌

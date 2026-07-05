@@ -16,7 +16,7 @@ import { useToastStore } from '@/stores/toast'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useFavoritesStore } from '@/stores/favorites'
 import { blockAccess } from '@/utils/blockAccess'
-import type { KeywordBlock } from '@/types/api'
+import type { KeywordBlock, KeywordAttribute } from '@/types/api'
 import ResourceCard from '@/components/ResourceCard.vue'
 import DOMPurify from 'dompurify'
 
@@ -48,6 +48,8 @@ interface SearchResult {
   keywordId?: number
   keyword: string
   response: string | KeywordBlock[]
+  icon?: string
+  attributes?: string // JSON: [{label,value}]
   timestamp: string
   source?: string
 }
@@ -107,6 +109,22 @@ const currentBalance = computed(() => auth.user?.balance ?? 0)
 const resultBlocks = computed<KeywordBlock[] | null>(() =>
   Array.isArray(result.value?.response) ? (result.value!.response as KeywordBlock[]) : null
 )
+
+// 搜索结果的关键词属性（JSON 解析后）
+const resultAttributes = computed<KeywordAttribute[]>(() => {
+  const raw = result.value?.attributes
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) {
+      return parsed.filter(
+        (a: unknown): a is KeywordAttribute =>
+          !!a && typeof (a as KeywordAttribute).label === 'string' && typeof (a as KeywordAttribute).value === 'string',
+      )
+    }
+  } catch { /* 忽略损坏的 JSON */ }
+  return []
+})
 
 // 公告正文
 const annContent = computed(() => DOMPurify.sanitize(visibleAnn.value?.content || '暂无内容'))
@@ -260,11 +278,7 @@ async function handleSearch(query?: string) {
   }
 }
 
-function formatTimestamp(ts: string) {
-  return new Date(ts).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-}
-
-// 相对时间：X分钟前 / X小时前 / X天前 / M-D（超过 7 天）
+// ── 相对时间：X分钟前 / X小时前 / X天前 / M-D（超过 7 天）
 function formatRelative(ts?: string): string {
   if (!ts) return '-'
   const d = new Date(ts)
@@ -325,8 +339,6 @@ async function handlePurchase() {
     const res = await api.post('/user/purchase-link', {
       keywordId: d.keywordId,
       blockIndex: d.blockIndex,
-      balanceCost: d.cost,
-      access: d.access,
     })
     const data = res.data
     purchasedLinks.value = { ...purchasedLinks.value, [d.key]: data.url || '' }
@@ -419,18 +431,42 @@ function handleQuickAction(action: string) {
                 </div>
               </div>
 
-              <!-- 系统响应区 -->
+              <!-- 系统响应区：重新设计 —— 图标 + 关键词 + 属性 tag + 内容块 -->
               <div class="flex items-start gap-2.5">
-                <span
-                  class="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600 text-xs font-bold text-white dark:bg-emerald-400 dark:text-zinc-950"
-                >{{ (settings.siteName?.[0] || 'X').toUpperCase() }}</span>
-                <div class="min-w-0 flex-1 rounded-2xl rounded-bl-md border border-zinc-200 bg-zinc-50/70 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-800/50">
-                  <p class="mb-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    为你找到以下资源：
-                    <span class="font-medium text-zinc-800 dark:text-zinc-200">{{ result.keyword }}</span>
-                  </p>
+                <!-- 站点头像：有真实图标则用图标，否则用站点首字母 -->
+                <div
+                  class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-xs font-bold text-white"
+                  :class="result.icon ? '' : 'bg-emerald-600 dark:bg-emerald-400 dark:text-zinc-950'"
+                >
+                  <img v-if="result.icon" :src="result.icon" :alt="result.keyword" class="size-full object-cover" />
+                  <span v-else>{{ (settings.siteName?.[0] || 'X').toUpperCase() }}</span>
+                </div>
+
+                <div class="min-w-0 flex-1 rounded-2xl rounded-bl-md border border-zinc-200 bg-zinc-50/80 px-4 py-3.5 dark:border-zinc-700 dark:bg-zinc-800/60">
+                  <!-- 头部：关键词名称 + 属性 tags -->
+                  <div class="mb-3 flex flex-wrap items-center gap-2">
+                    <span class="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                      {{ result.keyword }}
+                    </span>
+                    <span
+                      v-for="(attr, ai) in resultAttributes"
+                      :key="ai"
+                      class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-400"
+                    >
+                      <span class="opacity-70">{{ attr.label }}</span>
+                      <span class="opacity-40">·</span>
+                      <span>{{ attr.value }}</span>
+                    </span>
+                    <span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500" :title="result.timestamp">
+                      {{ formatRelative(result.timestamp) }}
+                    </span>
+                  </div>
+
+                  <!-- 分隔线 -->
+                  <div class="mb-3 border-t border-zinc-150 dark:border-zinc-700" />
+
                   <!-- 响应内容块 -->
-                  <div v-if="resultBlocks" class="space-y-2">
+                  <div v-if="resultBlocks" class="space-y-2.5">
                     <template v-for="(block, i) in resultBlocks" :key="i">
                       <p
                         v-if="block.type === 'text' && block.text"
@@ -508,8 +544,10 @@ function handleQuickAction(action: string) {
               v-if="result"
               class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
             >
-              <span class="flex items-center gap-1"><NIcon :size="12"><Clock /></NIcon>{{ formatTimestamp(result.timestamp) }}</span>
-              <span v-if="result.source" class="font-mono">{{ result.source }}</span>
+              <span v-if="result.source" class="flex items-center gap-1">
+                <NIcon :size="12"><Clock /></NIcon>
+                {{ result.source === 'database' ? '已收录关键词' : '系统默认回复' }}
+              </span>
             </div>
           </div>
 
@@ -584,14 +622,26 @@ function handleQuickAction(action: string) {
           </div>
 
           <!-- 加载骨架 -->
-          <div v-if="featuredLoading" class="space-y-3">
-            <div v-for="i in 8" :key="i" class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-900">
-              <NSkeleton width="40" height="40" :sharp="false" />
-              <div class="flex-1 space-y-2">
-                <NSkeleton text width="50%" />
-                <NSkeleton text width="75%" />
+          <div v-if="featuredLoading" class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+            <div
+              v-for="i in 8"
+              :key="i"
+              class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+            >
+              <div class="flex items-center gap-2.5 pr-7">
+                <NSkeleton width="40" height="40" :sharp="false" />
+                <div class="flex-1 space-y-2">
+                  <NSkeleton text width="85%" />
+                </div>
               </div>
-              <NSkeleton width="32" height="32" :sharp="false" />
+              <div class="mt-2.5 space-y-2">
+                <NSkeleton text width="100%" />
+                <NSkeleton text width="70%" />
+              </div>
+              <div class="mt-3 flex items-center justify-between">
+                <NSkeleton text width="60px" height="20px" :sharp="false" />
+                <NSkeleton text width="40px" height="20px" :sharp="false" />
+              </div>
             </div>
           </div>
 
@@ -604,8 +654,8 @@ function handleQuickAction(action: string) {
             </NEmpty>
           </div>
 
-          <!-- 资源列表（行式卡片） -->
-          <div v-else class="space-y-3">
+          <!-- 资源列表（两列网格卡片） -->
+          <div v-else class="grid gap-3 sm:grid-cols-2 sm:gap-4">
             <ResourceCard
               v-for="kw in featuredItems"
               :key="kw.id"

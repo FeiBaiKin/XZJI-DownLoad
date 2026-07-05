@@ -40,6 +40,8 @@ export interface Keyword {
   id: number
   keyword: string
   response: string | KeywordBlock[]
+  icon?: string
+  attributes?: string // JSON 字符串: [{label,value}]
   created_at: string
   updated_at: string
 }
@@ -52,6 +54,14 @@ export interface KeywordCreate {
 export interface KeywordUpdate {
   keyword?: string
   response?: string | KeywordBlock[]
+  icon?: string
+  attributes?: string // JSON 字符串
+}
+
+// 关键词属性 [{label:'大小', value:'56MB'}]
+export interface KeywordAttribute {
+  label: string
+  value: string
 }
 
 // 分类相关
@@ -69,8 +79,25 @@ export interface PublicKeyword {
   id: number
   keyword: string
   description: string
+  icon?: string
+  attributes?: string // JSON 字符串: [{label,value}]
   created_at?: string
   updated_at?: string
+}
+
+// 媒体库文件
+export interface MediaFile {
+  id: number
+  url: string
+  filename: string
+  origin_name: string
+  mime: string
+  size: number
+  width: number
+  height: number
+  source: 'local' | 'remote'
+  uploader_id: number
+  created_at: string
 }
 
 // 公开关键词分页结果
@@ -169,7 +196,12 @@ export interface CheckInStatus {
   todayBalance: number
   todayExp: number
   isBonus: boolean
-  config: CheckInConfig
+  config: {
+    dailyBalance: number
+    consecutiveDays: number
+    consecutiveBonusBalance: number
+    dailyExp: number
+  }
   tomorrowBalance: number
 }
 
@@ -217,10 +249,10 @@ export interface MembershipConfig {
 }
 
 export interface MembershipStatus {
-  level: string | null
-  expires_at: string | null
-  days_left: number | null
-  available_plans: MembershipConfig[]
+  membership: { level: string; expiresAt: string } | null
+  downloads: number
+  dailyLimit: number
+  configs: MembershipConfig[]
 }
 
 // 支付相关
@@ -244,7 +276,13 @@ export interface RechargeResult {
 }
 
 export interface PurchaseResult {
-  success: boolean
+  message: string
+  alreadyPurchased?: boolean
+  membership?: boolean
+  balance?: number
+  balanceSpent?: number
+  originalCost?: number
+  discountApplied?: number
   url?: string
   code?: string
 }

@@ -104,7 +104,7 @@ async function handleResetPassword() {
     back-to="/login"
     back-label="返回登录"
   >
-    <NSteps :current="stepIndex" size="small" class="mb-8">
+    <NSteps :current="stepIndex" size="small" class="mb-8 overflow-x-auto pb-1">
       <NStep title="获取验证码" />
       <NStep title="验证邮箱" />
       <NStep title="重置密码" />
@@ -134,7 +134,7 @@ async function handleResetPassword() {
     <form v-else-if="step === 'verify'" class="space-y-5" @submit.prevent="handleVerifyCode">
       <div>
         <label for="code" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">验证码</label>
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <NInput
             id="code"
             v-model:value="code"
@@ -148,6 +148,7 @@ async function handleResetPassword() {
           <NButton
             size="large"
             secondary
+            class="sm:shrink-0"
             :disabled="sendingCode || cooldown > 0 || loading"
             :loading="sendingCode"
             @click="handleSendCode"

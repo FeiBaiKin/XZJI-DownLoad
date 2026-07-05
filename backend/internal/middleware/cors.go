@@ -17,8 +17,12 @@ func CORS() gin.HandlerFunc {
 		allowOrigin := ""
 
 		if len(AllowedOrigins) == 0 {
-			// 未配置：开发环境回退到 *
-			allowOrigin = "*"
+			// 未配置：开发环境允许所有来源；有 Origin 时回显以兼容 credentials。
+			if origin != "" {
+				allowOrigin = origin
+			} else {
+				allowOrigin = "*"
+			}
 		} else if origin != "" {
 			// 检查请求来源是否在白名单中
 			for _, allowed := range AllowedOrigins {
@@ -31,11 +35,14 @@ func CORS() gin.HandlerFunc {
 
 		if allowOrigin != "" {
 			c.Header("Access-Control-Allow-Origin", allowOrigin)
-			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Vary", "Origin")
+			if allowOrigin != "*" {
+				c.Header("Access-Control-Allow-Credentials", "true")
+			}
 		}
 
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Accept, Authorization, X-Requested-With, X-CSRF-Token")
 		c.Header("Access-Control-Max-Age", "86400")
 
 		if c.Request.Method == "OPTIONS" {

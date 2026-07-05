@@ -114,7 +114,7 @@ async function handleSubmit() {
           <span v-if="forceVerify" class="text-red-500">*</span>
           <span v-else class="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">选填</span>
         </label>
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <NInput
             id="email"
             v-model:value="email"
@@ -128,6 +128,7 @@ async function handleSubmit() {
             v-if="forceVerify"
             size="large"
             secondary
+            class="sm:shrink-0"
             :disabled="sendingCode || cooldown > 0 || loading"
             :loading="sendingCode"
             @click="handleSendCode"

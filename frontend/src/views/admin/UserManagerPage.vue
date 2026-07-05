@@ -166,6 +166,7 @@ const columns: DataTableColumns<UserBrief> = [
         :row-key="(row: UserBrief) => row.id"
         :bordered="false"
         :loading="loading"
+        :scroll-x="950"
         class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
       />
 
@@ -200,7 +201,7 @@ const columns: DataTableColumns<UserBrief> = [
               </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid gap-3 sm:grid-cols-3">
               <div>
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">余额</label>
                 <NInputNumber
@@ -258,7 +259,7 @@ const columns: DataTableColumns<UserBrief> = [
               <NSelect v-model:value="editForm.role" :options="roleOptions" />
             </div>
 
-            <div class="flex gap-2 pt-1">
+            <div class="flex flex-col gap-2 pt-1 sm:flex-row">
               <NButton type="primary" :loading="saving" @click="handleSave">保存</NButton>
               <NButton quaternary @click="editingUser = null">取消</NButton>
             </div>

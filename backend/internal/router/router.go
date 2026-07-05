@@ -132,6 +132,14 @@ func SetupFull(application *app.App) *gin.Engine {
 			admin.DELETE("/keywords/:id", handler.AdminKeywordDelete)
 			admin.GET("/keywords/:id/categories", handler.AdminKeywordCategoriesGet)
 			admin.PUT("/keywords/:id/categories", handler.AdminKeywordCategoriesSet)
+		// 关键词图标
+		admin.POST("/keywords/:id/icon", handler.AdminKeywordUploadIcon)
+		admin.DELETE("/keywords/:id/icon", handler.AdminKeywordClearIcon)
+		// 媒体库
+		admin.GET("/media", handler.AdminMediaList)
+		admin.POST("/media", handler.AdminMediaUpload)
+		admin.POST("/media/url", handler.AdminMediaUploadByURL)
+		admin.DELETE("/media/:id", handler.AdminMediaDelete)
 			// 分类
 			admin.GET("/categories", handler.AdminCategoriesList)
 			admin.POST("/categories", handler.AdminCategoryCreate)

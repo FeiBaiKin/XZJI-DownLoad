@@ -97,16 +97,17 @@ func PurchaseLink(c *gin.Context) {
 func PurchaseStatus(c *gin.Context) {
 	kid, _ := strconv.Atoi(c.Query("keywordId"))
 	bIdx, _ := strconv.Atoi(c.Query("blockIndex"))
+	block, err := service.ResolveLinkBlock(getApp(c).DB, uint(kid), bIdx)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"purchased": false})
+		return
+	}
 	var cnt int64
 	getApp(c).DB.Model(&models.LinkPurchase{}).Where("user_id = ? AND keyword_id = ? AND block_index = ?", middleware.GetUserID(c), kid, bIdx).Count(&cnt)
 	resp := gin.H{"purchased": cnt > 0}
-	// 已购买：下发真实 url/code（鉴权后），供前端直接打开，无需再调 purchase-link
-	if cnt > 0 {
-		url, code, err := service.ResolveBlock(getApp(c).DB, uint(kid), bIdx)
-		if err == nil {
-			resp["url"] = url
-			resp["code"] = code
-		}
+	if cnt > 0 && block.Access == "balance" {
+		resp["url"] = block.URL
+		resp["code"] = block.Code
 	}
 	c.JSON(http.StatusOK, resp)
 }
@@ -213,7 +214,7 @@ func AdminPaymentOrdersList(c *gin.Context) {
 		totalPages = int((total + int64(limit) - 1) / int64(limit))
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"list": rows,
+		"list":       rows,
 		"pagination": gin.H{"page": page, "limit": limit, "total": total, "totalPages": totalPages},
 	})
 }
@@ -262,7 +263,11 @@ func PaymentCallbackWechat(c *gin.Context) {
 	app := getApp(c)
 	cfg, _ := app.Cache.GetPaymentConfig(app.DB)
 	body, _ := io.ReadAll(io.LimitReader(c.Request.Body, 1<<20)) // 限制 1MB
-	result, _ := provider.VerifyCallback(payment.CallbackRequest{Method: "POST", Body: body}, cfg)
+	result, err := provider.VerifyCallback(payment.CallbackRequest{Method: "POST", Body: body}, cfg)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"code": "FAIL", "message": err.Error()})
+		return
+	}
 	if result.Skip {
 		c.JSON(http.StatusOK, gin.H{"code": "SUCCESS"})
 		return
@@ -271,18 +276,17 @@ func PaymentCallbackWechat(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"code": "FAIL", "message": result.Error})
 		return
 	}
-			if result.OrderNo != "" {
-				if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
-					slog.Error("[微信] 入账失败", "orderNo", result.OrderNo, "err", err)
-					var existing models.PaymentOrder
-					if getApp(c).DB.Where("order_no = ? AND status = ?", result.OrderNo, "paid").First(&existing).Error == nil {
-						c.JSON(http.StatusOK, gin.H{"code": "SUCCESS"})
-						return
-					}
-					c.JSON(http.StatusOK, gin.H{"code": "SUCCESS"})
-					return
-				}
+	if result.OrderNo != "" {
+		if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
+			slog.Error("[微信] 入账失败", "orderNo", result.OrderNo, "err", err)
+			if isOrderPaid(getApp(c).DB, result.OrderNo) {
+				c.JSON(http.StatusOK, gin.H{"code": "SUCCESS"})
+				return
 			}
+			c.JSON(http.StatusOK, gin.H{"code": "FAIL", "message": "process order failed"})
+			return
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"code": "SUCCESS"})
 }
 
@@ -314,55 +318,83 @@ func PaymentCallbackAlipay(c *gin.Context) {
 		params[key] = val
 	}
 
-		provider, err := payment.Get("alipay")
-		if err != nil {
-			slog.Error("[支付宝] 支付 provider 未注册", "err", err)
-			c.String(http.StatusOK, "fail")
-			return
-		}
-		app := getApp(c)
-		cfg, _ := app.Cache.GetPaymentConfig(app.DB)
-		result, _ := provider.VerifyCallback(payment.CallbackRequest{Method: c.Request.Method, Query: params}, cfg)
-		if result.Skip {
-			c.String(http.StatusOK, "success")
-			return
-		}
-		if !result.Verified {
-			slog.Error("[支付宝] 回调验签失败", "orderNo", params["out_trade_no"], "error", result.Error)
-			c.String(http.StatusOK, "fail")
-			return
-		}
-		if result.OrderNo != "" {
-			if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
-				var existing models.PaymentOrder
-				if getApp(c).DB.Where("order_no = ? AND status = ?", result.OrderNo, "paid").First(&existing).Error == nil {
-					// 重复通知，订单已支付，返回 success 阻止重试
-				} else {
-					slog.Error("[支付宝] 入账失败，订单不存在", "orderNo", result.OrderNo, "err", err)
-				}
+	provider, err := payment.Get("alipay")
+	if err != nil {
+		slog.Error("[支付宝] 支付 provider 未注册", "err", err)
+		c.String(http.StatusOK, "fail")
+		return
+	}
+	app := getApp(c)
+	cfg, _ := app.Cache.GetPaymentConfig(app.DB)
+	result, err := provider.VerifyCallback(payment.CallbackRequest{Method: c.Request.Method, Query: params}, cfg)
+	if err != nil {
+		slog.Error("[支付宝] 回调处理失败", "orderNo", params["out_trade_no"], "err", err)
+		c.String(http.StatusOK, "fail")
+		return
+	}
+	if result.Skip {
+		c.String(http.StatusOK, "success")
+		return
+	}
+	if !result.Verified {
+		slog.Error("[支付宝] 回调验签失败", "orderNo", params["out_trade_no"], "error", result.Error)
+		c.String(http.StatusOK, "fail")
+		return
+	}
+	if result.OrderNo != "" {
+		if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
+			if isOrderPaid(getApp(c).DB, result.OrderNo) {
 				c.String(http.StatusOK, "success")
 				return
 			}
+			slog.Error("[支付宝] 入账失败", "orderNo", result.OrderNo, "err", err)
+			c.String(http.StatusOK, "fail")
+			return
 		}
+	}
 	c.String(http.StatusOK, "success")
 }
 
 func PaymentCallbackEpay(c *gin.Context) {
 	provider, err := payment.Get("epay")
-	if err != nil { c.String(http.StatusOK, "fail"); return }
+	if err != nil {
+		c.String(http.StatusOK, "fail")
+		return
+	}
 	app := getApp(c)
 	cfg, _ := app.Cache.GetPaymentConfig(app.DB)
 	query := map[string]string{}
-	for k, v := range c.Request.URL.Query() { query[k] = v[0] }
-	result, _ := provider.VerifyCallback(payment.CallbackRequest{Method: c.Request.Method, Query: query}, cfg)
-	if result.Skip { c.String(http.StatusOK, "success"); return }
-	if !result.Verified { c.String(http.StatusOK, "fail"); return }
+	for k, v := range c.Request.URL.Query() {
+		query[k] = v[0]
+	}
+	result, err := provider.VerifyCallback(payment.CallbackRequest{Method: c.Request.Method, Query: query}, cfg)
+	if err != nil {
+		c.String(http.StatusOK, "fail")
+		return
+	}
+	if result.Skip {
+		c.String(http.StatusOK, "success")
+		return
+	}
+	if !result.Verified {
+		c.String(http.StatusOK, "fail")
+		return
+	}
 	if result.OrderNo != "" {
-				if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
-					slog.Error("[易支付] 入账失败", "orderNo", result.OrderNo, "err", err)
-					c.String(http.StatusOK, "success")
-					return
-				}
+		if _, err := processPaidOrderWithLevelUp(getApp(c).DB, result.OrderNo, fmt.Sprintf("%.2f", result.Amount), result.TradeNo); err != nil {
+			slog.Error("[易支付] 入账失败", "orderNo", result.OrderNo, "err", err)
+			if isOrderPaid(getApp(c).DB, result.OrderNo) {
+				c.String(http.StatusOK, "success")
+				return
 			}
+			c.String(http.StatusOK, "fail")
+			return
+		}
+	}
 	c.String(http.StatusOK, "success")
+}
+
+func isOrderPaid(db *gorm.DB, orderNo string) bool {
+	var existing models.PaymentOrder
+	return db.Where("order_no = ? AND status = ?", orderNo, "paid").First(&existing).Error == nil
 }

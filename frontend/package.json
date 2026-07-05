@@ -15,6 +15,7 @@
     "@vueuse/core": "^13.0.0",
     "@wangeditor/editor": "^5.1.23",
     "axios": "^1.7.0",
+    "cropperjs": "1.6.2",
     "dompurify": "^3.4.11",
     "naive-ui": "^2.43.0",
     "pinia": "^3.0.0",

@@ -106,7 +106,7 @@ function methodPct(revenue: number) {
           <div class="grid gap-4 lg:grid-cols-2">
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
               <p class="text-[13px] text-zinc-500 dark:text-zinc-400">收入明细</p>
-              <div class="mt-4 grid grid-cols-3 gap-4">
+              <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                   <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ formatMoney(stats.revenueToday || 0) }}</p>
                   <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">今日收入</p>

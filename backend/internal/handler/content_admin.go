@@ -90,6 +90,12 @@ func AdminKeywordUpdate(c *gin.Context) {
 		s := jsonString(v)
 		req.Response = &s
 	}
+	if v, ok := body["icon"].(string); ok {
+		req.Icon = &v
+	}
+if v, ok := body["attributes"].(string); ok {
+			req.Attributes = &v
+		}
 	kw, err := contentSvc(c).KeywordUpdate(id, req)
 	if err != nil {
 		code := http.StatusBadRequest

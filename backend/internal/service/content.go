@@ -21,8 +21,10 @@ type KeywordCreate struct {
 }
 
 type KeywordUpdate struct {
-	Keyword  *string `json:"keyword"`
-	Response *string `json:"response"`
+	Keyword    *string `json:"keyword"`
+	Response   *string `json:"response"`
+	Icon       *string `json:"icon"`
+	Attributes *string `json:"attributes"`
 }
 
 func (s *ContentService) KeywordsList() ([]models.KeywordResponse, error) {
@@ -76,6 +78,12 @@ func (s *ContentService) KeywordUpdate(id uint, req KeywordUpdate) (*models.Keyw
 	}
 	if req.Response != nil {
 		m.Response = *req.Response
+	}
+	if req.Icon != nil {
+		m.Icon = *req.Icon
+	}
+	if req.Attributes != nil {
+		m.Attributes = *req.Attributes
 	}
 	if err := s.DB.Save(&m).Error; err != nil {
 		return nil, fmt.Errorf("更新失败")
@@ -321,6 +329,8 @@ type PublicKeyword struct {
 	ID          uint      `json:"id"`
 	Keyword     string    `json:"keyword"`
 	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	Attributes  string    `json:"attributes"` // JSON 字符串: [{label,value}]，前端解析后渲染
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -343,6 +353,8 @@ func toPublicKeyword(r models.KeywordResponse) PublicKeyword {
 		ID:          r.ID,
 		Keyword:     r.Keyword,
 		Description: preview,
+		Icon:        r.Icon,
+		Attributes:  r.Attributes,
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 	}
@@ -456,11 +468,13 @@ func (s *ContentService) ActiveAnnouncements() ([]models.Announcement, error) {
 
 // SearchKeyword 搜索关键词并返回 response
 type SearchResult struct {
-	Keyword   string    `json:"keyword"`
-	Response  string    `json:"response"` // JSON 字符串
-	Timestamp time.Time `json:"timestamp"`
-	Source    string    `json:"source"`
-	KeywordID *uint     `json:"keywordId,omitempty"`
+	Keyword    string    `json:"keyword"`
+	Response   string    `json:"response"` // JSON 字符串
+	Icon       string    `json:"icon,omitempty"`
+	Attributes string    `json:"attributes,omitempty"` // JSON 字符串: [{label,value}]
+	Timestamp  time.Time `json:"timestamp"`
+	Source     string    `json:"source"`
+	KeywordID  *uint     `json:"keywordId,omitempty"`
 }
 
 var fallbackResponses = map[string]string{
@@ -478,11 +492,13 @@ func (s *ContentService) SearchKeyword(keyword string) (*SearchResult, error) {
 	if err == nil {
 		kid := m.ID
 		return &SearchResult{
-			Keyword:   keyword,
-			Response:  m.Response,
-			Timestamp: time.Now(),
-			Source:    "database",
-			KeywordID: &kid,
+			Keyword:    keyword,
+			Response:   m.Response,
+			Icon:       m.Icon,
+			Attributes: m.Attributes,
+			Timestamp:  time.Now(),
+			Source:     "database",
+			KeywordID:  &kid,
 		}, nil
 	}
 	// 内存兜底
@@ -530,13 +546,20 @@ func extractDescription(raw string) string {
 
 // blockAccess 前端对应实现: frontend/src/utils/blockAccess.ts，修改任一侧务必同步另一侧
 func blockAccess(b map[string]any) string {
-	if a, _ := b["access"].(string); a != "" {
+	if a, _ := b["access"].(string); a == "balance" || a == "membership" {
 		return a
 	}
 	if c, ok := toFloat64JSON(b["cost"]); ok && c > 0 {
 		return "balance"
 	}
 	return "free"
+}
+
+type LinkBlockDetails struct {
+	URL    string
+	Code   string
+	Access string
+	Cost   float64
 }
 
 func toFloat64JSON(v any) (float64, bool) {
@@ -586,25 +609,37 @@ func RedactPaidLinks(response string) string {
 	return string(out)
 }
 
-// ResolveBlock 取某关键词 response 中指定 blockIndex 的真实 url 与提取码。
-// 仅供鉴权后（purchase-link / purchase-status）调用，用于在校验通过后下发真实地址。
-func ResolveBlock(db *gorm.DB, keywordID uint, blockIndex int) (url, code string, err error) {
+func ResolveLinkBlock(db *gorm.DB, keywordID uint, blockIndex int) (*LinkBlockDetails, error) {
 	var m models.KeywordResponse
 	if e := db.First(&m, keywordID).Error; e != nil {
-		return "", "", fmt.Errorf("关键词不存在")
+		return nil, fmt.Errorf("关键词不存在")
 	}
 	var blocks []any
 	if e := json.Unmarshal([]byte(m.Response), &blocks); e != nil {
-		return "", "", fmt.Errorf("响应解析失败")
+		return nil, fmt.Errorf("响应解析失败")
 	}
 	if blockIndex < 0 || blockIndex >= len(blocks) {
-		return "", "", fmt.Errorf("内容块不存在")
+		return nil, fmt.Errorf("内容块不存在")
 	}
 	b, ok := blocks[blockIndex].(map[string]any)
 	if !ok {
-		return "", "", fmt.Errorf("内容块格式无效")
+		return nil, fmt.Errorf("内容块格式无效")
 	}
-	url, _ = b["url"].(string)
-	code, _ = b["code"].(string)
-	return url, code, nil
+	if t, _ := b["type"].(string); t != "link" {
+		return nil, fmt.Errorf("内容块不是链接")
+	}
+	url, _ := b["url"].(string)
+	code, _ := b["code"].(string)
+	cost, _ := toFloat64JSON(b["cost"])
+	return &LinkBlockDetails{URL: url, Code: code, Access: blockAccess(b), Cost: cost}, nil
+}
+
+// ResolveBlock 取某关键词 response 中指定 blockIndex 的真实 url 与提取码。
+// 仅供鉴权后（purchase-link / purchase-status）调用，用于在校验通过后下发真实地址。
+func ResolveBlock(db *gorm.DB, keywordID uint, blockIndex int) (url, code string, err error) {
+	block, err := ResolveLinkBlock(db, keywordID, blockIndex)
+	if err != nil {
+		return "", "", err
+	}
+	return block.URL, block.Code, nil
 }

@@ -121,7 +121,7 @@ const orderedLevels = computed(() => [...levels.value])
       <!-- 提示条 -->
       <div
         v-if="message"
-        class="mt-4 flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-sm"
+        class="mt-4 flex flex-col items-start gap-3 rounded-xl border px-4 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between"
         :class="message.type === 'success'
           ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-400'
           : 'border-red-200 bg-red-50 text-red-600 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-400'"
@@ -260,7 +260,7 @@ const orderedLevels = computed(() => [...levels.value])
       </div>
 
       <!-- 底部保存 -->
-      <div class="mt-6 flex items-center justify-between gap-3">
+      <div class="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p class="text-xs text-zinc-400 dark:text-zinc-500">
           <span v-if="dirty" class="text-amber-600 dark:text-amber-400">有未保存的修改</span>
           <span v-else>保存后立即对前台生效</span>

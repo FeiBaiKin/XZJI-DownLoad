@@ -7,7 +7,7 @@ export interface DashboardStats { totalUsers: number; totalRevenue: number; tota
 export interface SiteSettings { siteName: string; siteDescription: string; footerText: string; siteLogoType: string; siteLogoUrl: string; siteIcp: string; sitePolice: string; [key: string]: string }
 export interface EmailConfig { email_smtp_host: string; email_smtp_port: string; email_smtp_user: string; email_smtp_pass: string; email_from_name: string; email_force_verify: string; email_enable_passwordless: string; [key: string]: string }
 export interface UserRecord { id: number; username: string; role: string; email: string; nickname: string; avatar: string; balance: number; exp: number; level: number; membership_level: string | null; membership_expires_at: string | null; email_verified: boolean; created_at: string }
-export interface PaymentOrderRow { id: number; order_no: string; user_id: number; amount: number; points: number; status: string; payment_method: string; payment_scene: string; trade_no: string; created_at: string; paid_at: string | null; username: string; avatar: string }
+export interface PaymentOrderRow { id: number; orderNo: string; userId: number; amount: number; points: number; status: string; paymentMethod: string; paymentScene: string; tradeNo: string; createdAt: string; paidAt: string | null; username: string; avatar: string }
 export interface CheckInConfig { daily_balance: number; daily_exp: number; consecutive_days: number; consecutive_bonus_balance: number }
 export interface LevelConfigItem { level: number; exp_required: number; label: string }
 export interface MembershipConfigItem { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string }
@@ -79,7 +79,7 @@ export const adminApi = {
   },
   // 用户管理
   users: {
-    list: (params?: any) => api.get<{ list: UserRecord[]; pagination: any }>('/admin/users', { params }).then(r => r.data),
+    list: (params?: any) => api.get<{ users: UserRecord[]; total: number }>('/admin/users', { params }).then(r => r.data),
     get: (id: number) => api.get<UserRecord>(`/admin/users/${id}`).then(r => r.data),
     update: (id: number, data: Partial<UserRecord>) => api.put(`/admin/users/${id}`, data).then(r => r.data),
     delete: (id: number) => api.delete(`/admin/users/${id}`).then(r => r.data),

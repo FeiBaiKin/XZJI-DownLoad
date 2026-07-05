@@ -170,7 +170,7 @@ const columns: DataTableColumns<Announcement> = [
             {{ message }}
           </NAlert>
 
-          <div class="flex gap-2">
+          <div class="flex flex-col gap-2 sm:flex-row">
             <NButton attr-type="submit" type="primary" :loading="saving">{{ editing ? '更新' : '创建' }}</NButton>
             <NButton quaternary @click="resetForm">取消</NButton>
           </div>
@@ -183,6 +183,7 @@ const columns: DataTableColumns<Announcement> = [
         :data="announcements"
         :row-key="(row: Announcement) => row.id"
         :bordered="false"
+        :scroll-x="650"
         class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
       />
     </template>

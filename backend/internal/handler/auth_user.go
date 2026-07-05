@@ -39,6 +39,18 @@ func uploadsDir() string {
 // backendDir 返回 backend 根目录，统一使用 util.BackendRoot。
 func backendDir() string { return util.BackendRoot() }
 
+func setAuthCookie(c *gin.Context, token string, maxAge int) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "token",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   maxAge,
+		Secure:   middleware.SecureCookie(c),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
 // ---- 认证 ----
 
 func Login(c *gin.Context) {
@@ -52,8 +64,7 @@ func Login(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
-	// 设置 HttpOnly JWT cookie（24h，SameSite=Lax）
-	c.SetCookie("token", res.Token, 86400, "/", "", false, true)
+	setAuthCookie(c, res.Token, 86400)
 	c.JSON(http.StatusOK, res)
 }
 
@@ -73,8 +84,7 @@ func Register(c *gin.Context) {
 		c.JSON(code, gin.H{"error": msg})
 		return
 	}
-	// 注册成功自动登录：设置 HttpOnly JWT cookie
-	c.SetCookie("token", res.Token, 86400, "/", "", false, true)
+	setAuthCookie(c, res.Token, 86400)
 	c.JSON(http.StatusCreated, res)
 }
 
@@ -128,8 +138,7 @@ func PasswordlessLogin(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// 设置 HttpOnly JWT cookie
-	c.SetCookie("token", res.Token, 86400, "/", "", false, true)
+	setAuthCookie(c, res.Token, 86400)
 	c.JSON(http.StatusOK, res)
 }
 
@@ -149,8 +158,8 @@ func ResetPassword(c *gin.Context) {
 // Logout POST /api/auth/logout
 // 清除 HttpOnly JWT cookie 和 CSRF cookie
 func Logout(c *gin.Context) {
-	c.SetCookie("token", "", -1, "/", "", false, true)
-	c.SetCookie("csrf_token", "", -1, "/", "", false, false)
+	setAuthCookie(c, "", -1)
+	middleware.SetCSRFCookie(c, "", -1)
 	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
 }
 
@@ -167,7 +176,7 @@ func ForgotPassword(c *gin.Context) {
 	}
 	// 不暴露邮箱是否已注册（安全考虑），统一返回引导信息
 	c.JSON(http.StatusOK, gin.H{
-		"message":   "请点击发送验证码获取验证码，然后输入验证码和新密码完成重置",
+		"message":     "请点击发送验证码获取验证码，然后输入验证码和新密码完成重置",
 		"useSendCode": true,
 	})
 }

@@ -64,7 +64,7 @@ type CallbackRequest struct {
 
 type CallbackResult struct {
 	Verified bool
-	Skip     bool   // 跳过处理（资源事件等）
+	Skip     bool // 跳过处理（资源事件等）
 	Error    string
 	OrderNo  string
 	Amount   float64
@@ -85,7 +85,9 @@ var providers = map[string]Provider{}
 
 func Register(p Provider) { providers[p.Name()] = p }
 func Get(name string) (Provider, error) {
-	if p, ok := providers[name]; ok { return p, nil }
+	if p, ok := providers[name]; ok {
+		return p, nil
+	}
 	return nil, fmt.Errorf("不支持的支付方式: %s", name)
 }
 func ListMethods() []map[string]any {
@@ -104,7 +106,9 @@ func GetPaymentConfig(db *gorm.DB) PaymentConfig {
 	cfg := PaymentConfig{}
 
 	m := map[string]string{}
-	for _, r := range rows { m[r.SettingKey] = r.SettingValue }
+	for _, r := range rows {
+		m[r.SettingKey] = r.SettingValue
+	}
 
 	siteURL := strings.TrimRight(m["payment_site_url"], "/")
 	cfg.SiteURL = siteURL
@@ -126,25 +130,37 @@ func GetPaymentConfig(db *gorm.DB) PaymentConfig {
 	cfg.WxApiV3Key = m["payment_wx_api_v3_key"]
 	cfg.WxPrivateKey = m["payment_wx_private_key"]
 	cfg.WxNotifyUrl = normalizeURL(m["payment_wx_notify_url"])
-	if cfg.WxNotifyUrl == "" && siteURL != "" { cfg.WxNotifyUrl = siteURL + "/api/payment/callback/wechat" }
+	if cfg.WxNotifyUrl == "" && siteURL != "" {
+		cfg.WxNotifyUrl = siteURL + "/api/payment/callback/wechat"
+	}
 
 	cfg.AliAppId = m["payment_ali_appid"]
 	cfg.AliPrivateKey = m["payment_ali_private_key"]
 	cfg.AliPublicKey = m["payment_ali_public_key"]
 	cfg.AliScene = m["payment_ali_scene"]
-	if cfg.AliScene == "" { cfg.AliScene = "page" }
+	if cfg.AliScene == "" {
+		cfg.AliScene = "page"
+	}
 	cfg.AliNotifyUrl = normalizeURL(m["payment_ali_notify_url"])
-	if cfg.AliNotifyUrl == "" && siteURL != "" { cfg.AliNotifyUrl = siteURL + "/api/payment/callback/alipay" }
+	if cfg.AliNotifyUrl == "" && siteURL != "" {
+		cfg.AliNotifyUrl = siteURL + "/api/payment/callback/alipay"
+	}
 	cfg.AliReturnUrl = normalizeURL(m["payment_ali_return_url"])
-	if cfg.AliReturnUrl == "" && siteURL != "" { cfg.AliReturnUrl = siteURL + "/?from=alipay" }
+	if cfg.AliReturnUrl == "" && siteURL != "" {
+		cfg.AliReturnUrl = siteURL + "/?from=alipay"
+	}
 
 	cfg.EpayGateway = m["payment_epay_gateway"]
 	cfg.EpayPid = m["payment_epay_pid"]
 	cfg.EpayKey = m["payment_epay_key"]
 	cfg.EpayNotifyUrl = normalizeURL(m["payment_epay_notify_url"])
-	if cfg.EpayNotifyUrl == "" && siteURL != "" { cfg.EpayNotifyUrl = siteURL + "/api/payment/callback/epay" }
+	if cfg.EpayNotifyUrl == "" && siteURL != "" {
+		cfg.EpayNotifyUrl = siteURL + "/api/payment/callback/epay"
+	}
 	cfg.EpayReturnUrl = normalizeURL(m["payment_epay_return_url"])
-	if cfg.EpayReturnUrl == "" && siteURL != "" { cfg.EpayReturnUrl = siteURL + "/?from=epay" }
+	if cfg.EpayReturnUrl == "" && siteURL != "" {
+		cfg.EpayReturnUrl = siteURL + "/?from=epay"
+	}
 
 	return cfg
 }
@@ -176,41 +192,68 @@ func normalizeURL(raw string) string {
 
 func ProcessPaidOrder(db *gorm.DB, orderNo string, paidAmount, tradeNo string) (uint, map[string]any, error) {
 	tx := db.Begin()
-	defer func() { if r := recover(); r != nil { tx.Rollback() } }()
+	if tx.Error != nil {
+		return 0, nil, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	var order models.PaymentOrder
 	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("order_no = ?", orderNo).First(&order).Error; err != nil {
-		tx.Rollback(); return 0, nil, fmt.Errorf("订单不存在")
+		tx.Rollback()
+		return 0, nil, fmt.Errorf("订单不存在")
 	}
 
 	// 金额前置校验
 	amt := 0.0
 	fmt.Sscanf(paidAmount, "%f", &amt)
 	if amt <= 0 {
-		tx.Rollback(); return 0, nil, fmt.Errorf("无效的支付金额")
+		tx.Rollback()
+		return 0, nil, fmt.Errorf("无效的支付金额")
 	}
 	if diff := amt - order.Amount; diff > 0.01 || diff < -0.01 {
-		tx.Rollback(); return 0, nil, fmt.Errorf("支付金额不匹配")
+		tx.Rollback()
+		return 0, nil, fmt.Errorf("支付金额不匹配")
 	}
 	if order.Status == "paid" {
-		tx.Commit(); return order.UserID, map[string]any{"success": true, "alreadyPaid": true}, nil
+		if err := tx.Commit().Error; err != nil {
+			return 0, nil, err
+		}
+		return order.UserID, map[string]any{"success": true, "alreadyPaid": true}, nil
 	}
 
 	// 更新订单
 	now := time.Now()
-	tx.Model(&order).Updates(map[string]any{"status": "paid", "paid_at": now, "trade_no": tradeNo})
+	if err := tx.Model(&order).Updates(map[string]any{"status": "paid", "paid_at": now, "trade_no": tradeNo}).Error; err != nil {
+		tx.Rollback()
+		return 0, nil, err
+	}
 	// 加余额（使用回调金额，与原项目一致）
-	tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("balance", gorm.Expr("balance + ?", amt))
+	if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("balance", gorm.Expr("balance + ?", amt)).Error; err != nil {
+		tx.Rollback()
+		return 0, nil, err
+	}
 	// 赠经验
 	if order.Points > 0 {
-		tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("exp", gorm.Expr("exp + ?", order.Points))
+		if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("exp", gorm.Expr("exp + ?", order.Points)).Error; err != nil {
+			tx.Rollback()
+			return 0, nil, err
+		}
 	}
 	// 流水
-	tx.Create(&models.PointsTransaction{
+	if err := tx.Create(&models.PointsTransaction{
 		UserID: order.UserID, Type: "recharge", Amount: amt, BalanceAmount: amt,
 		ExpEarned: order.Points, Description: "账户充值", RefID: &order.ID,
-	})
+	}).Error; err != nil {
+		tx.Rollback()
+		return 0, nil, err
+	}
 
-	if err := tx.Commit().Error; err != nil { return 0, nil, err }
+	if err := tx.Commit().Error; err != nil {
+		return 0, nil, err
+	}
 	return order.UserID, map[string]any{"success": true}, nil
 }

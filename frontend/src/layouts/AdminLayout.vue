@@ -5,7 +5,7 @@ import { h, ref, computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NMenu, NIcon, NButton, NDrawer, NDrawerContent, type MenuOption } from 'naive-ui'
 import {
-  Dashboard, Folders, Users, CreditCard, Settings, Sun, MoonStars, Logout, Menu2, Home, ShieldLock,
+  Dashboard, Folders, Users, CreditCard, Settings, Sun, MoonStars, Logout, Menu2, Home, ShieldLock, Photo,
 } from '@vicons/tabler'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -24,6 +24,7 @@ function renderIcon(icon: Component) {
 
 const menuOptions: MenuOption[] = [
   { label: '仪表盘', key: '/admin', icon: renderIcon(Dashboard) },
+  { label: '媒体库', key: '/admin/media', icon: renderIcon(Photo) },
   {
     label: '内容管理',
     key: 'group-content',

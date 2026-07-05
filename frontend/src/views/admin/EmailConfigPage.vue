@@ -132,7 +132,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
         <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">功能开关</h3>
           <div class="space-y-3">
-            <div class="flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+            <div class="flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
               <div>
                 <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">注册强制邮箱验证</p>
                 <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">开启后，注册时必须验证邮箱</p>
@@ -143,7 +143,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
                 @update:value="(v: boolean) => updateConfig('email_force_verify', v ? '1' : '0')"
               />
             </div>
-            <div class="flex items-center justify-between gap-4 rounded-xl bg-zinc-50 px-4 py-3 dark:bg-zinc-800/60">
+            <div class="flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
               <div>
                 <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">启用邮箱验证码登录</p>
                 <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">用户可使用邮箱验证码免密登录</p>
@@ -163,7 +163,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
         <!-- 发送测试 -->
         <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <h3 class="mb-4 text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">发送测试</h3>
-          <div class="flex max-w-lg gap-2">
+          <div class="flex max-w-lg flex-col gap-2 sm:flex-row">
             <NInput v-model:value="testTo" class="flex-1" placeholder="输入测试收件邮箱" :input-props="{ type: 'email' }" />
             <NButton secondary :loading="testing" @click="handleTestEmail">发送测试邮件</NButton>
           </div>

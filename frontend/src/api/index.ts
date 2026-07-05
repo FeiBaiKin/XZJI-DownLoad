@@ -33,10 +33,9 @@ api.interceptors.response.use(
       useLicenseStore().markBlocked(err.response?.data?.error)
     }
     if (err.response?.status === 401) {
-      try {
-        const { useAuthStore } = require('@/stores/auth')
-        useAuthStore().clearAuth()
-      } catch {}
+      void import('@/stores/auth')
+        .then(({ useAuthStore }) => useAuthStore().clearAuth())
+        .catch(() => {})
       const path = window.location.pathname
       const onAuthPage =
         path.startsWith('/login') || path.startsWith('/install') ||

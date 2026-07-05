@@ -158,7 +158,7 @@ function cancelEdit() {
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">邮箱</label>
               <NInput v-model:value="formData.email" placeholder="用于找回密码" :input-props="{ type: 'email' }" />
             </div>
-            <div class="flex gap-2 pt-1">
+            <div class="flex flex-col gap-2 pt-1 sm:flex-row">
               <NButton attr-type="submit" type="primary" :loading="saving">保存</NButton>
               <NButton quaternary @click="cancelEdit">取消</NButton>
             </div>
@@ -176,7 +176,7 @@ function cancelEdit() {
             </div>
             <div class="flex items-center justify-between gap-4 py-3">
               <dt class="text-sm text-zinc-500 dark:text-zinc-400">邮箱</dt>
-              <dd class="truncate text-sm text-zinc-800 dark:text-zinc-200">{{ profile.email || '未设置' }}</dd>
+              <dd class="min-w-0 truncate text-sm text-zinc-800 dark:text-zinc-200">{{ profile.email || '未设置' }}</dd>
             </div>
             <div class="flex items-center justify-between gap-4 py-3">
               <dt class="text-sm text-zinc-500 dark:text-zinc-400">等级</dt>
@@ -192,7 +192,7 @@ function cancelEdit() {
             </div>
             <div class="flex items-center justify-between gap-4 py-3">
               <dt class="text-sm text-zinc-500 dark:text-zinc-400">会员</dt>
-              <dd class="text-sm text-zinc-800 dark:text-zinc-200">
+              <dd class="min-w-0 truncate text-sm text-zinc-800 dark:text-zinc-200">
                 {{ profile.membership_level
                   ? `${profile.membership_level}（${profile.membership_expires_at ? new Date(profile.membership_expires_at).toLocaleDateString('zh-CN') : ''}）`
                   : '无' }}
@@ -204,7 +204,7 @@ function cancelEdit() {
             </div>
             <div class="flex items-center justify-between gap-4 py-3">
               <dt class="text-sm text-zinc-500 dark:text-zinc-400">注册时间</dt>
-              <dd class="font-mono text-sm text-zinc-500 dark:text-zinc-400">{{ new Date(profile.created_at).toLocaleString('zh-CN') }}</dd>
+              <dd class="min-w-0 truncate font-mono text-sm text-zinc-500 dark:text-zinc-400">{{ new Date(profile.created_at).toLocaleString('zh-CN') }}</dd>
             </div>
           </dl>
         </section>

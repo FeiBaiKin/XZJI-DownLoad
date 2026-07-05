@@ -188,7 +188,7 @@ onBeforeUnmount(() => {
           <!-- 支付方式（多于一种时展示） -->
           <div v-if="availableMethods.length > 1">
             <p class="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">支付方式</p>
-            <div class="grid gap-2" :class="availableMethods.length >= 3 ? 'grid-cols-3' : 'grid-cols-2'">
+            <div class="grid gap-2" :class="availableMethods.length >= 3 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'">
               <button
                 v-for="m in availableMethods"
                 :key="m.name"
@@ -211,7 +211,7 @@ onBeforeUnmount(() => {
           <!-- 预设金额 -->
           <div>
             <p class="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">选择金额</p>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <button
                 v-for="item in PRESET_AMOUNTS"
                 :key="item.value"

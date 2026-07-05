@@ -7,11 +7,13 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import {
-  Plus, X, ArrowUp, ArrowDown, AlignLeft, Photo, Link as LinkIcon, ExternalLink, ChevronDown,
+  Plus, X, ArrowUp, ArrowDown, AlignLeft, Photo, Link as LinkIcon, ExternalLink, ChevronDown, Trash,
 } from '@vicons/tabler'
 import { contentApi, type Category, type Keyword } from '@/api/content'
+import type { KeywordAttribute } from '@/types/api'
 import { cloudPlatforms } from '@/constants/admin'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import IconCropperModal from '@/components/IconCropperModal.vue'
 
 // 块类型定义
 interface TextBlock {
@@ -61,6 +63,11 @@ const parserOpen = ref(false)
 const confirmDeleteId = ref<number | null>(null)
 const categories = ref<Category[]>([])
 const selectedCategoryIds = ref<number[]>([])
+// 关键词图标
+const keywordIcon = ref<string>('')
+const iconPickerOpen = ref(false)
+// 关键词属性
+const attributes = ref<KeywordAttribute[]>([])
 
 onMounted(() => { fetchKeywords(); fetchCategories() })
 
@@ -136,14 +143,21 @@ function addParsedLinkAsBlocks() {
 async function handleSubmit() {
   if (!keyword.value.trim() || blocks.value.length === 0) return
   try {
-    const payload = { keyword: keyword.value.trim(), response: blocks.value }
+    // attributes 序列化为 JSON 字符串，空数组保留空字符串避免阻塞
+    const attrsStr = attributes.value.length > 0 ? JSON.stringify(attributes.value) : ''
+    const payload = { keyword: keyword.value.trim(), response: blocks.value, icon: keywordIcon.value, attributes: attrsStr }
     let savedId: number | undefined | null = editingId.value
     if (editingId.value) {
       const kw = await contentApi.keywords.update(editingId.value, payload)
       savedId = kw?.id ?? editingId.value
     } else {
-      const kw = await contentApi.keywords.create(payload)
+      // 新建时 icon/attributes 随 payload 一并 create（后端 KeywordCreate 仅含 keyword+response，
+      // 故新建后立即 update 一次填入 icon/attributes）
+      const kw = await contentApi.keywords.create({ keyword: payload.keyword, response: payload.response })
       savedId = kw?.id
+      if (savedId && (keywordIcon.value || attrsStr)) {
+        await contentApi.keywords.update(savedId, { icon: keywordIcon.value, attributes: attrsStr })
+      }
     }
     if (savedId) {
       // 后端 setCategories 接收纯数组 []uint
@@ -166,6 +180,16 @@ function handleEdit(item: Keyword) {
   }
   if (Array.isArray(resp)) blocks.value = resp.map((b) => ({ ...b, _id: (b as ContentBlock)._id || uid() }) as ContentBlock)
   else blocks.value = [{ _id: uid(), type: 'text', text: typeof resp === 'string' ? resp : String(resp || '') }]
+  // 图标 & 属性
+  keywordIcon.value = item.icon || ''
+  let attrs: KeywordAttribute[] = []
+  if (item.attributes) {
+    try {
+      const parsed = JSON.parse(item.attributes)
+      if (Array.isArray(parsed)) attrs = parsed.filter((a) => a && typeof a.label === 'string' && typeof a.value === 'string')
+    } catch { /* 忽略损坏的 JSON */ }
+  }
+  attributes.value = attrs
   showForm.value = true
   fetchKeywordCategories(item.id)
 }
@@ -193,6 +217,26 @@ function handleCancel() {
   linkUrl.value = ''
   parsedLink.value = null
   selectedCategoryIds.value = []
+  keywordIcon.value = ''
+  attributes.value = []
+  iconPickerOpen.value = false
+}
+
+// 图标
+function onIconSaved(icon: string) {
+  keywordIcon.value = icon
+  // 编辑态下后端已写入 keyword_responses.icon，但表单保存时仍会再次写一次以保持一致
+}
+
+// 属性增删改
+function addAttribute() {
+  attributes.value.push({ label: '', value: '' })
+}
+function updateAttribute(idx: number, field: 'label' | 'value', v: string) {
+  attributes.value[idx] = { ...attributes.value[idx]!, [field]: v }
+}
+function removeAttribute(idx: number) {
+  attributes.value = attributes.value.filter((_, i) => i !== idx)
 }
 
 function getPreviewText(response: Keyword['response']) {
@@ -279,6 +323,85 @@ const columns: DataTableColumns<Keyword> = [
             <NInput v-model:value="keyword" placeholder="输入关键词，例如: hello, react..." />
           </div>
 
+          <!-- 图标 + 属性：左右两栏 -->
+          <div class="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)]">
+            <!-- 图标选择 -->
+            <div>
+              <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">关键词图标</label>
+              <div class="flex items-center gap-3">
+                <div
+                  class="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60"
+                >
+                  <img v-if="keywordIcon" :src="keywordIcon" alt="图标" class="size-full object-cover" />
+                  <NIcon v-else :size="22" class="text-zinc-300 dark:text-zinc-600"><Photo /></NIcon>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                  <NButton
+                    size="small"
+                    secondary
+                    :disabled="!editingId"
+                    :title="!editingId ? '请先保存关键词后再上传图标' : '从媒体库选图并裁剪为图标'"
+                    @click="iconPickerOpen = true"
+                  >
+                    <template #icon><NIcon><Photo /></NIcon></template>
+                    {{ keywordIcon ? '更换图标' : '从媒体库选择' }}
+                  </NButton>
+                  <NButton v-if="keywordIcon" size="small" quaternary type="error" @click="keywordIcon = ''">
+                    清除
+                  </NButton>
+                  <p class="text-[11px] text-zinc-400 dark:text-zinc-500">
+                    {{ editingId ? '从媒体库选图后裁成 256×256 方图' : '保存关键词后可上传图标' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 属性编辑 -->
+            <div>
+              <div class="mb-1.5 flex items-center justify-between">
+                <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">属性</label>
+                <NButton size="tiny" quaternary @click="addAttribute">
+                  <template #icon><NIcon><Plus /></NIcon></template>
+                  添加
+                </NButton>
+              </div>
+              <p v-if="attributes.length === 0" class="rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
+                例如：大小=56MB / 平台=安卓
+              </p>
+              <div v-else class="space-y-2">
+                <div
+                  v-for="(attr, idx) in attributes"
+                  :key="idx"
+                  class="flex flex-col gap-2 sm:flex-row sm:items-center"
+                >
+                  <NInput
+                    size="small"
+                    class="!w-full sm:!w-28 sm:shrink-0"
+                    placeholder="属性名"
+                    :value="attr.label"
+                    @update:value="(v: string) => updateAttribute(idx, 'label', v)"
+                  />
+                  <span class="text-zinc-400 dark:text-zinc-500">=</span>
+                  <NInput
+                    size="small"
+                    class="flex-1"
+                    placeholder="属性值"
+                    :value="attr.value"
+                    @update:value="(v: string) => updateAttribute(idx, 'value', v)"
+                  />
+                  <button
+                    type="button"
+                    class="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                    title="删除"
+                    @click="removeAttribute(idx)"
+                  >
+                    <NIcon :size="14"><Trash /></NIcon>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 内容块 -->
           <div>
             <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -310,10 +433,10 @@ const columns: DataTableColumns<Keyword> = [
               <div
                 v-for="(block, idx) in blocks"
                 :key="block._id"
-                class="flex gap-3 rounded-xl border border-zinc-200 p-3.5 dark:border-zinc-700/80"
+                class="flex flex-col gap-3 rounded-xl border border-zinc-200 p-3.5 sm:flex-row dark:border-zinc-700/80"
               >
                 <!-- 侧槽：序号 + 排序 -->
-                <div class="flex shrink-0 flex-col items-center gap-1.5">
+                <div class="flex shrink-0 flex-row items-center gap-1.5 sm:flex-col">
                   <span class="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ String(idx + 1).padStart(2, '0') }}</span>
                   <button
                     type="button"
@@ -450,7 +573,7 @@ const columns: DataTableColumns<Keyword> = [
             </NCheckboxGroup>
           </div>
 
-          <div class="flex gap-2 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+          <div class="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row dark:border-zinc-800">
             <NButton type="primary" @click="handleSubmit">{{ editingId ? '保存修改' : '添加关键词' }}</NButton>
             <NButton quaternary @click="handleCancel">取消</NButton>
           </div>
@@ -500,7 +623,7 @@ const columns: DataTableColumns<Keyword> = [
               <NIcon :size="15" class="text-zinc-400 transition-transform" :class="parserOpen ? 'rotate-180' : ''"><ChevronDown /></NIcon>
             </button>
             <div v-if="parserOpen" class="space-y-3 border-t border-zinc-100 p-4 dark:border-zinc-800">
-              <div class="flex gap-2">
+              <div class="flex flex-col gap-2 sm:flex-row">
                 <NInput
                   v-model:value="linkUrl"
                   size="small"
@@ -547,6 +670,7 @@ const columns: DataTableColumns<Keyword> = [
       :data="keywords"
       :row-key="(row: Keyword) => row.id"
       :bordered="false"
+      :scroll-x="720"
       class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
     />
 
@@ -558,6 +682,15 @@ const columns: DataTableColumns<Keyword> = [
       danger
       @confirm="doDelete"
       @cancel="confirmDeleteId = null"
+    />
+
+    <!-- 图标选择 + 裁剪弹窗 -->
+    <IconCropperModal
+      :show="iconPickerOpen"
+      :keyword="editingId ? (keywords.find((k: Keyword) => k.id === editingId) || null) : null"
+      :current-icon="keywordIcon"
+      @close="iconPickerOpen = false"
+      @saved="onIconSaved"
     />
   </div>
 </template>

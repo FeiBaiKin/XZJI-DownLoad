@@ -194,7 +194,7 @@ const columns: DataTableColumns<Order> = [
   <div>
     <div v-if="loading && orders.length === 0" class="space-y-4">
       <NSkeleton text width="20%" size="large" />
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <NSkeleton v-for="i in 4" :key="i" height="84px" :sharp="false" />
       </div>
       <NSkeleton height="320px" :sharp="false" />
@@ -207,7 +207,7 @@ const columns: DataTableColumns<Order> = [
       </header>
 
       <!-- 统计 -->
-      <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <p class="font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.total }}</p>
           <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">总订单</p>
@@ -229,19 +229,19 @@ const columns: DataTableColumns<Order> = [
       <!-- 筛选 -->
       <div class="mt-5 flex flex-wrap items-center gap-2.5">
         <NSelect
-          class="w-32"
+          class="w-full sm:w-32"
           :value="filter.status"
           :options="statusOptions"
           @update:value="(v: string) => handleFilterChange('status', v)"
         />
         <NSelect
-          class="w-32"
+          class="w-full sm:w-32"
           :value="filter.method"
           :options="methodOptions"
           @update:value="(v: string) => handleFilterChange('method', v)"
         />
         <NInput
-          class="w-56"
+          class="w-full sm:w-56"
           placeholder="搜索订单号 / 用户名"
           clearable
           :value="filter.search"
@@ -250,6 +250,7 @@ const columns: DataTableColumns<Order> = [
         <NButton
           v-if="selectedIds.length > 0"
           type="error"
+          class="w-full sm:w-auto"
           :loading="deleting"
           @click="handleBatchDelete"
         >

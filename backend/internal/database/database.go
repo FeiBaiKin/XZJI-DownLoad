@@ -57,6 +57,9 @@ func Init(cfg *config.Config) error {
 
 // CreateDatabase 连接到 MySQL（不指定库）并创建目标库。安装向导阶段调用。
 func CreateDatabase(host string, port int, user, password, dbName string) error {
+	if !isSafeDatabaseName(dbName) {
+		return fmt.Errorf("数据库名称仅允许英文字母、数字和下划线")
+	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
 		user, password, host, port)
 	gdb, err := gorm.Open(mysql.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Warn)})
@@ -76,6 +79,19 @@ func CreateDatabase(host string, port int, user, password, dbName string) error 
 	}
 	slog.Info("数据库已创建（或已存在）", "db", dbName)
 	return nil
+}
+
+func isSafeDatabaseName(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // SetupFromInstall 安装向导专用：建库 → 连库 → 建表 → 种子

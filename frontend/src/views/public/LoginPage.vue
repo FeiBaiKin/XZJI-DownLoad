@@ -155,7 +155,7 @@ function switchMode(mode: string | number) {
     <form v-else class="space-y-5" @submit.prevent="handleCodeSubmit">
       <div>
         <label for="email" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">邮箱</label>
-        <div class="flex gap-2">
+        <div class="flex flex-col gap-2 sm:flex-row">
           <NInput
             id="email"
             v-model:value="email"
@@ -168,6 +168,7 @@ function switchMode(mode: string | number) {
           <NButton
             size="large"
             secondary
+            class="sm:shrink-0"
             :disabled="sendingCode || cooldown > 0 || loading"
             :loading="sendingCode"
             @click="handleSendCode"

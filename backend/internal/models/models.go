@@ -30,11 +30,13 @@ func (User) TableName() string { return "users" }
 
 // KeywordResponse 关键词响应（对齐 keyword_responses）
 type KeywordResponse struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
-	Keyword   string    `gorm:"size:255;uniqueIndex" json:"keyword"`
-	Response  string    `gorm:"type:text" json:"response"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	Keyword    string    `gorm:"size:255;uniqueIndex" json:"keyword"`
+	Response   string    `gorm:"type:text" json:"response"`
+	Icon       string    `gorm:"size:255;default:''" json:"icon"`
+	Attributes string    `gorm:"type:text;default:''" json:"attributes"` // JSON: [{label,value}]
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func (KeywordResponse) TableName() string { return "keyword_responses" }
@@ -249,6 +251,23 @@ type SchemaMigration struct {
 
 func (SchemaMigration) TableName() string { return "schema_migrations" }
 
+// MediaFile 媒体库文件元数据（对齐 media_files）
+type MediaFile struct {
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	URL         string    `gorm:"size:255;index" json:"url"`           // /uploads/media/<filename>
+	Filename    string    `gorm:"size:255" json:"filename"`            // 物理文件名
+	OriginName  string    `gorm:"size:255;default:''" json:"origin_name"`
+	Mime        string    `gorm:"size:100;default:''" json:"mime"`
+	Size        int64     `gorm:"default:0" json:"size"`                // 字节
+	Width       int       `gorm:"default:0" json:"width"`
+	Height      int       `gorm:"default:0" json:"height"`
+	Source      string    `gorm:"size:20;default:local" json:"source"` // local | remote
+	UploaderID  uint      `gorm:"default:0" json:"uploader_id"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (MediaFile) TableName() string { return "media_files" }
+
 // AllModels 返回所有需要 AutoMigrate 的模型
 func AllModels() []interface{} {
 	return []interface{}{
@@ -270,6 +289,7 @@ func AllModels() []interface{} {
 		&PointsTransaction{},
 		&MembershipReminder{},
 		&EmailVerification{},
+		&MediaFile{},
 		&SchemaMigration{},
 	}
 }

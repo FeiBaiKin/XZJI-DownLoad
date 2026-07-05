@@ -4,10 +4,10 @@ import type {
   Category, CategoryCreate, CategoryUpdate,
   Page, PageCreate, PageUpdate,
   Announcement, AnnouncementCreate, AnnouncementUpdate,
-  PublicKeyword, PaginatedKeywords, PublicSiteSettings
+  PublicKeyword, PaginatedKeywords, PublicSiteSettings, MediaFile
 } from '@/types/api'
 
-export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKeywords, PublicSiteSettings }
+export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKeywords, PublicSiteSettings, MediaFile }
 
 export const contentApi = {
   // 关键词
@@ -19,6 +19,20 @@ export const contentApi = {
     delete: (id: number) => api.delete(`/admin/keywords/${id}`).then(r => r.data),
     categories: (id: number) => api.get<number[]>(`/admin/keywords/${id}/categories`).then(r => r.data),
     setCategories: (id: number, ids: number[]) => api.put(`/admin/keywords/${id}/categories`, ids).then(r => r.data),
+    // 关键词图标
+    uploadIcon: (id: number, fd: FormData) =>
+      api.post<{ icon: string }>(`/admin/keywords/${id}/icon`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+    clearIcon: (id: number) => api.delete<{ message: string }>(`/admin/keywords/${id}/icon`).then(r => r.data),
+  },
+  // 媒体库
+  media: {
+    list: (page = 1, limit = 24, q?: string) =>
+      api.get<{ items: MediaFile[]; total: number; page: number; limit: number }>('/admin/media', { params: { page, limit, ...(q ? { q } : {}) } }).then(r => r.data),
+    upload: (fd: FormData) =>
+      api.post<{ items: MediaFile[] }>('/admin/media', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+    uploadByURL: (url: string) =>
+      api.post<{ item: MediaFile }>('/admin/media/url', { url }).then(r => r.data),
+    delete: (id: number) => api.delete(`/admin/media/${id}`).then(r => r.data),
   },
   // 分类
   categories: {

@@ -124,14 +124,26 @@ function pillClass(active: boolean) {
       </div>
 
       <!-- 加载骨架 -->
-      <div v-if="loading" class="space-y-3">
-        <div v-for="i in 8" :key="i" class="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3.5 dark:border-zinc-800 dark:bg-zinc-900">
-          <NSkeleton width="40" height="40" :sharp="false" />
-          <div class="flex-1 space-y-2">
-            <NSkeleton text width="50%" />
-            <NSkeleton text width="75%" />
+      <div v-if="loading" class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+        <div
+          v-for="i in 8"
+          :key="i"
+          class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+        >
+          <div class="flex items-center gap-2.5 pr-7">
+            <NSkeleton width="40" height="40" :sharp="false" />
+            <div class="flex-1 space-y-2">
+              <NSkeleton text width="85%" />
+            </div>
           </div>
-          <NSkeleton width="32" height="32" :sharp="false" />
+          <div class="mt-2.5 space-y-2">
+            <NSkeleton text width="100%" />
+            <NSkeleton text width="70%" />
+          </div>
+          <div class="mt-3 flex items-center justify-between">
+            <NSkeleton text width="60px" height="20px" :sharp="false" />
+            <NSkeleton text width="40px" height="20px" :sharp="false" />
+          </div>
         </div>
       </div>
 
@@ -144,8 +156,8 @@ function pillClass(active: boolean) {
         </NEmpty>
       </div>
 
-      <!-- 资源列表 -->
-      <div v-else class="space-y-3">
+      <!-- 资源列表（两列网格卡片） -->
+      <div v-else class="grid gap-3 sm:grid-cols-2 sm:gap-4">
         <ResourceCard
           v-for="kw in keywords"
           :key="kw.id"

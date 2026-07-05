@@ -159,7 +159,7 @@ const columns: DataTableColumns<Page> = [
             {{ message }}
           </NAlert>
 
-          <div class="flex gap-2">
+          <div class="flex flex-col gap-2 sm:flex-row">
             <NButton attr-type="submit" type="primary" :loading="saving">保存</NButton>
             <NButton quaternary @click="resetForm">取消</NButton>
           </div>
@@ -172,6 +172,7 @@ const columns: DataTableColumns<Page> = [
         :data="pages"
         :row-key="(row: Page) => row.id"
         :bordered="false"
+        :scroll-x="720"
         class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
       />
     </template>

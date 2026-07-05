@@ -176,7 +176,7 @@ function pollRestart() {
               <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">授权状态</h3>
               <NTag :type="badge.type" size="small" round>{{ badge.text }}</NTag>
             </div>
-            <div class="flex gap-2">
+            <div class="flex flex-col gap-2 sm:flex-row">
               <NButton size="small" secondary :disabled="!snap?.activated" :loading="beating" @click="handleHeartbeat">
                 {{ beating ? '正在联系授权中心...' : '立即心跳' }}
               </NButton>
