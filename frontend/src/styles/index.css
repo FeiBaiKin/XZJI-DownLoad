@@ -181,7 +181,9 @@
   border-bottom-color: var(--color-zinc-800);
 }
 
-[data-theme='dark'] {
+/* 用 :root[data-theme='dark'] 提升特异性（0,2,0）压过 wangEditor 库的 :root（0,1,0）。
+   否则库 CSS 随组件懒加载、注入晚于全局样式，等特异性下源码顺序会让库的浅色默认值覆盖深色值。 */
+:root[data-theme='dark'] {
   --w-e-toolbar-bg-color: #18181b;
   --w-e-toolbar-color: #d4d4d8;
   --w-e-toolbar-active-bg-color: #27272a;
@@ -201,3 +203,47 @@
   --w-e-modal-button-bg-color: #27272a;
   --w-e-modal-button-border-color: #3f3f46;
 }
+
+/* 库内未走变量的硬编码浅色：视频占位棋盘格 */
+[data-theme='dark'] .w-e-textarea-video-container {
+  background-image:
+    linear-gradient(45deg, #3f3f46 25%, transparent 0, transparent 75%, #3f3f46 0, #3f3f46),
+    linear-gradient(45deg, #3f3f46 25%, #18181b 0, #18181b 75%, #3f3f46 0, #3f3f46);
+}
+
+/* 库内 PrismJS 语法高亮为浅色主题，深色下补一套 One Dark 风格配色，并去掉白色文字阴影 */
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code {
+  text-shadow: none;
+}
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.cdata,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.comment,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.doctype,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.prolog { color: #7f848e; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.punctuation { color: #abb2bf; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.namespace { opacity: .7; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.boolean,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.constant,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.deleted,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.number,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.property,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.symbol,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.tag { color: #e06c75; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.attr-name,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.builtin,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.char,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.inserted,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.selector,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.string { color: #98c379; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .language-css .token.string,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .style .token.string,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.entity,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.operator,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.url { color: #56b6c2; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.atrule,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.attr-value,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.keyword { color: #c678dd; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.class-name,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.function { color: #61afef; }
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.important,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.regex,
+[data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.variable { color: #e5c07b; }

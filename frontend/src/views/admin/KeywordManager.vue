@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// 关键词管理：两栏布局 —— 左栏添加/编辑表单，右栏关键词列表（分类筛选 + 后端分页）
-// 点击右栏「编辑」直接把数据填入左栏，不新开面板
+// 关键词管理：列表全宽展示 + 右侧抽屉编辑/新增
+// 点击「添加关键词」或「编辑」打开右侧抽屉，保存后列表原地刷新
 // 业务逻辑与后端契约保持不变
-import { ref, onMounted, computed, nextTick, h } from 'vue'
+import { ref, onMounted, computed, h } from 'vue'
 import {
   NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup,
-  NSelect, NPagination,
+  NSelect, NPagination, NDrawer, NDrawerContent,
   type DataTableColumns,
 } from 'naive-ui'
 import {
@@ -59,6 +59,7 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const keywords = ref<Keyword[]>([])
 const loading = ref(true)
 const editingId = ref<number | null>(null)
+const drawerOpen = ref(false)
 const keyword = ref('')
 const blocks = ref<ContentBlock[]>([])
 const linkUrl = ref('')
@@ -78,8 +79,6 @@ const page = ref(1)
 const total = ref(0)
 const limit = 10
 const filterCategoryId = ref<number | null>(null)
-// 左栏表单容器：编辑时滚动到视图内（移动端堆叠布局）
-const formRef = ref<HTMLElement | null>(null)
 
 const totalPages = computed(() => Math.ceil(total.value / limit))
 const categoryNameMap = computed(() => {
@@ -244,8 +243,13 @@ function handleEdit(item: Keyword) {
   // 分类：优先用列表附带的 category_ids，回退到接口查询
   if (Array.isArray(item.category_ids)) selectedCategoryIds.value = [...item.category_ids]
   else fetchKeywordCategories(item.id)
-  // 滚动左栏表单进入视图（移动端堆叠布局下体验更好）
-  nextTick(() => formRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  drawerOpen.value = true
+}
+
+// 打开新增抽屉：重置表单后展开
+function openCreate() {
+  handleCancel()
+  drawerOpen.value = true
 }
 
 function handleDelete(id: number) {
@@ -277,6 +281,7 @@ function handleCancel() {
   keywordIcon.value = ''
   attributes.value = []
   iconPickerOpen.value = false
+  drawerOpen.value = false
 }
 
 // 图标
@@ -366,31 +371,21 @@ const columns: DataTableColumns<Keyword> = [
 
 <template>
   <div>
-    <header class="mb-6">
-      <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h2>
-      <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">左栏编辑，右栏管理，支持按分类筛选</p>
+    <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h2>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">全宽列表展示，点击添加/编辑打开右侧抽屉</p>
+      </div>
+      <NButton type="primary" @click="openCreate">
+        <template #icon><NIcon><Plus /></NIcon></template>
+        添加关键词
+      </NButton>
     </header>
 
-    <div class="grid gap-6 xl:grid-cols-2 xl:items-start">
-      <!-- ══ 左栏：添加 / 编辑表单 ══ -->
-      <section
-        ref="formRef"
-        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 xl:sticky xl:top-6"
-      >
-        <div class="flex items-center justify-between border-b border-zinc-100 px-5 py-3.5 dark:border-zinc-800">
-          <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{{ editingId ? '编辑关键词' : '添加关键词' }}</h3>
-          <button
-            v-if="editingId"
-            type="button"
-            class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-            @click="handleCancel"
-          >
-            <NIcon :size="13"><X /></NIcon>
-            取消编辑
-          </button>
-        </div>
-
-        <div class="space-y-5 p-5">
+    <!-- ══ 右侧抽屉：添加 / 编辑表单 ══ -->
+    <NDrawer v-model:show="drawerOpen" :width="520" placement="right" :auto-focus="false">
+      <NDrawerContent :title="editingId ? '编辑关键词' : '添加关键词'" closable>
+        <div class="space-y-5">
           <div>
             <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">关键词</label>
             <NInput v-model:value="keyword" placeholder="输入关键词，例如: hello, react..." />
@@ -727,43 +722,45 @@ const columns: DataTableColumns<Keyword> = [
               </div>
             </NCheckboxGroup>
           </div>
+        </div>
 
-          <div class="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row dark:border-zinc-800">
+        <template #footer>
+          <div class="flex flex-col gap-2 sm:flex-row">
             <NButton type="primary" :disabled="!keyword.trim() || blocks.length === 0" @click="handleSubmit">{{ editingId ? '保存修改' : '添加关键词' }}</NButton>
-            <NButton v-if="editingId" quaternary @click="handleCancel">取消</NButton>
+            <NButton quaternary @click="handleCancel">取消</NButton>
           </div>
-        </div>
-      </section>
+        </template>
+      </NDrawerContent>
+    </NDrawer>
 
-      <!-- ══ 右栏：关键词列表 ══ -->
-      <section class="min-w-0 space-y-4">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <span class="text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个关键词</span>
-          <NSelect
-            :value="filterCategoryId ?? 0"
-            :options="categoryFilterOptions"
-            size="small"
-            class="w-40"
-            aria-label="按分类筛选"
-            @update:value="onFilterChange"
-          />
-        </div>
-
-        <NDataTable
-          :columns="columns"
-          :data="keywords"
-          :row-key="(row: Keyword) => row.id"
-          :bordered="false"
-          :loading="loading"
-          :scroll-x="620"
-          class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+    <!-- ══ 列表主区（全宽） ══ -->
+    <section class="space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <span class="text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个关键词</span>
+        <NSelect
+          :value="filterCategoryId ?? 0"
+          :options="categoryFilterOptions"
+          size="small"
+          class="w-40"
+          aria-label="按分类筛选"
+          @update:value="onFilterChange"
         />
+      </div>
 
-        <div v-if="totalPages > 1" class="flex justify-end">
-          <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
-        </div>
-      </section>
-    </div>
+      <NDataTable
+        :columns="columns"
+        :data="keywords"
+        :row-key="(row: Keyword) => row.id"
+        :bordered="false"
+        :loading="loading"
+        :scroll-x="600"
+        class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+      />
+
+      <div v-if="totalPages > 1" class="flex justify-end">
+        <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
+      </div>
+    </section>
 
     <ConfirmDialog
       :open="confirmDeleteId !== null"
