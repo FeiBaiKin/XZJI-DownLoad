@@ -112,7 +112,7 @@ async function handleSubmit() {
         <label for="email" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
           邮箱
           <span v-if="forceVerify" class="text-red-500">*</span>
-          <span v-else class="ml-1 text-xs font-normal text-zinc-400 dark:text-zinc-500">选填</span>
+          <span v-else class="ml-1 text-xs font-normal text-zinc-500 dark:text-zinc-400">选填</span>
         </label>
         <div class="flex flex-col gap-2 sm:flex-row">
           <NInput
@@ -187,7 +187,7 @@ async function handleSubmit() {
     </form>
 
     <template #footer>
-      已有账户？<router-link to="/login" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">立即登录</router-link>
+      已有账户？<router-link to="/login" class="font-medium text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400">立即登录</router-link>
     </template>
   </AuthShell>
 </template>

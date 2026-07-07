@@ -9,6 +9,7 @@ import {
 import api from '@/api'
 import { formatTime } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { useToastStore } from '@/stores/toast'
 
 // 后端 adminOrderRow（handler/economy.go）返回 camelCase 字段
 interface Order {
@@ -56,6 +57,8 @@ interface ConfirmMeta {
   danger: boolean
 }
 
+const toast = useToastStore()
+
 const orders = ref<Order[]>([])
 const stats = ref<OrderStats>({ total: 0, paidCount: 0, pendingCount: 0, totalRevenue: 0 })
 const loading = ref(true)
@@ -97,7 +100,10 @@ async function fetchOrders() {
     pagination.value = ordersRes.data.pagination
     stats.value = statsRes.data
     selectedIds.value = []
-  } catch { /* ignore */ }
+  } catch (e) {
+    console.error(e)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
 }
 
@@ -168,7 +174,7 @@ const columns: DataTableColumns<Order> = [
   { title: '金额', key: 'amount', width: 90, render: (row) => h('span', { class: 'font-mono text-[13px] font-medium' }, (row.amount || 0).toFixed(2)) },
   { title: 'EXP', key: 'points', width: 70, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.points || 0) },
   { title: '方式', key: 'paymentMethod', width: 84, render: (row) => h('span', { class: 'text-[13px]' }, methodLabel(row.paymentMethod)) },
-  { title: '场景', key: 'paymentScene', width: 90, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.paymentScene || '-') },
+  { title: '场景', key: 'paymentScene', width: 90, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.paymentScene || '-') },
   {
     title: '状态',
     key: 'status',
@@ -180,7 +186,7 @@ const columns: DataTableColumns<Order> = [
         { default: () => (row.status === 'paid' ? '已支付' : row.status === 'pending' ? '待支付' : row.status) },
       ),
   },
-  { title: '时间', key: 'createdAt', width: 110, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.createdAt)) },
+  { title: '时间', key: 'createdAt', width: 110, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, formatTime(row.createdAt)) },
   {
     title: '操作',
     key: 'actions',
@@ -210,19 +216,19 @@ const columns: DataTableColumns<Order> = [
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <p class="font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.total }}</p>
-          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">总订单</p>
+          <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">总订单</p>
         </div>
         <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <p class="font-mono text-2xl font-semibold text-emerald-600 dark:text-emerald-400">{{ stats.paidCount }}</p>
-          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">已支付</p>
+          <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">已支付</p>
         </div>
         <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <p class="font-mono text-2xl font-semibold text-amber-600 dark:text-amber-400">{{ stats.pendingCount }}</p>
-          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">待支付</p>
+          <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">待支付</p>
         </div>
         <div class="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <p class="font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ Number(stats.totalRevenue || 0).toFixed(2) }}</p>
-          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">收入（元）</p>
+          <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">收入（元）</p>
         </div>
       </div>
 
@@ -280,7 +286,7 @@ const columns: DataTableColumns<Order> = [
       />
 
       <div v-if="pagination.totalPages > 1" class="mt-4 flex flex-wrap items-center justify-end gap-3">
-        <span class="font-mono text-xs text-zinc-400 dark:text-zinc-500">共 {{ pagination.total }} 条</span>
+        <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">共 {{ pagination.total }} 条</span>
         <NPagination :page="pagination.page" :page-count="pagination.totalPages" @update:page="setPage" />
       </div>
     </template>

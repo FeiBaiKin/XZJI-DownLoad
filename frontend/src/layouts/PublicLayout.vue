@@ -61,7 +61,10 @@ function handleUserMenuSelect(key: string) {
     >
       <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
         <div class="flex items-center gap-6">
-          <router-link to="/" class="flex items-center gap-2.5">
+          <router-link
+            to="/"
+            class="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:rounded-lg dark:focus-visible:ring-emerald-400/60"
+          >
             <img
               v-if="settings.siteLogoType === 'image' && settings.siteLogoUrl"
               :src="settings.siteLogoUrl"
@@ -83,7 +86,7 @@ function handleUserMenuSelect(key: string) {
               v-for="item in navItems"
               :key="item.to"
               :to="item.to"
-              class="rounded-full px-3 py-1.5 text-[13px] font-medium text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/70 dark:hover:text-zinc-100"
+              class="rounded-full px-3 py-1.5 text-[13px] font-medium text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800/70 dark:hover:text-zinc-100 dark:focus-visible:ring-emerald-400/60"
               active-class="text-emerald-600 dark:text-emerald-400"
             >
               {{ item.label }}
@@ -94,8 +97,9 @@ function handleUserMenuSelect(key: string) {
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="flex size-9 items-center justify-center rounded-full text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            class="flex size-9 items-center justify-center rounded-full text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
             :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
+            :aria-label="theme.isDark ? '切换浅色模式' : '切换深色模式'"
             @click="theme.toggle()"
           >
             <NIcon :size="18">
@@ -112,7 +116,8 @@ function handleUserMenuSelect(key: string) {
           >
             <button
               type="button"
-              class="flex items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              aria-label="用户菜单"
+              class="flex items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
             >
               <img
                 v-if="auth.user?.avatar"
@@ -142,7 +147,7 @@ function handleUserMenuSelect(key: string) {
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
-          class="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/70 dark:hover:text-zinc-100"
+          class="shrink-0 rounded-full px-3 py-1.5 text-[13px] font-medium text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800/70 dark:hover:text-zinc-100 dark:focus-visible:ring-emerald-400/60"
           active-class="text-emerald-600 dark:text-emerald-400"
         >
           {{ item.label }}
@@ -157,14 +162,14 @@ function handleUserMenuSelect(key: string) {
 
     <!-- Footer：自定义页面链接左对齐，站点信息 + 备案号右对齐，共用 | 分隔符 -->
     <footer class="mt-16 border-t border-zinc-200 py-8 dark:border-zinc-800/80">
-      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 text-[13px] text-zinc-400 sm:px-6 dark:text-zinc-500">
+      <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 text-[13px] text-zinc-500 sm:px-6 dark:text-zinc-400">
         <!-- 左侧：自定义页面链接 -->
         <nav v-if="footerPages.length > 0" class="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <router-link
             v-for="p in footerPages"
             :key="p.id"
             :to="`/page/${p.slug}`"
-            class="motion-safe:transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+            class="motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
           >{{ p.title }}</router-link>
         </nav>
 
@@ -180,7 +185,7 @@ function handleUserMenuSelect(key: string) {
               href="https://beian.miit.gov.cn"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+              class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
               <NIcon :size="13" class="shrink-0"><ShieldCheck /></NIcon>
               <span>{{ settings.siteIcp }}</span>
@@ -190,7 +195,7 @@ function handleUserMenuSelect(key: string) {
               href="https://beian.mps.gov.cn"
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 dark:hover:text-zinc-300"
+              class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
               <NIcon :size="13" class="shrink-0"><ShieldCheckered /></NIcon>
               <span>{{ settings.sitePolice }}</span>

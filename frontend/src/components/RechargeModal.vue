@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
         <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ headerTitle }}</h3>
         <button
           type="button"
-          class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
           aria-label="关闭"
           @click="close"
         >
@@ -193,7 +193,7 @@ onBeforeUnmount(() => {
                 v-for="m in availableMethods"
                 :key="m.name"
                 type="button"
-                class="flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors"
+                class="flex flex-col items-center gap-1.5 rounded-xl border px-2 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
                 :class="method === m.name
                   ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-400 dark:bg-emerald-400/10'
                   : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'"
@@ -203,7 +203,7 @@ onBeforeUnmount(() => {
                   <component :is="methodIconOf(m.name)" />
                 </NIcon>
                 <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200">{{ m.label }}</span>
-                <span class="text-[10px] text-zinc-400 dark:text-zinc-500">{{ methodBrief(m.name) }}</span>
+                <span class="text-[10px] text-zinc-500 dark:text-zinc-400">{{ methodBrief(m.name) }}</span>
               </button>
             </div>
           </div>
@@ -216,14 +216,14 @@ onBeforeUnmount(() => {
                 v-for="item in PRESET_AMOUNTS"
                 :key="item.value"
                 type="button"
-                class="rounded-xl border py-2.5 transition-colors"
+                class="rounded-xl border py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
                 :class="numAmount === item.value
                   ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-400 dark:bg-emerald-400/10'
                   : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'"
                 @click="amount = String(item.value); error = ''"
               >
                 <span class="block text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ item.label }}</span>
-                <span class="mt-0.5 block font-mono text-[10px] text-zinc-400 dark:text-zinc-500">+{{ item.exp }} EXP</span>
+                <span class="mt-0.5 block font-mono text-[10px] text-zinc-500 dark:text-zinc-400">+{{ item.exp }} EXP</span>
               </button>
             </div>
           </div>
@@ -283,7 +283,7 @@ onBeforeUnmount(() => {
           <p class="text-sm text-zinc-700 dark:text-zinc-300">
             {{ isWechat ? '请使用微信扫描二维码完成支付' : '请使用支付宝扫描二维码完成支付' }}
           </p>
-          <p class="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+          <p class="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
             <span class="inline-block size-1.5 animate-pulse rounded-full bg-emerald-500"></span>
             支付完成后将自动确认到账
           </p>
@@ -294,7 +294,7 @@ onBeforeUnmount(() => {
           <p class="text-sm text-zinc-700 dark:text-zinc-300">
             {{ isEpay ? '点击下方按钮，跳转到易支付收银台完成支付' : '点击下方按钮，前往支付宝完成支付' }}
           </p>
-          <p class="text-xs text-zinc-400 dark:text-zinc-500">
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">
             {{ isEpay ? '支持微信、支付宝等多种方式' : '支付完成后将自动跳转回本站' }}
           </p>
           <NButton type="primary" size="large" class="mt-3 w-full" @click="handleRedirect">

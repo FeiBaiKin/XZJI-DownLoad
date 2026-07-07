@@ -6,12 +6,14 @@ import { NButton, NInput, NInputNumber, NIcon, NSkeleton, NColorPicker } from 'n
 import { Plus, Trash, Crown } from '@vicons/tabler'
 import api from '@/api'
 import type { MembershipConfig } from '@/types/api'
+import { useToastStore } from '@/stores/toast'
 
 const levels = ref<MembershipConfig[]>([])
 const loading = ref(true)
 const saving = ref(false)
 const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const dirty = ref(false)
+const toast = useToastStore()
 
 onMounted(() => { fetchLevels() })
 
@@ -19,7 +21,10 @@ async function fetchLevels() {
   try {
     const res = await api.get('/admin/membership-config')
     levels.value = (res.data || []).map(normalize)
-  } catch (err) { console.error(err) }
+  } catch (err) {
+    console.error(err)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
   dirty.value = false
 }
@@ -127,7 +132,7 @@ const orderedLevels = computed(() => [...levels.value])
           : 'border-red-200 bg-red-50 text-red-600 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-400'"
       >
         <span>{{ message.text }}</span>
-        <button type="button" class="shrink-0 opacity-70 hover:opacity-100" @click="message = null">关闭</button>
+        <button type="button" class="shrink-0 rounded opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60" @click="message = null">关闭</button>
       </div>
 
       <!-- 列表区 -->
@@ -138,8 +143,8 @@ const orderedLevels = computed(() => [...levels.value])
           class="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/40 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/40"
         >
           <NIcon :size="28" class="mx-auto text-zinc-300 dark:text-zinc-600"><Crown /></NIcon>
-          <p class="mt-3 text-sm text-zinc-400 dark:text-zinc-500">暂无会员档位</p>
-          <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">点击右上角「添加档位」开始配置</p>
+          <p class="mt-3 text-sm text-zinc-500 dark:text-zinc-400">暂无会员档位</p>
+          <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">点击右上角「添加档位」开始配置</p>
         </div>
 
         <!-- 档位行：单行可编辑，色块作档位标识锚点 -->
@@ -172,7 +177,7 @@ const orderedLevels = computed(() => [...levels.value])
 
             <!-- 价格 -->
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-400 sm:hidden dark:text-zinc-500">价格（元）</label>
+              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:hidden dark:text-zinc-400">价格（元）</label>
               <NInputNumber
                 :min="0"
                 :step="0.01"
@@ -186,7 +191,7 @@ const orderedLevels = computed(() => [...levels.value])
 
             <!-- 时长 -->
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-400 sm:hidden dark:text-zinc-500">有效天数</label>
+              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:hidden dark:text-zinc-400">有效天数</label>
               <NInputNumber
                 :min="1"
                 :value="lv.days"
@@ -199,7 +204,7 @@ const orderedLevels = computed(() => [...levels.value])
 
             <!-- 每日下载 -->
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-400 sm:hidden dark:text-zinc-500">每日下载（0 不限）</label>
+              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:hidden dark:text-zinc-400">每日下载（0 不限）</label>
               <NInputNumber
                 :min="0"
                 :value="lv.daily_download_limit"
@@ -212,7 +217,7 @@ const orderedLevels = computed(() => [...levels.value])
 
             <!-- 折扣 -->
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-400 sm:hidden dark:text-zinc-500">折扣（0 不打折）</label>
+              <label class="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:hidden dark:text-zinc-400">折扣（0 不打折）</label>
               <NInputNumber
                 :min="0"
                 :max="1"
@@ -231,8 +236,9 @@ const orderedLevels = computed(() => [...levels.value])
             <div class="flex justify-end sm:col-span-1">
               <button
                 type="button"
-                class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:focus-visible:ring-emerald-400/60"
                 title="删除档位"
+                aria-label="删除档位"
                 @click="removeLevel(idx)"
               >
                 <NIcon :size="16"><Trash /></NIcon>
@@ -244,7 +250,7 @@ const orderedLevels = computed(() => [...levels.value])
 
       <!-- 档位预览 -->
       <div v-if="levels.length > 0" class="mt-6 rounded-2xl border border-zinc-200 bg-zinc-50/40 p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
-        <p class="text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">档位概览</p>
+        <p class="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">档位概览</p>
         <div class="mt-3 flex flex-wrap gap-2">
           <span
             v-for="(lv, idx) in orderedLevels"
@@ -254,14 +260,14 @@ const orderedLevels = computed(() => [...levels.value])
           >
             <span class="size-2 rounded-full" :style="{ backgroundColor: lv.color || '#10b981' }" />
             <span class="font-medium">{{ lv.level_name || '未命名' }}</span>
-            <span class="text-zinc-400 dark:text-zinc-500">¥{{ lv.price }} · {{ periodText(lv.days) }} · {{ dlText(lv) }} · {{ discountText(lv) }}</span>
+            <span class="text-zinc-500 dark:text-zinc-400">¥{{ lv.price }} · {{ periodText(lv.days) }} · {{ dlText(lv) }} · {{ discountText(lv) }}</span>
           </span>
         </div>
       </div>
 
       <!-- 底部保存 -->
       <div class="mt-6 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-xs text-zinc-400 dark:text-zinc-500">
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">
           <span v-if="dirty" class="text-amber-600 dark:text-amber-400">有未保存的修改</span>
           <span v-else>保存后立即对前台生效</span>
         </p>

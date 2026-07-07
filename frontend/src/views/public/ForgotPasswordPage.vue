@@ -201,7 +201,7 @@ async function handleResetPassword() {
     </form>
 
     <template #footer>
-      <router-link to="/login" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">返回登录</router-link>
+      <router-link to="/login" class="font-medium text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400">返回登录</router-link>
     </template>
   </AuthShell>
 </template>

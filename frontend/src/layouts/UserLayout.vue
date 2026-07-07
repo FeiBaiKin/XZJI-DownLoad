@@ -44,7 +44,7 @@ function handleLogout() {
       <div class="px-4 pt-5 pb-3">
         <router-link
           to="/"
-          class="inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          class="inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:underline focus-visible:outline-none dark:text-zinc-400 dark:hover:text-zinc-100"
         >
           <NIcon :size="16"><ArrowLeft /></NIcon>
           返回首页
@@ -56,7 +56,7 @@ function handleLogout() {
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors"
+          class="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
           :class="isActive(item.to)
             ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400'
             : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100'"
@@ -70,12 +70,13 @@ function handleLogout() {
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
             <p class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ displayName }}</p>
-            <p class="text-xs text-zinc-400 dark:text-zinc-500">{{ roleLabel }}</p>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ roleLabel }}</p>
           </div>
           <button
             type="button"
-            class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+            class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-red-500/10 dark:focus-visible:ring-emerald-400/60"
             title="退出登录"
+            aria-label="退出登录"
             @click="handleLogout"
           >
             <NIcon :size="16"><Logout /></NIcon>
@@ -87,15 +88,16 @@ function handleLogout() {
     <!-- 移动端顶栏 -->
     <div class="sticky top-0 z-20 border-b border-zinc-200 bg-white/85 backdrop-blur-md lg:hidden dark:border-zinc-800 dark:bg-zinc-950/85">
       <div class="flex h-12 items-center justify-between px-4">
-        <router-link to="/" class="inline-flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <router-link to="/" class="inline-flex items-center gap-1 text-sm text-zinc-500 focus-visible:underline focus-visible:outline-none dark:text-zinc-400">
           <NIcon :size="15"><ArrowLeft /></NIcon>
           首页
         </router-link>
         <span class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ displayName }}</span>
         <button
           type="button"
-          class="flex size-8 items-center justify-center rounded-lg text-zinc-400 hover:text-red-500"
+          class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
           title="退出登录"
+          aria-label="退出登录"
           @click="handleLogout"
         >
           <NIcon :size="16"><Logout /></NIcon>
@@ -106,7 +108,7 @@ function handleLogout() {
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
-          class="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors"
+          class="shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
           :class="isActive(item.to)
             ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
             : 'text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900'"

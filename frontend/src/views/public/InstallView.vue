@@ -50,7 +50,7 @@ async function submit() {
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">站点地址 <span class="text-red-500">*</span></label>
               <NInput v-model:value="form.siteURL" placeholder="https://your-domain.com" />
-              <p class="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">用于 CORS 安全策略，必须以 http:// 或 https:// 开头</p>
+              <p class="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">用于 CORS 安全策略，必须以 http:// 或 https:// 开头</p>
             </div>
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网站描述</label>

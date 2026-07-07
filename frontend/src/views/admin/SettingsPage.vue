@@ -5,6 +5,7 @@ import { ref, computed, onMounted } from 'vue'
 import { NButton, NInput, NAlert, NSwitch, NSkeleton } from 'naive-ui'
 import api from '@/api'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
+import { useToastStore } from '@/stores/toast'
 
 interface SiteSettingsData {
   siteName: string
@@ -18,6 +19,7 @@ interface SiteSettingsData {
 }
 
 const siteStore = useSiteSettingsStore()
+const toast = useToastStore()
 const settings = ref<SiteSettingsData>({ siteName: '', siteDescription: '', footerText: '', siteLogoType: 'text', siteLogoUrl: '', siteIcp: '', sitePolice: '' })
 const loading = ref(true)
 const saving = ref(false)
@@ -40,7 +42,7 @@ async function fetchSettings() {
       siteIcp: data.siteIcp || '',
       sitePolice: data.sitePolice || '',
     }
-  } catch (err) { console.error('获取设置失败:', err) }
+  } catch (err) { console.error('获取设置失败:', err); toast.error('加载失败，请刷新重试') }
   finally { loading.value = false }
 }
 
@@ -108,7 +110,7 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
           <div class="mt-4 flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
             <div>
               <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">使用图片 Logo</p>
-              <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">关闭则使用文字 Logo</p>
+              <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">关闭则使用文字 Logo</p>
             </div>
             <NSwitch
               :value="isImageLogo"
@@ -130,7 +132,7 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
               </div>
             </div>
             <div v-else class="flex flex-col items-start gap-2 rounded-xl border border-dashed border-zinc-300 p-5 dark:border-zinc-700">
-              <p class="text-xs text-zinc-400 dark:text-zinc-500">支持 JPG、PNG、GIF、WebP、SVG，不超过 2MB</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">支持 JPG、PNG、GIF、WebP、SVG，不超过 2MB</p>
               <NButton size="small" secondary :loading="uploading" @click="fileInputRef?.click()">选择图片</NButton>
             </div>
           </div>
@@ -163,12 +165,12 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网站备案号</label>
               <NInput v-model:value="settings.siteIcp" placeholder="如：渝ICP备2024XXXXXX号，留空不显示" />
-              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">留空则不在前台页脚显示，前台将链接到 beian.miit.gov.cn</p>
+              <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">留空则不在前台页脚显示，前台将链接到 beian.miit.gov.cn</p>
             </div>
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">公安备案号</label>
               <NInput v-model:value="settings.sitePolice" placeholder="如：渝公网安备500XXXXXXXX号，留空不显示" />
-              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">留空则不在前台页脚显示，前台将链接到 beian.mps.gov.cn</p>
+              <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">留空则不在前台页脚显示，前台将链接到 beian.mps.gov.cn</p>
             </div>
           </div>
         </section>

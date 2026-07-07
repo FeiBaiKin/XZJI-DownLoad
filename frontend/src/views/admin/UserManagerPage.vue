@@ -57,7 +57,7 @@ async function fetchUsers() {
     const res = await api.get('/admin/users', { params: { page: page.value, limit } })
     users.value = res.data.users
     total.value = res.data.total
-  } catch (err) { console.error(err) }
+  } catch (err) { console.error(err); toast.error('加载失败，请刷新重试') }
   finally { loading.value = false }
 }
 
@@ -110,7 +110,7 @@ async function doDelete() {
 }
 
 const columns: DataTableColumns<UserBrief> = [
-  { title: 'ID', key: 'id', width: 64, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.id) },
+  { title: 'ID', key: 'id', width: 64, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.id) },
   { title: '用户名', key: 'username', width: 130, ellipsis: true, render: (row) => h('span', { class: 'font-medium' }, row.username) },
   { title: '昵称', key: 'nickname', width: 130, ellipsis: true, render: (row) => h('span', { class: 'text-[13px] text-zinc-700 dark:text-zinc-200' }, row.nickname || row.username || '-') },
   { title: '邮箱', key: 'email', ellipsis: true, render: (row) => h('span', { class: 'text-[13px] text-zinc-500 dark:text-zinc-400' }, row.email || '-') },
@@ -124,7 +124,7 @@ const columns: DataTableColumns<UserBrief> = [
     render: (row) =>
       row.membership_level
         ? h(NTag, { size: 'small', round: true, type: 'warning', bordered: false }, { default: () => row.membership_level })
-        : h('span', { class: 'text-xs text-zinc-400' }, '无'),
+        : h('span', { class: 'text-xs text-zinc-500 dark:text-zinc-400' }, '无'),
   },
   {
     title: '操作',
@@ -181,7 +181,7 @@ const columns: DataTableColumns<UserBrief> = [
             <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">编辑用户：{{ editingUser.username }}</h3>
             <button
               type="button"
-              class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+              class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
               aria-label="关闭"
               @click="editingUser = null"
             >
@@ -247,6 +247,7 @@ const columns: DataTableColumns<UserBrief> = [
                 <!-- 保持 datetime-local 原生控件与 'YYYY-MM-DDTHH:mm' 字符串契约 -->
                 <input
                   type="datetime-local"
+                  aria-label="会员到期"
                   class="h-[34px] w-full rounded-lg border border-zinc-300 bg-transparent px-3 text-sm text-zinc-900 outline-none focus:border-emerald-500 dark:border-zinc-700 dark:text-zinc-100 dark:[color-scheme:dark]"
                   :value="editForm.membership_expires_at || ''"
                   @input="(e) => editForm.membership_expires_at = (e.target as HTMLInputElement).value"

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// 关键词管理（内容块编辑器）：text/image/link 块增删排序、权限设置、网盘链接解析、分类关联
-// 业务逻辑与后端契约保持不变；UI 重构为 Naive UI + Tailwind
-import { ref, onMounted, h } from 'vue'
+// 关键词管理：两栏布局 —— 左栏添加/编辑表单，右栏关键词列表（分类筛选 + 后端分页）
+// 点击右栏「编辑」直接把数据填入左栏，不新开面板
+// 业务逻辑与后端契约保持不变
+import { ref, onMounted, computed, nextTick, h } from 'vue'
 import {
-  NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup, NSkeleton,
+  NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup,
+  NSelect, NPagination,
   type DataTableColumns,
 } from 'naive-ui'
 import {
@@ -12,8 +14,11 @@ import {
 import { contentApi, type Category, type Keyword } from '@/api/content'
 import type { KeywordAttribute } from '@/types/api'
 import { cloudPlatforms } from '@/constants/admin'
+import { useToastStore } from '@/stores/toast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import IconCropperModal from '@/components/IconCropperModal.vue'
+
+const toast = useToastStore()
 
 // 块类型定义
 interface TextBlock {
@@ -56,10 +61,10 @@ const loading = ref(true)
 const editingId = ref<number | null>(null)
 const keyword = ref('')
 const blocks = ref<ContentBlock[]>([])
-const showForm = ref(false)
 const linkUrl = ref('')
 const parsedLink = ref<ParsedLink | null>(null)
 const parserOpen = ref(false)
+const previewOpen = ref(false)
 const confirmDeleteId = ref<number | null>(null)
 const categories = ref<Category[]>([])
 const selectedCategoryIds = ref<number[]>([])
@@ -68,13 +73,44 @@ const keywordIcon = ref<string>('')
 const iconPickerOpen = ref(false)
 // 关键词属性
 const attributes = ref<KeywordAttribute[]>([])
+// 列表分页 + 分类筛选
+const page = ref(1)
+const total = ref(0)
+const limit = 10
+const filterCategoryId = ref<number | null>(null)
+// 左栏表单容器：编辑时滚动到视图内（移动端堆叠布局）
+const formRef = ref<HTMLElement | null>(null)
+
+const totalPages = computed(() => Math.ceil(total.value / limit))
+const categoryNameMap = computed(() => {
+  const m = new Map<number, string>()
+  for (const c of categories.value) m.set(c.id, c.name)
+  return m
+})
+const categoryFilterOptions = computed(() => [
+  { label: '全部分类', value: 0 },
+  ...categories.value.map((c) => ({ label: c.name, value: c.id })),
+])
 
 onMounted(() => { fetchKeywords(); fetchCategories() })
 
 async function fetchKeywords() {
+  loading.value = true
   try {
-    keywords.value = await contentApi.keywords.list()
+    const res = await contentApi.keywords.list({
+      page: page.value,
+      limit,
+      category: filterCategoryId.value ?? undefined,
+    })
+    keywords.value = res.items
+    total.value = res.total
+    // 当前页被删空且非首页时回退一页
+    if (res.items.length === 0 && page.value > 1) {
+      page.value -= 1
+      return fetchKeywords()
+    }
   } catch (err) {
+    toast.error('获取关键词失败，请刷新重试')
     console.error('获取关键词失败:', err)
   } finally {
     loading.value = false
@@ -91,6 +127,13 @@ async function fetchKeywordCategories(keywordId: number) {
   } catch { selectedCategoryIds.value = [] }
 }
 
+function setPage(p: number) { page.value = p; fetchKeywords() }
+function onFilterChange(v: number) {
+  filterCategoryId.value = v > 0 ? v : null
+  page.value = 1
+  fetchKeywords()
+}
+
 function addBlock(type: 'text' | 'image' | 'link') {
   if (type === 'text') {
     blocks.value.push({ _id: uid(), type, text: '' })
@@ -103,6 +146,12 @@ function addBlock(type: 'text' | 'image' | 'link') {
 function updateBlock(idx: number, field: string, value: string | number) {
   const block = blocks.value[idx]
   blocks.value[idx] = { ...block, [field]: value } as ContentBlock
+}
+// 切换链接权限：非付费态同步清零 cost，避免残留脏数据被提交
+function setAccess(idx: number, mode: 'free' | 'balance' | 'membership') {
+  const block = blocks.value[idx]
+  const patch = mode === 'balance' ? { access: mode } : { access: mode, cost: 0 }
+  blocks.value[idx] = { ...block, ...patch } as ContentBlock
 }
 function removeBlock(idx: number) {
   blocks.value = blocks.value.filter((_, i) => i !== idx)
@@ -163,9 +212,11 @@ async function handleSubmit() {
       // 后端 setCategories 接收纯数组 []uint
       await contentApi.keywords.setCategories(savedId, selectedCategoryIds.value)
     }
+    toast.success(editingId.value ? '保存成功' : '添加成功')
     handleCancel()
     fetchKeywords()
   } catch (err) {
+    toast.error('保存失败，请重试')
     console.error('保存失败:', err)
   }
 }
@@ -190,8 +241,11 @@ function handleEdit(item: Keyword) {
     } catch { /* 忽略损坏的 JSON */ }
   }
   attributes.value = attrs
-  showForm.value = true
-  fetchKeywordCategories(item.id)
+  // 分类：优先用列表附带的 category_ids，回退到接口查询
+  if (Array.isArray(item.category_ids)) selectedCategoryIds.value = [...item.category_ids]
+  else fetchKeywordCategories(item.id)
+  // 滚动左栏表单进入视图（移动端堆叠布局下体验更好）
+  nextTick(() => formRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 }
 
 function handleDelete(id: number) {
@@ -203,14 +257,17 @@ async function doDelete() {
   if (id == null) return
   try {
     await contentApi.keywords.delete(id)
+    // 删除的正是正在编辑的关键词时，重置表单
+    if (editingId.value === id) handleCancel()
+    toast.success('删除成功')
     fetchKeywords()
   } catch (err) {
+    toast.error('删除失败，请重试')
     console.error('删除失败:', err)
   }
 }
 
 function handleCancel() {
-  showForm.value = false
   editingId.value = null
   keyword.value = ''
   blocks.value = []
@@ -267,8 +324,27 @@ const blockTypeLabel = (t: ContentBlock['type']) => (t === 'text' ? '文本' : t
 
 // 列表表格列
 const columns: DataTableColumns<Keyword> = [
-  { title: 'ID', key: 'id', width: 72, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, row.id) },
-  { title: '关键词', key: 'keyword', width: 200, render: (row) => h('span', { class: 'font-medium' }, row.keyword) },
+  { title: 'ID', key: 'id', width: 60, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.id) },
+  { title: '关键词', key: 'keyword', width: 140, render: (row) => h('span', { class: 'font-medium' }, row.keyword) },
+  {
+    title: '分类',
+    key: 'categories',
+    width: 150,
+    render: (row) => {
+      const ids = row.category_ids || []
+      if (ids.length === 0) return h('span', { class: 'text-xs text-zinc-300 dark:text-zinc-600' }, '—')
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        ids
+          .map((id) => {
+            const name = categoryNameMap.value.get(id)
+            return name ? h(NTag, { size: 'small', bordered: false, key: id }, { default: () => name }) : null
+          })
+          .filter(Boolean),
+      )
+    },
+  },
   {
     title: '响应内容',
     key: 'response',
@@ -278,7 +354,7 @@ const columns: DataTableColumns<Keyword> = [
   {
     title: '操作',
     key: 'actions',
-    width: 130,
+    width: 110,
     render: (row) =>
       h('div', { class: 'flex gap-1' }, [
         h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
@@ -290,34 +366,31 @@ const columns: DataTableColumns<Keyword> = [
 
 <template>
   <div>
-    <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <div>
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h2>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">配置关键词命中后返回的内容块</p>
-      </div>
-      <NButton v-if="!showForm" type="primary" @click="showForm = true">
-        <template #icon><NIcon><Plus /></NIcon></template>
-        添加关键词
-      </NButton>
+    <header class="mb-6">
+      <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h2>
+      <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">左栏编辑，右栏管理，支持按分类筛选</p>
     </header>
 
-    <!-- ── 编辑器面板 ── -->
-    <section v-if="showForm" class="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div class="flex items-center justify-between border-b border-zinc-100 px-5 py-3.5 dark:border-zinc-800">
-        <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{{ editingId ? '编辑关键词' : '添加关键词' }}</h3>
-        <button
-          type="button"
-          class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
-          aria-label="关闭编辑器"
-          @click="handleCancel"
-        >
-          <NIcon :size="16"><X /></NIcon>
-        </button>
-      </div>
+    <div class="grid gap-6 xl:grid-cols-2 xl:items-start">
+      <!-- ══ 左栏：添加 / 编辑表单 ══ -->
+      <section
+        ref="formRef"
+        class="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 xl:sticky xl:top-6"
+      >
+        <div class="flex items-center justify-between border-b border-zinc-100 px-5 py-3.5 dark:border-zinc-800">
+          <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">{{ editingId ? '编辑关键词' : '添加关键词' }}</h3>
+          <button
+            v-if="editingId"
+            type="button"
+            class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            @click="handleCancel"
+          >
+            <NIcon :size="13"><X /></NIcon>
+            取消编辑
+          </button>
+        </div>
 
-      <div class="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <!-- 主编辑区 -->
-        <div class="min-w-0 space-y-5">
+        <div class="space-y-5 p-5">
           <div>
             <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">关键词</label>
             <NInput v-model:value="keyword" placeholder="输入关键词，例如: hello, react..." />
@@ -349,7 +422,7 @@ const columns: DataTableColumns<Keyword> = [
                   <NButton v-if="keywordIcon" size="small" quaternary type="error" @click="keywordIcon = ''">
                     清除
                   </NButton>
-                  <p class="text-[11px] text-zinc-400 dark:text-zinc-500">
+                  <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
                     {{ editingId ? '从媒体库选图后裁成 256×256 方图' : '保存关键词后可上传图标' }}
                   </p>
                 </div>
@@ -531,81 +604,31 @@ const columns: DataTableColumns<Keyword> = [
                           v-for="mode in (['free', 'balance', 'membership'] as const)"
                           :key="mode"
                           type="button"
-                          class="px-3 py-1.5 text-xs font-medium transition-colors"
+                          class="px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
                           :class="blockAccess(block) === mode
-                            ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
+                            ? 'bg-emerald-700 text-white dark:bg-emerald-400 dark:text-zinc-950'
                             : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'"
-                          @click="updateBlock(idx, 'access', mode)"
+                          @click="setAccess(idx, mode)"
                         >
                           {{ accessLabels[mode] }}
                         </button>
                       </div>
                       <NInputNumber
-                        v-if="blockAccess(block) === 'balance' || blockAccess(block) === 'free'"
+                        v-if="blockAccess(block) === 'balance'"
                         size="small"
                         class="w-32"
                         placeholder="价格"
                         :min="0"
                         :step="0.01"
-                        :disabled="blockAccess(block) === 'free'"
-                        :value="blockAccess(block) === 'free' ? 0 : (block.cost || 0)"
+                        :value="block.cost || 0"
                         @update:value="(v: number | null) => updateBlock(idx, 'cost', v ?? 0)"
                       >
-                        <template #prefix><span class="text-xs text-zinc-400">¥</span></template>
+                        <template #prefix><span class="text-xs text-zinc-400 dark:text-zinc-500">¥</span></template>
                       </NInputNumber>
                     </div>
                   </template>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <!-- 分类关联 -->
-          <div v-if="categories.length > 0">
-            <label class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">所属分类</label>
-            <NCheckboxGroup
-              :value="selectedCategoryIds"
-              @update:value="(v: (string | number)[]) => selectedCategoryIds = v as number[]"
-            >
-              <div class="flex flex-wrap gap-x-5 gap-y-2">
-                <NCheckbox v-for="c in categories" :key="c.id" :value="c.id" :label="c.name" />
-              </div>
-            </NCheckboxGroup>
-          </div>
-
-          <div class="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row dark:border-zinc-800">
-            <NButton type="primary" @click="handleSubmit">{{ editingId ? '保存修改' : '添加关键词' }}</NButton>
-            <NButton quaternary @click="handleCancel">取消</NButton>
-          </div>
-        </div>
-
-        <!-- 侧栏：预览 + 解析器 -->
-        <aside class="space-y-4">
-          <!-- 响应预览 -->
-          <div class="rounded-xl border border-zinc-200 dark:border-zinc-700/80">
-            <div class="flex items-center justify-between border-b border-zinc-100 px-4 py-2.5 dark:border-zinc-800">
-              <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">响应预览</span>
-              <span class="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ blocks.length }} 块</span>
-            </div>
-            <div class="max-h-80 space-y-2.5 overflow-y-auto p-4">
-              <p v-if="blocks.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">添加内容块后此处将显示预览</p>
-              <template v-for="(block, idx) in blocks" :key="idx">
-                <p v-if="block.type === 'text'" class="text-[13px] leading-relaxed whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">
-                  {{ block.text || '(空文本)' }}
-                </p>
-                <div v-else-if="block.type === 'image'">
-                  <img v-if="block.src" :src="block.src" alt="" class="max-h-28 rounded-lg" />
-                  <span v-else class="text-xs text-zinc-400">[图片]</span>
-                </div>
-                <div
-                  v-else-if="block.type === 'link'"
-                  class="flex items-center gap-2 rounded-lg border border-zinc-200 px-2.5 py-2 text-[13px] dark:border-zinc-700"
-                >
-                  <NIcon :size="13" class="shrink-0 text-emerald-500"><ExternalLink /></NIcon>
-                  <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">{{ block.label || block.url || '(空链接)' }}</span>
-                  <span v-if="block.code" class="shrink-0 font-mono text-[11px] text-zinc-400">{{ block.code }}</span>
-                </div>
-              </template>
             </div>
           </div>
 
@@ -656,23 +679,91 @@ const columns: DataTableColumns<Keyword> = [
               </div>
             </div>
           </div>
-        </aside>
-      </div>
-    </section>
 
-    <!-- ── 关键词列表 ── -->
-    <div v-if="loading" class="space-y-2">
-      <NSkeleton v-for="i in 5" :key="i" height="44px" :sharp="false" />
+          <!-- 响应预览（折叠） -->
+          <div class="rounded-xl border border-zinc-200 dark:border-zinc-700/80">
+            <button
+              type="button"
+              class="flex w-full items-center justify-between px-4 py-2.5 text-left"
+              @click="previewOpen = !previewOpen"
+            >
+              <span class="flex items-center gap-2">
+                <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">响应预览</span>
+                <span class="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ blocks.length }} 块</span>
+              </span>
+              <NIcon :size="15" class="text-zinc-400 transition-transform" :class="previewOpen ? 'rotate-180' : ''"><ChevronDown /></NIcon>
+            </button>
+            <div v-if="previewOpen" class="max-h-80 space-y-2.5 overflow-y-auto border-t border-zinc-100 p-4 dark:border-zinc-800">
+              <p v-if="blocks.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">添加内容块后此处将显示预览</p>
+              <template v-for="(block, idx) in blocks" :key="idx">
+                <p v-if="block.type === 'text'" class="text-[13px] leading-relaxed whitespace-pre-wrap text-zinc-600 dark:text-zinc-300">
+                  {{ block.text || '(空文本)' }}
+                </p>
+                <div v-else-if="block.type === 'image'">
+                  <img v-if="block.src" :src="block.src" alt="" class="max-h-28 rounded-lg" />
+                  <span v-else class="text-xs text-zinc-400 dark:text-zinc-500">[图片]</span>
+                </div>
+                <div
+                  v-else-if="block.type === 'link'"
+                  class="flex items-center gap-2 rounded-lg border border-zinc-200 px-2.5 py-2 text-[13px] dark:border-zinc-700"
+                >
+                  <NIcon :size="13" class="shrink-0 text-emerald-500"><ExternalLink /></NIcon>
+                  <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">{{ block.label || block.url || '(空链接)' }}</span>
+                  <span v-if="block.code" class="shrink-0 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ block.code }}</span>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 分类关联 -->
+          <div v-if="categories.length > 0">
+            <label class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">所属分类</label>
+            <NCheckboxGroup
+              :value="selectedCategoryIds"
+              @update:value="(v: (string | number)[]) => selectedCategoryIds = v as number[]"
+            >
+              <div class="flex flex-wrap gap-x-5 gap-y-2">
+                <NCheckbox v-for="c in categories" :key="c.id" :value="c.id" :label="c.name" />
+              </div>
+            </NCheckboxGroup>
+          </div>
+
+          <div class="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row dark:border-zinc-800">
+            <NButton type="primary" :disabled="!keyword.trim() || blocks.length === 0" @click="handleSubmit">{{ editingId ? '保存修改' : '添加关键词' }}</NButton>
+            <NButton v-if="editingId" quaternary @click="handleCancel">取消</NButton>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ 右栏：关键词列表 ══ -->
+      <section class="min-w-0 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span class="text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个关键词</span>
+          <NSelect
+            :value="filterCategoryId ?? 0"
+            :options="categoryFilterOptions"
+            size="small"
+            class="w-40"
+            aria-label="按分类筛选"
+            @update:value="onFilterChange"
+          />
+        </div>
+
+        <NDataTable
+          :columns="columns"
+          :data="keywords"
+          :row-key="(row: Keyword) => row.id"
+          :bordered="false"
+          :loading="loading"
+          :scroll-x="620"
+          class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
+        />
+
+        <div v-if="totalPages > 1" class="flex justify-end">
+          <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
+        </div>
+      </section>
     </div>
-    <NDataTable
-      v-else
-      :columns="columns"
-      :data="keywords"
-      :row-key="(row: Keyword) => row.id"
-      :bordered="false"
-      :scroll-x="720"
-      class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
-    />
 
     <ConfirmDialog
       :open="confirmDeleteId !== null"

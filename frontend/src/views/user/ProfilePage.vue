@@ -5,9 +5,11 @@ import { ref, onMounted } from 'vue'
 import { NButton, NInput, NAlert, NSkeleton, NTag } from 'naive-ui'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 import type { UserBrief } from '@/types/api'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 
 const profile = ref<UserBrief | null>(null)
 const loading = ref(true)
@@ -27,6 +29,7 @@ async function fetchProfile() {
     formData.value = { nickname: res.data.nickname || '', email: res.data.email || '' }
   } catch (err) {
     console.error('获取资料失败:', err)
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -97,7 +100,7 @@ function cancelEdit() {
     </div>
 
     <template v-else>
-      <p v-if="!profile" class="rounded-xl bg-zinc-50 py-12 text-center text-sm text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+      <p v-if="!profile" class="rounded-xl bg-zinc-50 py-12 text-center text-sm text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
         无法加载用户信息
       </p>
 
@@ -129,7 +132,7 @@ function cancelEdit() {
           />
           <div class="min-w-0">
             <p class="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ profile.nickname || profile.username }}</p>
-            <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">支持 JPG、PNG、GIF、WebP，最大 2MB</p>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">支持 JPG、PNG、GIF、WebP，最大 2MB</p>
           </div>
         </section>
 
@@ -148,7 +151,7 @@ function cancelEdit() {
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">用户名</label>
               <NInput :value="profile.username" disabled />
-              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">用户名不可修改</p>
+              <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">用户名不可修改</p>
             </div>
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">昵称</label>

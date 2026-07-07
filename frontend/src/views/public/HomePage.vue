@@ -180,6 +180,7 @@ async function fetchFeatured() {
   } catch {
     featuredItems.value = []
     featuredTotal.value = 0
+    toast.error('精选资源加载失败，请稍后重试')
   } finally {
     featuredLoading.value = false
   }
@@ -409,7 +410,7 @@ function handleQuickAction(action: string) {
                   v-for="kw in hotKeywords"
                   :key="kw"
                   type="button"
-                  class="rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] text-zinc-600 motion-safe:transition-colors hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400"
+                  class="rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] text-zinc-600 motion-safe:transition-colors hover:border-emerald-400/60 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
                   @click="handleSearch(kw)"
                 >
                   {{ kw }}
@@ -457,13 +458,13 @@ function handleQuickAction(action: string) {
                       <span class="opacity-40">·</span>
                       <span>{{ attr.value }}</span>
                     </span>
-                    <span class="ml-auto text-xs text-zinc-400 dark:text-zinc-500" :title="result.timestamp">
+                    <span class="ml-auto text-xs text-zinc-500 dark:text-zinc-400" :title="result.timestamp">
                       {{ formatRelative(result.timestamp) }}
                     </span>
                   </div>
 
                   <!-- 分隔线 -->
-                  <div class="mb-3 border-t border-zinc-150 dark:border-zinc-700" />
+                  <div class="mb-3 border-t border-zinc-200 dark:border-zinc-700" />
 
                   <!-- 响应内容块 -->
                   <div v-if="resultBlocks" class="space-y-2.5">
@@ -487,7 +488,7 @@ function handleQuickAction(action: string) {
                         :href="blockAccess(block) === 'free' ? block.url : 'javascript:void(0)'"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="group flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2 motion-safe:transition-colors"
+                        class="group flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
                         :class="blockAccess(block) !== 'free'
                           ? 'border-amber-200 bg-amber-50/60 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/5 dark:hover:border-amber-400/40'
                           : 'border-zinc-200 hover:border-emerald-400 dark:border-zinc-600 dark:hover:border-emerald-400/60'"
@@ -521,7 +522,7 @@ function handleQuickAction(action: string) {
                         <button
                           v-if="blockCode(block, i)"
                           type="button"
-                          class="flex items-center gap-1 rounded-md border border-dashed px-2 py-1 font-mono text-[11px] motion-safe:transition-colors"
+                          class="flex items-center gap-1 rounded-md border border-dashed px-2 py-1 font-mono text-[11px] motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
                           :class="copiedIdx === i
                             ? 'border-emerald-400 text-emerald-600 dark:text-emerald-400'
                             : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-200'"
@@ -562,13 +563,14 @@ function handleQuickAction(action: string) {
                   type="text"
                   class="h-full min-w-0 flex-1 bg-transparent text-[14px] text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
                   placeholder="输入关键词，如：Photoshop、Win11、ChatGPT..."
+                  aria-label="输入搜索关键词"
                   :disabled="loading"
                   autocomplete="off"
                   spellcheck="false"
                   @keypress.enter="handleSearch()"
                 />
               </div>
-              <NButton type="primary" circle size="large" :loading="loading" :disabled="!keyword.trim()" @click="handleSearch()">
+              <NButton type="primary" circle size="large" aria-label="搜索" :loading="loading" :disabled="!keyword.trim()" @click="handleSearch()">
                 <template #icon><NIcon :size="18"><Send /></NIcon></template>
               </NButton>
             </div>
@@ -587,12 +589,12 @@ function handleQuickAction(action: string) {
               <h2 class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">精选资源</h2>
             </div>
             <div class="flex items-center gap-3">
-              <span v-if="!featuredLoading" class="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+              <span v-if="!featuredLoading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
                 共 {{ featuredTotal }} 个
               </span>
               <router-link
                 to="/categories"
-                class="flex items-center gap-1 text-xs text-zinc-400 motion-safe:transition-colors hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400"
+                class="flex items-center gap-1 rounded text-xs text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
               >
                 查看更多 <NIcon :size="13"><ChevronRight /></NIcon>
               </router-link>
@@ -603,7 +605,7 @@ function handleQuickAction(action: string) {
           <div v-if="categories.length > 0" class="mb-4 flex flex-wrap gap-1.5">
             <button
               type="button"
-              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors"
+              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               :class="selectedCategory === null
                 ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
                 : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400'"
@@ -613,7 +615,7 @@ function handleQuickAction(action: string) {
               v-for="cat in categories"
               :key="cat.id"
               type="button"
-              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors"
+              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               :class="selectedCategory === cat.id
                 ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
                 : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400'"
@@ -718,27 +720,27 @@ function handleQuickAction(action: string) {
             <p v-if="!isLoggedIn" class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
               登录后享受更多功能
             </p>
-            <p v-else class="mt-2 text-xs text-zinc-400 dark:text-zinc-500 line-clamp-1">
-              简介：这个人很懒，什么也没有留下~
+            <p v-else class="mt-2 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
+              欢迎回来，祝你找到需要的资源
             </p>
           </div>
 
           <!-- 数据统计（3 列） -->
           <div class="grid grid-cols-3 border-t border-zinc-100 dark:border-zinc-800">
             <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500"><NIcon :size="12"><Coin /></NIcon>余额</span>
+              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Coin /></NIcon>余额</span>
               <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {{ isLoggedIn ? (currentBalance.toFixed(2)) : '-' }}
               </span>
             </div>
             <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500"><NIcon :size="12"><Download /></NIcon>下载</span>
+              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Download /></NIcon>下载</span>
               <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {{ isLoggedIn ? (downloadsToday !== null ? downloadsToday : '-') : '-' }}
               </span>
             </div>
             <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500"><NIcon :size="12"><Heart /></NIcon>收藏</span>
+              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Heart /></NIcon>收藏</span>
               <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                 {{ isLoggedIn ? favorites.favoritedIds.size : '-' }}
               </span>
@@ -763,7 +765,7 @@ function handleQuickAction(action: string) {
             </div>
             <router-link
               to="/categories"
-              class="flex items-center gap-1 text-[11px] text-zinc-400 motion-safe:transition-colors hover:text-emerald-600 dark:text-zinc-500 dark:hover:text-emerald-400"
+              class="flex items-center gap-1 rounded text-[11px] text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
             >
               更多 <NIcon :size="11"><ChevronRight /></NIcon>
             </router-link>
@@ -782,11 +784,11 @@ function handleQuickAction(action: string) {
             <li v-for="kw in recentKeywords" :key="kw.id">
               <button
                 type="button"
-                class="flex w-full items-center gap-2 text-left motion-safe:transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
+                class="flex w-full items-center gap-2 rounded text-left motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
                 @click="handleSearch(kw.keyword)"
               >
                 <span class="min-w-0 flex-1 truncate text-[13px] text-zinc-700 dark:text-zinc-300">{{ kw.keyword }}</span>
-                <span class="shrink-0 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ formatRelative(kw.updated_at || kw.created_at) }}</span>
+                <span class="shrink-0 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{{ formatRelative(kw.updated_at || kw.created_at) }}</span>
               </button>
             </li>
           </ul>
@@ -801,7 +803,7 @@ function handleQuickAction(action: string) {
           <div class="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5"
+              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
               @click="handleQuickAction('search')"
             >
               <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Search /></NIcon>
@@ -809,7 +811,7 @@ function handleQuickAction(action: string) {
             </button>
             <button
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5"
+              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
               @click="handleQuickAction('categories')"
             >
               <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Apps /></NIcon>
@@ -817,7 +819,7 @@ function handleQuickAction(action: string) {
             </button>
             <button
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5"
+              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
               @click="handleQuickAction('help')"
             >
               <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Help /></NIcon>
@@ -825,7 +827,7 @@ function handleQuickAction(action: string) {
             </button>
             <button
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5"
+              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
               @click="handleQuickAction('about')"
             >
               <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><QuestionMark /></NIcon>
@@ -846,7 +848,7 @@ function handleQuickAction(action: string) {
           </div>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            class="flex size-8 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
             aria-label="关闭"
             @click="dismissAnnouncement"
           >
@@ -874,7 +876,7 @@ function handleQuickAction(action: string) {
           </div>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            class="flex size-8 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
             aria-label="关闭"
             @click="purchaseDialog = null"
           >

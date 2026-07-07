@@ -4,6 +4,7 @@
 import { ref, computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { Copy, Check, Heart } from '@vicons/tabler'
+import { useToastStore } from '@/stores/toast'
 import type { PublicKeyword } from '@/api/content'
 import type { KeywordAttribute } from '@/types/api'
 
@@ -18,6 +19,8 @@ const emit = defineEmits<{
   copy: [keyword: PublicKeyword]
   toggleFavorite: []
 }>()
+
+const toast = useToastStore()
 
 const copied = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
@@ -82,7 +85,10 @@ function handleCopy() {
     if (copyTimer) clearTimeout(copyTimer)
     copyTimer = setTimeout(() => { copied.value = false }, 1200)
     emit('copy', props.keyword)
-  }).catch(() => { /* ignore */ })
+  }).catch((err) => {
+    console.error('复制失败', err)
+    toast.error('复制失败，请手动复制')
+  })
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -123,7 +129,7 @@ function handleKeydown(e: KeyboardEvent) {
     <!-- 右上角收藏按钮（真实按钮，避免与卡片可点击区冲突） -->
     <button
       type="button"
-      class="absolute right-3 top-3 grid size-7 place-items-center rounded-full motion-safe:transition-colors"
+      class="absolute right-3 top-3 grid size-7 place-items-center rounded-full motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
       :class="favorited
         ? 'text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300'
         : 'text-zinc-300 hover:text-rose-400 dark:text-zinc-600 dark:hover:text-rose-400'"
@@ -154,7 +160,7 @@ function handleKeydown(e: KeyboardEvent) {
 
     <!-- 底部：分类标签 + 日期 + 复制动作 -->
     <div class="mt-3 flex items-center justify-between gap-2">
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
+      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <span
           v-if="categoryName"
           class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"

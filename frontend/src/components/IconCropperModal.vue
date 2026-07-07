@@ -156,7 +156,8 @@ async function handleClear() {
             <button
               v-if="step === 'crop'"
               type="button"
-              class="flex size-7 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              class="flex size-7 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
+              aria-label="返回选择图片"
               @click="backToSelect"
             >
               <NIcon :size="16"><ArrowLeft /></NIcon>
@@ -167,7 +168,7 @@ async function handleClear() {
           </div>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            class="flex size-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
             aria-label="关闭"
             @click="close"
           >
@@ -197,7 +198,7 @@ async function handleClear() {
             @select="onPick"
             :page-size="18"
           />
-          <p class="mt-3 text-center text-xs text-zinc-400 dark:text-zinc-500">双击或按 Enter 选中一张图继续裁剪</p>
+          <p class="mt-3 text-center text-xs text-zinc-500 dark:text-zinc-400">双击或按 Enter 选中一张图继续裁剪</p>
         </div>
 
         <!-- 步骤 2：裁剪 -->

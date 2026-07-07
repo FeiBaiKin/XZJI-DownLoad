@@ -132,7 +132,7 @@ function switchMode(mode: string | number) {
       <div>
         <div class="mb-1.5 flex items-center justify-between">
           <label for="password" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">密码</label>
-          <router-link to="/forgot-password" class="text-xs text-emerald-600 hover:underline dark:text-emerald-400">忘记密码？</router-link>
+          <router-link to="/forgot-password" class="text-xs text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400">忘记密码？</router-link>
         </div>
         <NInput
           id="password"
@@ -198,7 +198,7 @@ function switchMode(mode: string | number) {
     </form>
 
     <template #footer>
-      没有账户？<router-link to="/register" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">立即注册</router-link>
+      没有账户？<router-link to="/register" class="font-medium text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400">立即注册</router-link>
     </template>
   </AuthShell>
 </template>

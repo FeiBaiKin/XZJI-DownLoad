@@ -123,7 +123,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
             <div class="sm:col-span-2">
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">发件人名称</label>
               <NInput v-model:value="config.email_from_name" placeholder="系统通知" />
-              <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">显示在邮件「发件人」字段</p>
+              <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">显示在邮件「发件人」字段</p>
             </div>
           </div>
         </section>
@@ -135,7 +135,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
             <div class="flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
               <div>
                 <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">注册强制邮箱验证</p>
-                <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">开启后，注册时必须验证邮箱</p>
+                <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">开启后，注册时必须验证邮箱</p>
               </div>
               <NSwitch
                 :value="forceVerify"
@@ -146,7 +146,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
             <div class="flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
               <div>
                 <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">启用邮箱验证码登录</p>
-                <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">用户可使用邮箱验证码免密登录</p>
+                <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">用户可使用邮箱验证码免密登录</p>
               </div>
               <NSwitch
                 :value="enablePasswordless"
@@ -155,7 +155,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
               />
             </div>
           </div>
-          <p v-if="forceVerify || enablePasswordless" class="mt-3 text-xs text-zinc-400 dark:text-zinc-500">
+          <p v-if="forceVerify || enablePasswordless" class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
             验证码有效期 10 分钟，同一邮箱 60 秒内不可重复发送
           </p>
         </section>

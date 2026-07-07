@@ -4,15 +4,16 @@ import type {
   Category, CategoryCreate, CategoryUpdate,
   Page, PageCreate, PageUpdate,
   Announcement, AnnouncementCreate, AnnouncementUpdate,
-  PublicKeyword, PaginatedKeywords, PublicSiteSettings, MediaFile
+  PublicKeyword, PaginatedKeywords, AdminPaginatedKeywords, PublicSiteSettings, MediaFile
 } from '@/types/api'
 
-export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKeywords, PublicSiteSettings, MediaFile }
+export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKeywords, AdminPaginatedKeywords, PublicSiteSettings, MediaFile }
 
 export const contentApi = {
   // 关键词
   keywords: {
-    list: () => api.get<Keyword[]>('/admin/keywords').then(r => r.data),
+    list: (params?: { page?: number; limit?: number; category?: number }) =>
+      api.get<AdminPaginatedKeywords>('/admin/keywords', { params }).then(r => r.data),
     get: (id: number) => api.get<Keyword>(`/admin/keywords/${id}`).then(r => r.data),
     create: (data: KeywordCreate) => api.post<Keyword>('/admin/keywords', data).then(r => r.data),
     update: (id: number, data: KeywordUpdate) => api.put<Keyword>(`/admin/keywords/${id}`, data).then(r => r.data),

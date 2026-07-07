@@ -28,12 +28,21 @@ func paramID(c *gin.Context) (uint, error) {
 // === 关键词 (admin) ===
 
 func AdminKeywordsList(c *gin.Context) {
-	kws, err := contentSvc(c).KeywordsList()
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "15"))
+	var categoryID *uint
+	if v := c.Query("category"); v != "" {
+		if id, err := strconv.ParseUint(v, 10, 64); err == nil && id > 0 {
+			cid := uint(id)
+			categoryID = &cid
+		}
+	}
+	res, err := contentSvc(c).KeywordsListPaged(categoryID, page, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取关键词失败"})
 		return
 	}
-	c.JSON(http.StatusOK, kws)
+	c.JSON(http.StatusOK, res)
 }
 
 func AdminKeywordGet(c *gin.Context) {

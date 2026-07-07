@@ -59,6 +59,7 @@ async function fetchKeywords() {
   } catch {
     keywords.value = []
     total.value = 0
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -96,7 +97,7 @@ function pillClass(active: boolean) {
       <div class="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors"
+          class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
           :class="pillClass(selectedCategory === null)"
           @click="selectCategory(null)"
         >全部</button>
@@ -104,7 +105,7 @@ function pillClass(active: boolean) {
           v-for="c in categories"
           :key="c.id"
           type="button"
-          class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors"
+          class="rounded-full border px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
           :class="pillClass(selectedCategory === c.id)"
           :title="c.description || c.name"
           @click="selectCategory(c.id)"
@@ -118,7 +119,7 @@ function pillClass(active: boolean) {
         <h2 class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
           {{ currentCategoryName }}
         </h2>
-        <span v-if="!loading" class="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+        <span v-if="!loading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
           共 {{ total }} 个
         </span>
       </div>
@@ -151,7 +152,7 @@ function pillClass(active: boolean) {
       <div v-else-if="keywords.length === 0" class="rounded-2xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700">
         <NEmpty :description="selectedCategory != null ? '该分类下暂无关键词' : '暂无关键词'">
           <template #extra>
-            <span class="text-xs text-zinc-400 dark:text-zinc-500">试试其他分类，或在后台添加关键词</span>
+            <span class="text-xs text-zinc-500 dark:text-zinc-400">试试其他分类，或在后台添加关键词</span>
           </template>
         </NEmpty>
       </div>

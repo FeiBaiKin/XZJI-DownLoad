@@ -33,6 +33,7 @@ async function fetchList() {
   } catch {
     items.value = []
     total.value = 0
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -98,7 +99,7 @@ function handleKeywordCopy(kw: PublicKeyword) {
       <div v-else-if="items.length === 0" class="rounded-2xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700">
         <NEmpty description="暂无收藏">
           <template #extra>
-            <span class="text-xs text-zinc-400 dark:text-zinc-500">浏览首页或分类页，点击心形图标收藏感兴趣的关键词</span>
+            <span class="text-xs text-zinc-500 dark:text-zinc-400">浏览首页或分类页，点击心形图标收藏感兴趣的关键词</span>
           </template>
         </NEmpty>
       </div>

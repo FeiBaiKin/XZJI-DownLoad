@@ -5,10 +5,12 @@ import { NButton, NIcon, NTag, NSkeleton, NProgress } from 'naive-ui'
 import { Crown, Infinity as InfinityIcon, Download, Discount } from '@vicons/tabler'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 import type { MembershipConfig, UserBrief } from '@/types/api'
 import MembershipModal from '@/components/MembershipModal.vue'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 
 interface MembershipState {
   membership: { level: string; expiresAt: string } | null
@@ -35,6 +37,7 @@ async function fetchMembership() {
     profile.value = pfRes.data
   } catch (err) {
     console.error(err)
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -225,7 +228,7 @@ const currentDiscountText = computed(() => {
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">今日下载</p>
                 <p class="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
                   <span class="font-mono">{{ membership!.downloads }}</span>
-                  <span class="text-zinc-400 dark:text-zinc-500"> / {{ limitText }}</span>
+                  <span class="text-zinc-500 dark:text-zinc-400"> / {{ limitText }}</span>
                 </p>
               </div>
             </div>
@@ -286,7 +289,7 @@ const currentDiscountText = computed(() => {
               <span class="font-mono text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{{ plan.price }}</span>
               <span class="ml-1 text-sm text-zinc-400 dark:text-zinc-500">/ {{ periodText(plan.days) }}</span>
             </div>
-            <p v-if="annualized(plan)" class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+            <p v-if="annualized(plan)" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               约 ¥{{ annualized(plan)!.toFixed(0) }} / 年
             </p>
 
@@ -327,11 +330,11 @@ const currentDiscountText = computed(() => {
         v-if="!loading && configs.length === 0"
         class="mt-8 rounded-2xl border border-dashed border-zinc-300 py-16 text-center dark:border-zinc-700"
       >
-        <p class="text-sm text-zinc-400 dark:text-zinc-500">暂未配置会员档位，请稍后再来。</p>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400">暂未配置会员档位，请稍后再来。</p>
       </div>
 
       <!-- 底部说明 -->
-      <p v-if="configs.length > 0" class="mt-6 text-xs text-zinc-400 dark:text-zinc-500">
+      <p v-if="configs.length > 0" class="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
         会员到期前续费将自动延长有效期；不同档位之间切换不退还差价，请按需选择。
       </p>
     </template>

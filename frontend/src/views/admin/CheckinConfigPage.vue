@@ -4,6 +4,9 @@
 import { ref, onMounted } from 'vue'
 import { NButton, NInputNumber, NAlert, NSkeleton } from 'naive-ui'
 import api from '@/api'
+import { useToastStore } from '@/stores/toast'
+
+const toast = useToastStore()
 
 interface CheckinConfig {
   daily_balance: number
@@ -23,7 +26,7 @@ async function fetchConfig() {
   try {
     const res = await api.get('/admin/checkin-config')
     config.value = res.data
-  } catch (err) { console.error(err) }
+  } catch (err) { console.error(err); toast.error('加载失败，请刷新重试') }
   finally { loading.value = false }
 }
 

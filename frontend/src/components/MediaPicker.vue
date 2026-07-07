@@ -7,6 +7,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { NIcon, NButton, NInput, NPagination, NSkeleton, NEmpty } from 'naive-ui'
 import { Upload, Link as LinkIcon, Trash, Search } from '@vicons/tabler'
 import { contentApi, type MediaFile } from '@/api/content'
+import { useToastStore } from '@/stores/toast'
 
 const props = withDefaults(defineProps<{
   /** 选择模式：true 时点击图片会 emit select / enter；管理模式下点击无反应 */
@@ -24,6 +25,8 @@ const emit = defineEmits<{
   select: [file: MediaFile]
   enter: [file: MediaFile]
 }>()
+
+const toast = useToastStore()
 
 const PAGE_SIZE = computed(() => props.pageSize || 24)
 
@@ -57,6 +60,7 @@ async function fetchMedia() {
     console.error('加载媒体失败:', err)
     items.value = []
     total.value = 0
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -199,7 +203,7 @@ function fmtSize(s: number) {
     <div class="grid gap-3 md:grid-cols-2">
       <!-- 拖拽区 -->
       <div
-        class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 transition-colors"
+        class="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
         :class="isDragging
           ? 'border-emerald-500 bg-emerald-50/60 dark:bg-emerald-400/10'
           : 'border-zinc-300 hover:border-emerald-400/70 hover:bg-zinc-50/40 dark:border-zinc-700 dark:hover:border-emerald-400/40 dark:hover:bg-zinc-900/40'"
@@ -214,7 +218,7 @@ function fmtSize(s: number) {
       >
         <NIcon :size="28" class="text-emerald-500 dark:text-emerald-400"><Upload /></NIcon>
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">点击或拖拽图片到此处</p>
-        <p class="text-xs text-zinc-400 dark:text-zinc-500">支持 JPG / PNG / GIF / WebP，单个文件最大 5MB</p>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">支持 JPG / PNG / GIF / WebP，单个文件最大 5MB</p>
         <input
           ref="fileInput"
           type="file"
@@ -247,7 +251,7 @@ function fmtSize(s: number) {
             @click="uploadByUrl"
           >导入</NButton>
         </div>
-        <p class="text-xs text-zinc-400 dark:text-zinc-500">后端将拉取并存入媒体库本地存储</p>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">后端将拉取并存入媒体库本地存储</p>
       </div>
     </div>
 
@@ -260,7 +264,7 @@ function fmtSize(s: number) {
         : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-400'"
     >
       <span>{{ uploadError || uploadHint }}</span>
-      <button v-if="uploadError" type="button" class="opacity-70 hover:opacity-100" @click="uploadError = ''">关闭</button>
+      <button v-if="uploadError" type="button" class="rounded opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60" @click="uploadError = ''">关闭</button>
     </div>
 
     <!-- 搜索 + 计数 -->
@@ -279,7 +283,7 @@ function fmtSize(s: number) {
           <template #icon><NIcon><Search /></NIcon></template>
         </NButton>
       </div>
-      <span v-if="!loading" class="font-mono text-xs text-zinc-400 dark:text-zinc-500">共 {{ total }} 个</span>
+      <span v-if="!loading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">共 {{ total }} 个</span>
     </div>
 
     <!-- 加载骨架 -->
@@ -304,7 +308,7 @@ function fmtSize(s: number) {
     >
       <NEmpty description="媒体库为空">
         <template #extra>
-          <span class="text-xs text-zinc-400 dark:text-zinc-500">拖拽图片到上面区域，或填入网络图片 URL 开始添加</span>
+          <span class="text-xs text-zinc-500 dark:text-zinc-400">拖拽图片到上面区域，或填入网络图片 URL 开始添加</span>
         </template>
       </NEmpty>
     </div>
@@ -314,7 +318,7 @@ function fmtSize(s: number) {
       <div
         v-for="file in items"
         :key="file.id"
-        class="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md dark:bg-zinc-900"
+        class="group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-zinc-900 dark:focus-visible:ring-emerald-400/60"
         :class="props.selectable && usedSet.has(file.url)
           ? 'border-emerald-400 ring-1 ring-emerald-400/40 dark:border-emerald-400'
           : 'border-zinc-200 hover:border-emerald-400/60 dark:border-zinc-800 dark:hover:border-emerald-400/40'"
@@ -336,7 +340,7 @@ function fmtSize(s: number) {
           <!-- 删除浮层 -->
           <button
             type="button"
-            class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm transition-all hover:text-red-500 group-hover:opacity-100 dark:bg-zinc-900/80 dark:text-zinc-400"
+            class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm transition-all hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 group-hover:opacity-100 dark:bg-zinc-900/80 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
             title="删除"
             :aria-label="`删除 ${file.filename}`"
             :disabled="deletingIds.has(file.id)"
@@ -353,7 +357,7 @@ function fmtSize(s: number) {
         <!-- 元数据 -->
         <div class="flex flex-col gap-0.5 p-2">
           <p class="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{{ file.origin_name || file.filename }}</p>
-          <div class="flex items-center gap-2 text-[10px] text-zinc-400 dark:text-zinc-500">
+          <div class="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
             <span class="font-mono">{{ fmtSize(file.size) }}</span>
             <span v-if="file.width && file.height" class="font-mono">{{ file.width }}×{{ file.height }}</span>
           </div>

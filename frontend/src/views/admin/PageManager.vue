@@ -6,6 +6,7 @@ import { NButton, NInput, NDataTable, NAlert, NSwitch, NTag, NSkeleton, NIcon, t
 import { Plus } from '@vicons/tabler'
 import { contentApi, type Page } from '@/api/content'
 import { formatTime } from '@/utils/format'
+import { useToastStore } from '@/stores/toast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 
@@ -15,6 +16,8 @@ interface PageForm {
   content: string
   is_published: boolean
 }
+
+const toast = useToastStore()
 
 const pages = ref<Page[]>([])
 const loading = ref(true)
@@ -29,7 +32,10 @@ onMounted(() => { fetchPages() })
 async function fetchPages() {
   try {
     pages.value = await contentApi.pages.list()
-  } catch { /* 忽略 */ }
+  } catch (err) {
+    console.error(err)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
 }
 
@@ -82,7 +88,7 @@ async function doDelete() {
   try {
     await contentApi.pages.delete(page.id)
     fetchPages()
-  } catch { /* 忽略 */ }
+  } catch { toast.error('删除失败，请重试') }
 }
 
 const columns: DataTableColumns<Page> = [
@@ -95,7 +101,7 @@ const columns: DataTableColumns<Page> = [
     render: (row) =>
       h(NTag, { size: 'small', round: true, type: row.is_published ? 'success' : 'default', bordered: false }, { default: () => (row.is_published ? '已发布' : '草稿') }),
   },
-  { title: '更新时间', key: 'updated_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.updated_at)) },
+  { title: '更新时间', key: 'updated_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, formatTime(row.updated_at)) },
   {
     title: '操作',
     key: 'actions',

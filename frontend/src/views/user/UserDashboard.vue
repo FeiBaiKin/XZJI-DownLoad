@@ -6,9 +6,11 @@ import { NButton, NIcon, NTag, NSkeleton, NAlert } from 'naive-ui'
 import { Wallet, Crown, Star } from '@vicons/tabler'
 import { economyApi } from '@/api/economy'
 import { useAuthStore } from '@/stores/auth'
+import { useToastStore } from '@/stores/toast'
 import RechargeModal from '@/components/RechargeModal.vue'
 
 const auth = useAuthStore()
+const toast = useToastStore()
 
 interface ProfileLike {
   balance: number
@@ -92,6 +94,7 @@ async function fetchDashboard() {
     membershipStatus.value = mb
   } catch (err) {
     console.error('获取仪表盘数据失败:', err)
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -153,7 +156,7 @@ function daysLeftOf(expiresAt: string) {
           </div>
           <p class="mt-2 font-mono text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {{ (profile?.balance || 0).toFixed(2) }}
-            <span class="text-sm font-normal text-zinc-400">元</span>
+            <span class="text-sm font-normal text-zinc-500 dark:text-zinc-400">元</span>
           </p>
           <div class="mt-auto pt-4">
             <NButton type="primary" size="small" @click="openRecharge">立即充值</NButton>
@@ -200,7 +203,7 @@ function daysLeftOf(expiresAt: string) {
                 :style="{ width: Math.min(100, levelInfo.progress) + '%' }"
               />
             </div>
-            <p class="mt-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">
+            <p class="mt-1.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">
               {{ levelInfo.expInCurrentLevel }}/{{ levelInfo.expNeeded }} EXP
             </p>
           </div>
@@ -217,8 +220,8 @@ function daysLeftOf(expiresAt: string) {
 
         <div class="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div>
-            <p class="text-xs text-zinc-400 dark:text-zinc-500">连续签到</p>
-            <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ checkin.streak }} <span class="text-xs font-normal text-zinc-400">天</span></p>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">连续签到</p>
+            <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ checkin.streak }} <span class="text-xs font-normal text-zinc-500 dark:text-zinc-400">天</span></p>
           </div>
           <!-- 连续签到进度点：最后一格为奖励日 -->
           <div class="flex items-center gap-1.5">
@@ -253,10 +256,10 @@ function daysLeftOf(expiresAt: string) {
               {{ parseFloat(String(tx.amount)) > 0 ? '+' : '' }}{{ parseFloat(String(tx.amount)).toFixed(2) }} 元
             </span>
             <span v-if="tx.exp_earned > 0" class="font-mono text-xs text-sky-600 dark:text-sky-400">+{{ tx.exp_earned }} EXP</span>
-            <span class="font-mono text-xs text-zinc-400 dark:text-zinc-500">{{ new Date(tx.created_at).toLocaleDateString('zh-CN') }}</span>
+            <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">{{ new Date(tx.created_at).toLocaleDateString('zh-CN') }}</span>
           </li>
         </ul>
-        <p v-else class="mt-4 rounded-lg bg-zinc-50 py-8 text-center text-sm text-zinc-400 dark:bg-zinc-800/50 dark:text-zinc-500">暂无交易记录</p>
+        <p v-else class="mt-4 rounded-lg bg-zinc-50 py-8 text-center text-sm text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">暂无交易记录</p>
       </section>
 
       <!-- 充值弹窗 -->

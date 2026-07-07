@@ -5,6 +5,9 @@ import { ref, onMounted, h } from 'vue'
 import { NButton, NInput, NInputNumber, NDataTable, NAlert, NSkeleton, type DataTableColumns } from 'naive-ui'
 import { contentApi, type Category } from '@/api/content'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { useToastStore } from '@/stores/toast'
+
+const toast = useToastStore()
 
 const categories = ref<Category[]>([])
 const loading = ref(true)
@@ -19,7 +22,10 @@ onMounted(() => { fetchCategories() })
 async function fetchCategories() {
   try {
     categories.value = await contentApi.categories.list()
-  } catch { /* 忽略 */ }
+  } catch (err) {
+    console.error(err)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
 }
 
@@ -65,7 +71,10 @@ async function doDelete() {
   try {
     await contentApi.categories.delete(cat.id)
     fetchCategories()
-  } catch { /* 忽略 */ }
+  } catch (err) {
+    console.error(err)
+    toast.error('删除失败，请重试')
+  }
 }
 
 const columns: DataTableColumns<Category> = [

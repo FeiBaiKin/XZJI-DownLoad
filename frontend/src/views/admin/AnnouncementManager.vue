@@ -12,6 +12,7 @@ import { formatTime } from '@/utils/format'
 import { typeLabels, typeOptions } from '@/constants/admin'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
+import { useToastStore } from '@/stores/toast'
 
 interface AnnouncementForm {
   title: string
@@ -28,13 +29,17 @@ const showForm = ref(false)
 const editing = ref<Announcement | null>(null)
 const form = ref<AnnouncementForm>({ title: '', content: '', type: 'info', is_active: true })
 const confirmDelete = ref<Announcement | null>(null)
+const toast = useToastStore()
 
 onMounted(() => { fetchAnnouncements() })
 
 async function fetchAnnouncements() {
   try {
     announcements.value = await contentApi.announcements.list()
-  } catch { /* 忽略 */ }
+  } catch (err) {
+    console.error(err)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
 }
 
@@ -87,7 +92,10 @@ async function doDelete() {
   try {
     await contentApi.announcements.delete(a.id)
     fetchAnnouncements()
-  } catch { /* 忽略 */ }
+  } catch (err) {
+    console.error(err)
+    toast.error('删除失败，请重试')
+  }
 }
 
 const typeTagType = (t: string): 'info' | 'warning' | 'success' =>
@@ -106,9 +114,9 @@ const columns: DataTableColumns<Announcement> = [
     title: '状态',
     key: 'is_active',
     width: 90,
-    render: (row) => h('span', { class: row.is_active ? 'text-emerald-600 dark:text-emerald-400 text-[13px]' : 'text-zinc-400 text-[13px]' }, row.is_active ? '启用' : '已停用'),
+    render: (row) => h('span', { class: row.is_active ? 'text-emerald-600 dark:text-emerald-400 text-[13px]' : 'text-zinc-500 dark:text-zinc-400 text-[13px]' }, row.is_active ? '启用' : '已停用'),
   },
-  { title: '时间', key: 'created_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-400' }, formatTime(row.created_at)) },
+  { title: '时间', key: 'created_at', width: 120, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, formatTime(row.created_at)) },
   {
     title: '操作',
     key: 'actions',

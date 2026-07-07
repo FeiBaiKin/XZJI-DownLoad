@@ -113,13 +113,6 @@ function handleLogout() {
     <!-- 桌面侧边栏 -->
     <aside class="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-zinc-200 bg-white lg:flex dark:border-zinc-800 dark:bg-zinc-950">
       <div class="flex items-center gap-2.5 px-5 pt-5 pb-4">
-        <router-link
-          to="/"
-          class="grid size-8 shrink-0 place-items-center rounded-lg bg-emerald-600 text-white transition-opacity hover:opacity-85 dark:bg-emerald-400 dark:text-zinc-950"
-          title="返回首页"
-        >
-          <NIcon :size="16"><Home /></NIcon>
-        </router-link>
         <span class="text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">管理后台</span>
       </div>
 
@@ -136,9 +129,16 @@ function handleLogout() {
       <div class="flex items-center justify-between gap-2 border-t border-zinc-200 p-4 dark:border-zinc-800">
         <p class="min-w-0 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ auth.user?.username || 'Admin' }}</p>
         <div class="flex shrink-0 items-center gap-1">
+          <router-link
+            to="/"
+            class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+            title="返回首页"
+          >
+            <NIcon :size="16"><Home /></NIcon>
+          </router-link>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+            class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
             :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
             @click="theme.toggle()"
           >
@@ -146,7 +146,7 @@ function handleLogout() {
           </button>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+            class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-zinc-400 dark:hover:bg-red-500/10"
             title="退出登录"
             @click="handleLogout"
           >
@@ -188,7 +188,13 @@ function handleLogout() {
         />
         <div class="flex items-center justify-between border-t border-zinc-200 p-4 dark:border-zinc-800">
           <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ auth.user?.username || 'Admin' }}</span>
-          <NButton size="small" quaternary type="error" @click="handleLogout">退出登录</NButton>
+          <div class="flex items-center gap-2">
+            <NButton size="small" quaternary @click="router.push('/'); mobileNavOpen = false">
+              <template #icon><NIcon><Home /></NIcon></template>
+              返回首页
+            </NButton>
+            <NButton size="small" quaternary type="error" @click="handleLogout">退出登录</NButton>
+          </div>
         </div>
       </NDrawerContent>
     </NDrawer>

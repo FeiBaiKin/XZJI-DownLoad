@@ -118,7 +118,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
             <NInput v-model:value="config.payment_site_url" placeholder="https://your-domain.com" />
           </div>
           <div v-if="siteUrl" class="mt-3 space-y-1">
-            <p v-for="prov in ['wechat', 'alipay', 'epay']" :key="prov" class="font-mono text-xs text-zinc-400 dark:text-zinc-500">
+            <p v-for="prov in ['wechat', 'alipay', 'epay']" :key="prov" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
               {{ siteUrl }}/api/payment/callback/{{ prov }}
             </p>
           </div>
@@ -149,7 +149,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
               </span>
               <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ p.label }}</p>
-                <p class="mt-0.5 truncate text-xs text-zinc-400 dark:text-zinc-500">{{ p.brief }}</p>
+                <p class="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">{{ p.brief }}</p>
               </div>
               <NIcon
                 v-if="enabledProviders.includes(p.key)"
@@ -197,7 +197,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
               <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">回调通知地址</label>
                 <NInput v-model:value="config.payment_wx_notify_url" :placeholder="siteUrl ? `${siteUrl}/api/payment/callback/wechat` : 'Notify URL'" />
-                <p v-if="siteUrl && !config.payment_wx_notify_url" class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">留空将自动使用以上的站点地址拼接</p>
+                <p v-if="siteUrl && !config.payment_wx_notify_url" class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">留空将自动使用以上的站点地址拼接</p>
               </div>
             </div>
 
@@ -251,7 +251,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
               <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">网关地址</label>
                 <NInput v-model:value="config.payment_epay_gateway" placeholder="https://pay.example.com" />
-                <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">自动追加 /submit.php</p>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">自动追加 /submit.php</p>
               </div>
               <div>
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">商户 ID (PID)</label>

@@ -35,6 +35,64 @@ func (s *ContentService) KeywordsList() ([]models.KeywordResponse, error) {
 	return list, nil
 }
 
+// AdminKeywordItem 后台关键词列表项：在 KeywordResponse 基础上附带所属分类 ID
+type AdminKeywordItem struct {
+	models.KeywordResponse
+	CategoryIDs []uint `json:"category_ids"`
+}
+
+// PaginatedAdminKeywords 后台关键词分页结果
+type PaginatedAdminKeywords struct {
+	Items []AdminKeywordItem `json:"items"`
+	Total int64              `json:"total"`
+	Page  int                `json:"page"`
+	Limit int                `json:"limit"`
+}
+
+// KeywordsListPaged 后台关键词分页列表（支持按分类筛选），批量装配 category_ids 避免 N+1
+func (s *ContentService) KeywordsListPaged(categoryID *uint, page, limit int) (*PaginatedAdminKeywords, error) {
+	page, limit = normalizePage(page, limit, 100)
+	q := s.DB.Model(&models.KeywordResponse{})
+	if categoryID != nil && *categoryID > 0 {
+		q = q.Where("id IN (?)",
+			s.DB.Table("keyword_category_links").Select("keyword_id").Where("category_id = ?", *categoryID))
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, err
+	}
+	var rows []models.KeywordResponse
+	if err := q.Order("id ASC").Offset((page - 1) * limit).Limit(limit).Find(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	// 批量查询本页关键词的分类关联
+	ids := make([]uint, len(rows))
+	for i, r := range rows {
+		ids[i] = r.ID
+	}
+	linkMap := make(map[uint][]uint, len(rows))
+	if len(ids) > 0 {
+		var links []models.KeywordCategoryLink
+		if err := s.DB.Where("keyword_id IN ?", ids).Find(&links).Error; err != nil {
+			return nil, err
+		}
+		for _, l := range links {
+			linkMap[l.KeywordID] = append(linkMap[l.KeywordID], l.CategoryID)
+		}
+	}
+
+	items := make([]AdminKeywordItem, len(rows))
+	for i, r := range rows {
+		cids := linkMap[r.ID]
+		if cids == nil {
+			cids = []uint{}
+		}
+		items[i] = AdminKeywordItem{KeywordResponse: r, CategoryIDs: cids}
+	}
+	return &PaginatedAdminKeywords{Items: items, Total: total, Page: page, Limit: limit}, nil
+}
+
 func (s *ContentService) KeywordGet(id uint) (*models.KeywordResponse, error) {
 	var kw models.KeywordResponse
 	if err := s.DB.First(&kw, id).Error; err != nil {

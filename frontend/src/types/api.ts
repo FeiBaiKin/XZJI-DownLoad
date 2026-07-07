@@ -42,8 +42,17 @@ export interface Keyword {
   response: string | KeywordBlock[]
   icon?: string
   attributes?: string // JSON 字符串: [{label,value}]
+  category_ids?: number[] // 后台列表附带的所属分类 ID
   created_at: string
   updated_at: string
+}
+
+// 后台关键词分页结果
+export interface AdminPaginatedKeywords {
+  items: Keyword[]
+  total: number
+  page: number
+  limit: number
 }
 
 export interface KeywordCreate {

@@ -6,6 +6,9 @@ import { NSkeleton } from 'naive-ui'
 import api from '@/api'
 import { formatMoney } from '@/utils/format'
 import { methodLabels } from '@/constants/admin'
+import { useToastStore } from '@/stores/toast'
+
+const toast = useToastStore()
 
 interface MethodStat {
   payment_method: string
@@ -42,6 +45,7 @@ async function fetchStats() {
     stats.value = res.data
   } catch (err) {
     console.error('获取统计失败:', err)
+    toast.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -79,22 +83,22 @@ function methodPct(revenue: number) {
           <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <p class="text-[13px] text-zinc-500 dark:text-zinc-400">注册用户</p>
             <p class="mt-1.5 font-mono text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">{{ stats.users || 0 }}</p>
-            <p class="mt-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">本月 +{{ stats.newUsersMonth || 0 }} / 本周 +{{ stats.newUsersWeek || 0 }}</p>
+            <p class="mt-1.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">本月 +{{ stats.newUsersMonth || 0 }} / 本周 +{{ stats.newUsersWeek || 0 }}</p>
           </div>
           <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <p class="text-[13px] text-zinc-500 dark:text-zinc-400">总收入</p>
             <p class="mt-1.5 font-mono text-3xl font-semibold tracking-tight text-emerald-600 dark:text-emerald-400">{{ formatMoney(totalRevenue) }}</p>
-            <p class="mt-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">本月 {{ formatMoney(stats.revenueMonth || 0) }}</p>
+            <p class="mt-1.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">本月 {{ formatMoney(stats.revenueMonth || 0) }}</p>
           </div>
           <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <p class="text-[13px] text-zinc-500 dark:text-zinc-400">订单总数</p>
             <p class="mt-1.5 font-mono text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">{{ stats.ordersTotal || 0 }}</p>
-            <p class="mt-1.5 font-mono text-xs text-zinc-400 dark:text-zinc-500">已支付 {{ stats.ordersPaid || 0 }} / 待支付 {{ stats.ordersPending || 0 }}</p>
+            <p class="mt-1.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">已支付 {{ stats.ordersPaid || 0 }} / 待支付 {{ stats.ordersPending || 0 }}</p>
           </div>
           <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
             <p class="text-[13px] text-zinc-500 dark:text-zinc-400">活跃会员</p>
             <p class="mt-1.5 font-mono text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">{{ stats.activeMemberships || 0 }}</p>
-            <p class="mt-1.5 text-xs" :class="(stats.expiringMemberships || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'">
+            <p class="mt-1.5 text-xs" :class="(stats.expiringMemberships || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-500 dark:text-zinc-400'">
               {{ (stats.expiringMemberships || 0) > 0 ? `${stats.expiringMemberships} 人即将到期` : '全部正常' }}
             </p>
           </div>
@@ -109,15 +113,15 @@ function methodPct(revenue: number) {
               <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <div>
                   <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ formatMoney(stats.revenueToday || 0) }}</p>
-                  <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">今日收入</p>
+                  <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">今日收入</p>
                 </div>
                 <div>
                   <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ formatMoney(stats.revenueMonth || 0) }}</p>
-                  <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">本月收入</p>
+                  <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">本月收入</p>
                 </div>
                 <div>
                   <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ formatMoney(totalRevenue) }}</p>
-                  <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">累计收入</p>
+                  <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">累计收入</p>
                 </div>
               </div>
             </div>
@@ -128,7 +132,7 @@ function methodPct(revenue: number) {
               <div v-else class="mt-4 space-y-3">
                 <div v-for="m in methodList" :key="m.payment_method" class="flex items-center gap-3">
                   <span class="w-14 shrink-0 text-sm text-zinc-700 dark:text-zinc-300">{{ methodLabels[m.payment_method] || m.payment_method }}</span>
-                  <span class="w-12 shrink-0 font-mono text-xs text-zinc-400 dark:text-zinc-500">{{ m.count }} 笔</span>
+                  <span class="w-12 shrink-0 font-mono text-xs text-zinc-500 dark:text-zinc-400">{{ m.count }} 笔</span>
                   <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                     <div class="h-full rounded-full bg-emerald-500 dark:bg-emerald-400" :style="{ width: methodPct(m.revenue) + '%' }" />
                   </div>
@@ -148,15 +152,15 @@ function methodPct(revenue: number) {
               <dl class="mt-3 space-y-2.5">
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.newUsersToday || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">今日新增</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">今日新增</dt>
                 </div>
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.newUsersWeek || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">本周新增</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">本周新增</dt>
                 </div>
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.newUsersMonth || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">本月新增</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">本月新增</dt>
                 </div>
               </dl>
             </div>
@@ -165,11 +169,11 @@ function methodPct(revenue: number) {
               <dl class="mt-3 space-y-2.5">
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.keywords || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">关键词总数</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">关键词总数</dt>
                 </div>
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.checkinsToday || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">今日签到</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">今日签到</dt>
                 </div>
               </dl>
             </div>
@@ -178,13 +182,13 @@ function methodPct(revenue: number) {
               <dl class="mt-3 space-y-2.5">
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.activeMemberships || 0 }}</dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">活跃会员</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">活跃会员</dt>
                 </div>
                 <div class="flex items-baseline justify-between">
                   <dd class="font-mono text-lg font-semibold" :class="(stats.expiringMemberships || 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-900 dark:text-zinc-50'">
                     {{ stats.expiringMemberships || 0 }}
                   </dd>
-                  <dt class="text-xs text-zinc-400 dark:text-zinc-500">7 天内到期</dt>
+                  <dt class="text-xs text-zinc-500 dark:text-zinc-400">7 天内到期</dt>
                 </div>
               </dl>
             </div>

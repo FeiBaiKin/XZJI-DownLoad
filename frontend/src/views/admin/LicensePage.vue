@@ -186,27 +186,27 @@ function pollRestart() {
 
           <dl v-if="snap" class="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">授权码</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">授权码</dt>
               <dd class="mt-0.5 truncate font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ snap.code || '未激活' }}</dd>
             </div>
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">绑定域名</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">绑定域名</dt>
               <dd class="mt-0.5 truncate font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ snap.domain }}</dd>
             </div>
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">到期时间</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">到期时间</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ expiresText }}</dd>
             </div>
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">上次验证</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">上次验证</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ fmtTime(snap.lastVerifiedAt) }}</dd>
             </div>
             <div v-if="snap.activated">
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">心跳间隔</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">心跳间隔</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ snap.heartbeatIntervalHours || '-' }} 小时</dd>
             </div>
             <div v-if="snap.activated">
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">离线宽限期至</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">离线宽限期至</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ fmtTime(snap.graceDeadline) }}</dd>
             </div>
           </dl>
@@ -232,7 +232,7 @@ function pollRestart() {
               placeholder="XXXXX-XXXXX-XXXXX-XXXXX"
               @keyup.enter="handleActivate"
             />
-            <p class="mt-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+            <p class="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
               授权码由服务商提供；首次激活将绑定当前站点域名 {{ snap?.domain }}，同域名重装可重复激活
             </p>
           </div>
@@ -246,11 +246,11 @@ function pollRestart() {
           <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">版本与升级</h3>
           <dl class="mt-4 grid gap-x-8 gap-y-3 sm:grid-cols-2">
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">当前版本</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">当前版本</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">v{{ snap?.currentVersion }}</dd>
             </div>
             <div>
-              <dt class="text-xs text-zinc-400 dark:text-zinc-500">最新版本</dt>
+              <dt class="text-xs text-zinc-500 dark:text-zinc-400">最新版本</dt>
               <dd class="mt-0.5 font-mono text-sm text-zinc-800 dark:text-zinc-200">{{ snap?.latestVersion ? 'v' + snap.latestVersion : '暂无发布版本' }}</dd>
             </div>
           </dl>

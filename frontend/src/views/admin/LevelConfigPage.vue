@@ -5,8 +5,10 @@ import { ref, onMounted } from 'vue'
 import { NButton, NInput, NInputNumber, NAlert, NSkeleton, NIcon } from 'naive-ui'
 import { Plus, X } from '@vicons/tabler'
 import api from '@/api'
+import { useToastStore } from '@/stores/toast'
 import type { LevelConfig } from '@/types/api'
 
+const toast = useToastStore()
 const levels = ref<LevelConfig[]>([])
 const loading = ref(true)
 const saving = ref(false)
@@ -18,7 +20,10 @@ async function fetchLevels() {
   try {
     const res = await api.get('/admin/level-config')
     levels.value = res.data
-  } catch (err) { console.error(err) }
+  } catch (err) {
+    console.error(err)
+    toast.error('加载失败，请刷新重试')
+  }
   finally { loading.value = false }
 }
 
@@ -93,12 +98,13 @@ async function handleSave() {
                 :value="lv.exp_required"
                 @update:value="(v: number | null) => updateLevel(idx, 'exp_required', v ?? 0)"
               >
-                <template #suffix><span class="text-[11px] text-zinc-400">EXP</span></template>
+                <template #suffix><span class="text-[11px] text-zinc-500 dark:text-zinc-400">EXP</span></template>
               </NInputNumber>
               <button
                 type="button"
-                class="flex size-7 shrink-0 items-center justify-center justify-self-end rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:justify-self-auto dark:hover:bg-red-500/10"
+                class="flex size-7 shrink-0 items-center justify-center justify-self-end rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 sm:justify-self-auto dark:hover:bg-red-500/10 dark:focus-visible:ring-emerald-400/60"
                 title="删除此等级"
+                aria-label="删除此等级"
                 @click="removeLevel(idx)"
               >
                 <NIcon :size="14"><X /></NIcon>
