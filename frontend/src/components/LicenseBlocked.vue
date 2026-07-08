@@ -18,9 +18,9 @@ const license = useLicenseStore()
         {{ license.message || '授权已过期，请联系服务商' }}
       </h1>
       <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">本站点的软件授权已失效，前台服务暂时停止。</p>
-      <p class="mt-8 text-xs text-zinc-400 dark:text-zinc-500">
+      <p class="mt-8 text-xs text-zinc-500 dark:text-zinc-400">
         站点管理员？
-        <router-link to="/admin/login" class="font-medium text-emerald-600 hover:underline dark:text-emerald-400">
+        <router-link to="/admin/login" class="rounded font-medium text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400">
           登录管理后台
         </router-link>
         查看授权状态并重新激活。

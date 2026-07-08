@@ -112,7 +112,8 @@ async function handleCheckin() {
     message.value = msg
     fetchDashboard()
   } catch (err: unknown) {
-    message.value = (err as Error)?.message || '签到失败'
+    const errorObj = err as { response?: { data?: { error?: string } } }
+    toast.error(errorObj?.response?.data?.error || '签到失败，请稍后重试')
   } finally {
     checkinLoading.value = false
   }
@@ -142,7 +143,10 @@ function daysLeftOf(expiresAt: string) {
     </div>
 
     <template v-else>
-      <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">个人中心</h2>
+      <header>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">个人中心</h1>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">余额、会员与签到概览</p>
+      </header>
 
       <NAlert v-if="message" type="success" class="mt-4" closable @close="message = ''">{{ message }}</NAlert>
 
@@ -191,7 +195,7 @@ function daysLeftOf(expiresAt: string) {
         <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between">
             <span class="text-[13px] text-zinc-500 dark:text-zinc-400">用户等级</span>
-            <NIcon :size="18" class="text-sky-500/70"><Star /></NIcon>
+            <NIcon :size="18" class="text-emerald-500/70"><Star /></NIcon>
           </div>
           <p class="mt-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {{ levelInfo?.label || `Lv.${profile?.level || 1}` }}
@@ -255,7 +259,7 @@ function daysLeftOf(expiresAt: string) {
             >
               {{ parseFloat(String(tx.amount)) > 0 ? '+' : '' }}{{ parseFloat(String(tx.amount)).toFixed(2) }} 元
             </span>
-            <span v-if="tx.exp_earned > 0" class="font-mono text-xs text-sky-600 dark:text-sky-400">+{{ tx.exp_earned }} EXP</span>
+            <span v-if="tx.exp_earned > 0" class="font-mono text-xs text-emerald-600 dark:text-emerald-400">+{{ tx.exp_earned }} EXP</span>
             <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">{{ new Date(tx.created_at).toLocaleDateString('zh-CN') }}</span>
           </li>
         </ul>

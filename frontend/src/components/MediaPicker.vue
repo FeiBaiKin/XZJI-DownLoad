@@ -4,7 +4,7 @@
 //   1) 作为管理页内联使用：父组件直接渲染 <MediaPicker />
 //   2) 作为选择器：父组件监听 @select 事件，拿到的参数是 MediaFile
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { NIcon, NButton, NInput, NPagination, NSkeleton, NEmpty } from 'naive-ui'
+import { NIcon, NButton, NInput, NPagination, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
 import { Upload, Link as LinkIcon, Trash, Search } from '@vicons/tabler'
 import { contentApi, type MediaFile } from '@/api/content'
 import { useToastStore } from '@/stores/toast'
@@ -160,10 +160,9 @@ async function uploadByUrl() {
   }
 }
 
-// 删除
+// 删除（二次确认由缩略图上的 NPopconfirm 触发）
 const deletingIds = ref<Set<number>>(new Set())
-async function handleDelete(file: MediaFile, e: Event) {
-  e.stopPropagation()
+async function handleDelete(file: MediaFile) {
   deletingIds.value.add(file.id)
   try {
     await contentApi.media.delete(file.id)
@@ -337,17 +336,22 @@ function fmtSize(s: number) {
             class="size-full object-cover transition-transform group-hover:scale-[1.04]"
             loading="lazy"
           />
-          <!-- 删除浮层 -->
-          <button
-            type="button"
-            class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm transition-all hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 group-hover:opacity-100 dark:bg-zinc-900/80 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
-            title="删除"
-            :aria-label="`删除 ${file.filename}`"
-            :disabled="deletingIds.has(file.id)"
-            @click="handleDelete(file, $event)"
-          >
-            <NIcon :size="14"><Trash /></NIcon>
-          </button>
+          <!-- 删除浮层（带二次确认，删除后不可恢复） -->
+          <NPopconfirm @positive-click="handleDelete(file)">
+            <template #trigger>
+              <button
+                type="button"
+                class="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm transition-all hover:text-red-500 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 group-hover:opacity-100 dark:bg-zinc-900/80 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+                title="删除"
+                :aria-label="`删除 ${file.filename}`"
+                :disabled="deletingIds.has(file.id)"
+                @click.stop
+              >
+                <NIcon :size="14"><Trash /></NIcon>
+              </button>
+            </template>
+            确认删除该图片？已引用它的内容将无法显示。
+          </NPopconfirm>
           <!-- 来源标记 -->
           <span
             v-if="file.source === 'remote'"

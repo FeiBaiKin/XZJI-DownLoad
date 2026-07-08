@@ -67,8 +67,8 @@ function handleKeywordCopy(kw: PublicKeyword) {
 
 <template>
   <div>
-    <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">我的收藏</h2>
-    <p class="mt-2 text-sm text-zinc-500 dark:text-zinc-400">管理已收藏的关键词资源</p>
+    <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">我的收藏</h1>
+    <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理已收藏的关键词资源</p>
 
     <section id="fav-list" class="mt-6 scroll-mt-20">
       <!-- 加载骨架 -->

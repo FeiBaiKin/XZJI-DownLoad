@@ -49,7 +49,16 @@ const roleOptions = [
   { label: '管理员', value: 'admin' },
 ]
 
-onMounted(() => { fetchUsers() })
+// 会员等级下拉选项：来自会员配置，避免手输拼错导致与档位不匹配（tag 模式仍允许自定义值）
+const tierOptions = ref<{ label: string; value: string }[]>([])
+async function fetchTierOptions() {
+  try {
+    const res = await api.get('/admin/membership-config')
+    tierOptions.value = (res.data || []).map((l: { level_name: string }) => ({ label: l.level_name, value: l.level_name }))
+  } catch { /* 加载失败不阻塞编辑，仍可手输 */ }
+}
+
+onMounted(() => { fetchUsers(); fetchTierOptions() })
 
 async function fetchUsers() {
   loading.value = true
@@ -148,7 +157,7 @@ const columns: DataTableColumns<UserBrief> = [
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">用户管理</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">用户管理</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个用户</p>
       </header>
 
@@ -236,10 +245,14 @@ const columns: DataTableColumns<UserBrief> = [
             <div class="grid gap-3 sm:grid-cols-2">
               <div>
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">会员等级</label>
-                <NInput
-                  :value="editForm.membership_level || ''"
-                  placeholder="留空 = 无会员"
-                  @update:value="(v: string) => editForm.membership_level = v"
+                <NSelect
+                  :value="editForm.membership_level || null"
+                  :options="tierOptions"
+                  filterable
+                  tag
+                  clearable
+                  placeholder="选择档位，留空 = 无会员"
+                  @update:value="(v: string | null) => editForm.membership_level = v || ''"
                 />
               </div>
               <div>

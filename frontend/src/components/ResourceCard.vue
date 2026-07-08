@@ -33,14 +33,14 @@ const firstLetter = computed(() => {
 
 // 根据分类名分配颜色（hash 到预设颜色池）
 const CATEGORY_COLORS = [
-  { bg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400', dot: 'bg-emerald-500' },
-  { bg: 'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400', dot: 'bg-blue-500' },
-  { bg: 'bg-purple-100 text-purple-700 dark:bg-purple-400/15 dark:text-purple-400', dot: 'bg-purple-500' },
-  { bg: 'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400', dot: 'bg-amber-500' },
-  { bg: 'bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-400', dot: 'bg-rose-500' },
-  { bg: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-400', dot: 'bg-cyan-500' },
-  { bg: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-400', dot: 'bg-indigo-500' },
-  { bg: 'bg-teal-100 text-teal-700 dark:bg-teal-400/15 dark:text-teal-400', dot: 'bg-teal-500' },
+  'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400',
+  'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400',
+  'bg-purple-100 text-purple-700 dark:bg-purple-400/15 dark:text-purple-400',
+  'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400',
+  'bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-400',
+  'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-400',
+  'bg-indigo-100 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-400',
+  'bg-teal-100 text-teal-700 dark:bg-teal-400/15 dark:text-teal-400',
 ]
 
 function categoryColor(name?: string) {
@@ -116,7 +116,7 @@ function handleKeydown(e: KeyboardEvent) {
       <!-- 真实图标 / 首字母回退 -->
       <div
         class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-bold motion-safe:transition-transform group-hover:scale-105"
-        :class="keyword.icon ? '' : avatarColor.bg"
+        :class="keyword.icon ? '' : avatarColor"
       >
         <img v-if="keyword.icon" :src="keyword.icon" :alt="keyword.keyword" class="size-full object-cover" loading="lazy" />
         <span v-else>{{ firstLetter }}</span>
@@ -163,10 +163,9 @@ function handleKeydown(e: KeyboardEvent) {
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
         <span
           v-if="categoryName"
-          class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
-          :class="avatarColor.bg"
+          class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+          :class="avatarColor"
         >
-          <span class="size-1.5 rounded-full" :class="avatarColor.dot" />
           {{ categoryName }}
         </span>
         <span v-if="createdAt" class="font-mono text-[11px]">{{ formatDate(createdAt) }}</span>
@@ -176,7 +175,7 @@ function handleKeydown(e: KeyboardEvent) {
         class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium motion-safe:transition-colors"
         :class="copied
           ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
-          : 'text-zinc-400 group-hover:bg-emerald-50 group-hover:text-emerald-600 dark:text-zinc-500 dark:group-hover:bg-emerald-400/10 dark:group-hover:text-emerald-400'"
+          : 'text-zinc-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 dark:text-zinc-400 dark:group-hover:bg-emerald-400/10 dark:group-hover:text-emerald-400'"
       >
         <NIcon :size="13"><Check v-if="copied" /><Copy v-else /></NIcon>
         <span>{{ copied ? '已复制' : '复制' }}</span>

@@ -27,7 +27,10 @@ const logoLetter = computed(() => (site.siteName?.[0] || 'X').toUpperCase())
       <div aria-hidden="true" class="pointer-events-none absolute -top-40 -left-40 size-[480px] rounded-full bg-emerald-500/15 blur-3xl"></div>
       <div aria-hidden="true" class="pointer-events-none absolute -right-32 -bottom-32 size-[380px] rounded-full bg-emerald-400/8 blur-3xl"></div>
 
-      <router-link to="/" class="relative flex items-center gap-2.5">
+      <router-link
+        to="/"
+        class="relative flex items-center gap-2.5 self-start rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+      >
         <img v-if="site.siteLogoType === 'image' && site.siteLogoUrl" :src="site.siteLogoUrl" :alt="site.siteName" class="h-8 w-auto" />
         <template v-else>
           <span class="grid size-8 place-items-center rounded-lg bg-emerald-400 text-sm font-bold text-zinc-950">{{ logoLetter }}</span>
@@ -44,7 +47,7 @@ const logoLetter = computed(() => (site.siteName?.[0] || 'X').toUpperCase())
         </p>
       </div>
 
-      <p class="relative text-xs text-zinc-600">{{ site.footerText || site.siteName }}</p>
+      <p class="relative text-xs text-zinc-500">{{ site.footerText || site.siteName }}</p>
     </aside>
 
     <!-- 表单区 -->
@@ -52,13 +55,13 @@ const logoLetter = computed(() => (site.siteName?.[0] || 'X').toUpperCase())
       <div class="flex items-center justify-between">
         <router-link
           :to="backTo"
-          class="inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+          class="inline-flex items-center gap-1.5 rounded text-sm text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:text-zinc-100"
         >
           <NIcon :size="16"><ArrowLeft /></NIcon>
           {{ backLabel }}
         </router-link>
         <!-- 移动端顶部小 Logo -->
-        <router-link to="/" class="lg:hidden">
+        <router-link to="/" class="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 lg:hidden">
           <span class="grid size-8 place-items-center rounded-lg bg-emerald-600 text-sm font-bold text-white dark:bg-emerald-400 dark:text-zinc-950">
             {{ logoLetter }}
           </span>

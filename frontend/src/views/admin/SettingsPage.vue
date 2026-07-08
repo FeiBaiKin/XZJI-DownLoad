@@ -98,7 +98,7 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">网站设置</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">网站设置</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">站点名称、Logo 及页脚信息</p>
       </header>
 

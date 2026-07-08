@@ -208,7 +208,7 @@ const columns: DataTableColumns<Order> = [
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">支付订单</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">支付订单</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理充值订单，支持筛选、删除</p>
       </header>
 

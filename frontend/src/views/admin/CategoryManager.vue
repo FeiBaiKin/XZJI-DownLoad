@@ -109,7 +109,7 @@ const columns: DataTableColumns<Category> = [
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">分类管理</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">分类管理</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">为关键词创建分类，组织内容结构</p>
       </header>
 

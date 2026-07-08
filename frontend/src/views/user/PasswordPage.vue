@@ -45,11 +45,11 @@ async function handleSubmit() {
 
 <template>
   <div>
-    <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">安全设置</h2>
+    <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">安全设置</h1>
 
     <section class="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
       <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">修改密码</h3>
-      <p class="mt-1 text-xs text-zinc-400 dark:text-zinc-500">修改成功后，下次登录请使用新密码</p>
+      <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">修改成功后，下次登录请使用新密码</p>
 
       <NAlert v-if="message" type="success" class="mt-4" closable @close="message = ''">{{ message }}</NAlert>
       <NAlert v-if="error" type="error" class="mt-4" closable @close="error = ''">{{ error }}</NAlert>

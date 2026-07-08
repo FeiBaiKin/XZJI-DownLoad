@@ -64,7 +64,7 @@ async function handleSave() {
     <template v-else>
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">等级配置</h2>
+          <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">等级配置</h1>
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">经验来自充值赠送与每日签到，达标自动升级</p>
         </div>
         <NButton secondary @click="addLevel">
@@ -75,7 +75,14 @@ async function handleSave() {
 
       <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
         <form @submit.prevent="handleSave">
-          <div class="space-y-2.5">
+          <div
+            v-if="levels.length === 0"
+            class="rounded-xl border border-dashed border-zinc-300 py-12 text-center dark:border-zinc-700"
+          >
+            <p class="text-sm font-medium text-zinc-600 dark:text-zinc-300">暂无等级</p>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">点击右上角「添加等级」创建第一个等级</p>
+          </div>
+          <div v-else class="space-y-2.5">
             <div
               v-for="(lv, idx) in levels"
               :key="idx"

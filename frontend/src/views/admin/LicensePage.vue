@@ -164,7 +164,7 @@ function pollRestart() {
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">授权管理</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">授权管理</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">软件授权激活、心跳与在线升级（授权中心：www.xzji.top）</p>
       </header>
 
@@ -274,7 +274,7 @@ function pollRestart() {
             <pre v-if="snap.update.changelog" class="mt-3 rounded-xl bg-zinc-50 p-4 font-sans text-xs leading-relaxed whitespace-pre-wrap text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-300">{{ snap.update.changelog }}</pre>
             <p v-if="!snap.valid" class="mt-3 text-xs text-amber-600 dark:text-amber-400">授权无效时无法升级，请先激活有效授权</p>
           </template>
-          <p v-else class="mt-4 text-sm text-zinc-400 dark:text-zinc-500">当前已是最新版本</p>
+          <p v-else class="mt-4 text-sm text-zinc-500 dark:text-zinc-400">当前已是最新版本</p>
 
           <NAlert v-if="restarting" type="warning" class="mt-4">升级完成，服务正在重启，页面将自动刷新...</NAlert>
           <NAlert v-if="upgradeNote" type="info" class="mt-4">{{ upgradeNote }}</NAlert>

@@ -126,7 +126,7 @@ const columns: DataTableColumns<Page> = [
     <template v-else>
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">页面管理</h2>
+          <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">页面管理</h1>
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">创建独立页面，如隐私协议、用户协议等</p>
         </div>
         <NButton v-if="!editing" type="primary" @click="openNew">

@@ -106,7 +106,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">支付配置</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">支付配置</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理可用支付方式及第三方支付参数</p>
       </header>
 
@@ -134,34 +134,37 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
               ? 'border-zinc-200 dark:border-zinc-700'
               : 'border-zinc-200/70 opacity-70 dark:border-zinc-800'"
           >
-            <div
-              class="flex items-center gap-3 px-4 py-3.5"
-              :class="enabledProviders.includes(p.key) ? 'cursor-pointer select-none' : ''"
-              @click="enabledProviders.includes(p.key) && (activeProvider = activeProvider === p.key ? null : p.key)"
-            >
-              <span
-                class="grid size-9 shrink-0 place-items-center rounded-lg"
-                :class="enabledProviders.includes(p.key)
-                  ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
-                  : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'"
+            <div class="flex items-center gap-3 px-4 py-3.5">
+              <button
+                type="button"
+                class="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+                :disabled="!enabledProviders.includes(p.key)"
+                :aria-expanded="activeProvider === p.key"
+                @click="enabledProviders.includes(p.key) && (activeProvider = activeProvider === p.key ? null : p.key)"
               >
-                <NIcon :size="19"><component :is="providerIcons[p.key]" /></NIcon>
-              </span>
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ p.label }}</p>
-                <p class="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">{{ p.brief }}</p>
-              </div>
-              <NIcon
-                v-if="enabledProviders.includes(p.key)"
-                :size="15"
-                class="shrink-0 text-zinc-400 transition-transform"
-                :class="activeProvider === p.key ? 'rotate-180' : ''"
-              ><ChevronDown /></NIcon>
+                <span
+                  class="grid size-9 shrink-0 place-items-center rounded-lg"
+                  :class="enabledProviders.includes(p.key)
+                    ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
+                    : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'"
+                >
+                  <NIcon :size="19"><component :is="providerIcons[p.key]" /></NIcon>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ p.label }}</span>
+                  <span class="mt-0.5 block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ p.brief }}</span>
+                </span>
+                <NIcon
+                  v-if="enabledProviders.includes(p.key)"
+                  :size="15"
+                  class="shrink-0 text-zinc-400 transition-transform"
+                  :class="activeProvider === p.key ? 'rotate-180' : ''"
+                ><ChevronDown /></NIcon>
+              </button>
               <NSwitch
                 :value="enabledProviders.includes(p.key)"
                 size="small"
                 :aria-label="`${enabledProviders.includes(p.key) ? '禁用' : '启用'} ${p.label}`"
-                @click.stop
                 @update:value="() => toggleProvider(p.key)"
               />
             </div>

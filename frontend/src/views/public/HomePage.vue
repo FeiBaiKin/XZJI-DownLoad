@@ -80,7 +80,6 @@ const featuredItems = ref<PublicKeyword[]>([])
 const featuredTotal = ref(0)
 const featuredPage = ref(1)
 const featuredLoading = ref(true)
-const copiedKeywordId = ref<number | null>(null)
 
 // 分类
 const categories = ref<Category[]>([])
@@ -299,10 +298,9 @@ function handleCopyCode(code: string, idx: number) {
   })
 }
 
-// ── 精选卡片：复制关键词 ──
+// ── 精选卡片：复制关键词后回填搜索框，方便直接搜索 ──
 function handleKeywordCopy(kw: PublicKeyword) {
-  copiedKeywordId.value = kw.id
-  setTimeout(() => { copiedKeywordId.value = null }, 1200)
+  keyword.value = kw.keyword
   inputRef.value?.focus()
 }
 
@@ -401,7 +399,7 @@ function handleQuickAction(action: string) {
           <div class="px-5 pt-5 sm:px-6 sm:pt-6">
             <!-- 热门关键词快捷标签 -->
             <div v-if="hotKeywords.length > 0 && !result" class="mb-4">
-              <p class="mb-2.5 flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+              <p class="mb-2.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
                 <NIcon :size="14"><TrendingUp /></NIcon>
                 热门搜索
               </p>
@@ -422,8 +420,8 @@ function handleQuickAction(action: string) {
             <div v-if="result" class="space-y-4">
               <!-- 用户查询气泡 -->
               <div class="flex items-start justify-end gap-2.5">
-                <div class="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500">
-                  <p class="text-sm text-white">{{ result.keyword }}</p>
+                <div class="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 dark:bg-emerald-400">
+                  <p class="text-sm text-white dark:text-zinc-950">{{ result.keyword }}</p>
                 </div>
                 <div
                   class="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
@@ -432,7 +430,7 @@ function handleQuickAction(action: string) {
                 </div>
               </div>
 
-              <!-- 系统响应区：重新设计 —— 图标 + 关键词 + 属性 tag + 内容块 -->
+              <!-- 系统响应区：图标 + 关键词 + 属性 tag + 内容块 -->
               <div class="flex items-start gap-2.5">
                 <!-- 站点头像：有真实图标则用图标，否则用站点首字母 -->
                 <div
@@ -543,7 +541,7 @@ function handleQuickAction(action: string) {
             <!-- 搜索结果元信息 -->
             <div
               v-if="result"
-              class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
+              class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
             >
               <span v-if="result.source" class="flex items-center gap-1">
                 <NIcon :size="12"><Clock /></NIcon>
@@ -575,7 +573,7 @@ function handleQuickAction(action: string) {
               </NButton>
             </div>
             <p v-if="error" class="mt-2 pl-1 text-xs text-red-500 dark:text-red-400">{{ error }}</p>
-            <p v-else class="mt-2 pl-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+            <p v-else class="mt-2 pl-1 text-[11px] text-zinc-500 dark:text-zinc-400">
               提示：请输入软件名称、版本或功能关键词，系统将为你查找相关资源。
             </p>
           </div>
@@ -651,7 +649,7 @@ function handleQuickAction(action: string) {
           <div v-else-if="featuredItems.length === 0" class="rounded-2xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700">
             <NEmpty description="暂无精选资源">
               <template #extra>
-                <span class="text-xs text-zinc-400 dark:text-zinc-500">在管理后台添加关键词与分类后将在此展示</span>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400">在管理后台添加关键词与分类后将在此展示</span>
               </template>
             </NEmpty>
           </div>
@@ -712,17 +710,22 @@ function handleQuickAction(action: string) {
                     class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400"
                   >Lv.{{ auth.user.level }}</span>
                 </div>
-                <p class="mt-0.5 text-xs text-zinc-400 dark:text-zinc-500">
-                  {{ isLoggedIn ? (isMember ? '会员用户' : '普通用户') : '探索者' }}
+                <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                  {{ isLoggedIn ? (isMember ? '会员用户' : '普通用户') : '未登录' }}
                 </p>
               </div>
             </div>
-            <p v-if="!isLoggedIn" class="mt-2 text-xs text-zinc-400 dark:text-zinc-500">
-              登录后享受更多功能
+            <p v-if="!isLoggedIn" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              登录后可购买与下载资源
             </p>
-            <p v-else class="mt-2 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">
-              欢迎回来，祝你找到需要的资源
+            <p v-else-if="isMember && auth.user?.membership_expires_at" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              会员有效期至 {{ new Date(auth.user.membership_expires_at).toLocaleDateString('zh-CN') }}
             </p>
+            <router-link
+              v-else
+              to="/user/membership"
+              class="mt-2 inline-block rounded text-xs text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400"
+            >开通会员享免费下载</router-link>
           </div>
 
           <!-- 数据统计（3 列） -->
@@ -772,9 +775,9 @@ function handleQuickAction(action: string) {
           </div>
 
           <div v-if="sidebarLoading" class="space-y-3">
-            <div v-for="i in 4" :key="i" class="flex items-center gap-2.5">
-              <NSkeleton width="6" height="6" round />
-              <NSkeleton text width="70%" />
+            <div v-for="i in 4" :key="i" class="flex items-center justify-between gap-2.5">
+              <NSkeleton text width="60%" />
+              <NSkeleton text width="20%" />
             </div>
           </div>
           <div v-else-if="recentKeywords.length === 0" class="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">

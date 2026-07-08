@@ -105,9 +105,9 @@ async function handleSubmit() {
       </div>
 
       <div class="mt-5 flex items-center justify-center gap-5 text-sm">
-        <router-link to="/" class="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">返回前台</router-link>
+        <router-link to="/" class="rounded text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:underline focus-visible:outline-none dark:text-zinc-400 dark:hover:text-zinc-100">返回前台</router-link>
         <span class="text-zinc-300 dark:text-zinc-700">/</span>
-        <router-link to="/forgot-password" class="text-zinc-500 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">忘记密码？</router-link>
+        <router-link to="/forgot-password" class="rounded text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:underline focus-visible:outline-none dark:text-zinc-400 dark:hover:text-zinc-100">忘记密码？</router-link>
       </div>
     </main>
   </div>

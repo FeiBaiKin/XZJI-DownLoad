@@ -50,12 +50,12 @@ async function handleSave() {
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">签到配置</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">签到配置</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">每日签到奖励与连续签到激励</p>
       </header>
 
       <section class="rounded-2xl border border-zinc-200 bg-white p-5 sm:p-6 dark:border-zinc-800 dark:bg-zinc-900">
-        <form class="space-y-4" @submit.prevent="handleSave">
+        <form class="max-w-md space-y-4" @submit.prevent="handleSave">
           <div>
             <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">每日签到余额（元）</label>
             <NInputNumber

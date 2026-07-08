@@ -15,6 +15,7 @@ const profile = ref<UserBrief | null>(null)
 const loading = ref(true)
 const editing = ref(false)
 const saving = ref(false)
+const uploading = ref(false)
 const message = ref('')
 const error = ref('')
 const formData = ref({ nickname: '', email: '' })
@@ -63,6 +64,7 @@ async function handleAvatarUpload(e: Event) {
 
   error.value = ''
   message.value = ''
+  uploading.value = true
 
   const fd = new FormData()
   fd.append('avatar', file)
@@ -73,6 +75,9 @@ async function handleAvatarUpload(e: Event) {
     if (auth.user) auth.user.avatar = res.data.avatar
   } catch (err: unknown) {
     error.value = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || '上传失败'
+  } finally {
+    uploading.value = false
+    if (fileInputRef.value) fileInputRef.value.value = ''
   }
 }
 
@@ -105,13 +110,14 @@ function cancelEdit() {
       </p>
 
       <template v-else>
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">个人资料</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">个人资料</h1>
 
         <!-- 头像区域 -->
         <section class="mt-6 flex items-center gap-5 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <button
             type="button"
             class="group relative size-18 shrink-0 overflow-hidden rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            :disabled="uploading"
             title="更换头像"
             @click="fileInputRef?.click()"
           >
@@ -119,8 +125,11 @@ function cancelEdit() {
             <span v-else class="grid size-full place-items-center bg-emerald-600/90 text-2xl font-bold text-white dark:bg-emerald-400 dark:text-zinc-950">
               {{ (profile.nickname || profile.username || 'U')[0]!.toUpperCase() }}
             </span>
-            <span class="absolute inset-0 grid place-items-center bg-black/45 text-xs font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
-              更换头像
+            <span
+              class="absolute inset-0 grid place-items-center bg-black/45 text-xs font-medium text-white transition-opacity"
+              :class="uploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'"
+            >
+              {{ uploading ? '上传中...' : '更换头像' }}
             </span>
           </button>
           <input

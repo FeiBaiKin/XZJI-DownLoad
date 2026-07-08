@@ -74,7 +74,7 @@ function methodPct(revenue: number) {
 
       <template v-else>
         <header class="mb-6">
-          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">仪表盘</h2>
+          <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">仪表盘</h1>
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{{ stats.siteName || '站点' }} · 数据概览</p>
         </header>
 

@@ -95,7 +95,7 @@ const enablePasswordless = computed(() => config.value.email_enable_passwordless
 
     <template v-else>
       <header class="mb-6">
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">邮箱配置</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">邮箱配置</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">SMTP 发件服务器、验证码策略与测试</p>
       </header>
 

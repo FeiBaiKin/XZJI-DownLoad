@@ -112,7 +112,8 @@ async function handleCreateOrder() {
       startPolling(data.orderNo)
     }
   } catch (e: unknown) {
-    error.value = (e as Error)?.message || '创建订单失败'
+    const errorObj = e as { response?: { data?: { error?: string } } }
+    error.value = errorObj?.response?.data?.error || '创建订单失败'
   }
   loading.value = false
 }

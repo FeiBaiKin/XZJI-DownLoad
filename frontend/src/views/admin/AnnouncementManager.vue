@@ -140,7 +140,7 @@ const columns: DataTableColumns<Announcement> = [
     <template v-else>
       <header class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">公告管理</h2>
+          <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">公告管理</h1>
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理前台弹窗公告，用户关闭后不再显示</p>
         </div>
         <NButton v-if="!showForm" type="primary" @click="openNew">
