@@ -337,7 +337,7 @@ const columns: DataTableColumns<Keyword> = [
     width: 150,
     render: (row) => {
       const ids = row.category_ids || []
-      if (ids.length === 0) return h('span', { class: 'text-xs text-zinc-300 dark:text-zinc-600' }, '—')
+      if (ids.length === 0) return h('span', { class: 'text-xs text-zinc-400 dark:text-zinc-500' }, '-')
       return h(
         'div',
         { class: 'flex flex-wrap gap-1' },
@@ -373,7 +373,7 @@ const columns: DataTableColumns<Keyword> = [
   <div>
     <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h2>
+        <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h1>
         <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">全宽列表展示，点击添加/编辑打开右侧抽屉</p>
       </div>
       <NButton type="primary" @click="openCreate">
@@ -391,8 +391,8 @@ const columns: DataTableColumns<Keyword> = [
             <NInput v-model:value="keyword" placeholder="输入关键词，例如: hello, react..." />
           </div>
 
-          <!-- 图标 + 属性：左右两栏 -->
-          <div class="grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)]">
+          <!-- 图标 + 属性：抽屉窄宽下垂直堆叠，避免属性值输入框被挤压 -->
+          <div class="grid gap-5">
             <!-- 图标选择 -->
             <div>
               <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">关键词图标</label>
@@ -433,7 +433,7 @@ const columns: DataTableColumns<Keyword> = [
                   添加
                 </NButton>
               </div>
-              <p v-if="attributes.length === 0" class="rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-xs text-zinc-400 dark:border-zinc-700 dark:text-zinc-500">
+              <p v-if="attributes.length === 0" class="rounded-xl border border-dashed border-zinc-300 px-3 py-2.5 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                 例如：大小=56MB / 平台=安卓
               </p>
               <div v-else class="space-y-2">
@@ -459,8 +459,9 @@ const columns: DataTableColumns<Keyword> = [
                   />
                   <button
                     type="button"
-                    class="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                    class="flex size-7 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:hover:bg-red-500/10"
                     title="删除"
+                    aria-label="删除属性"
                     @click="removeAttribute(idx)"
                   >
                     <NIcon :size="14"><Trash /></NIcon>
@@ -508,18 +509,20 @@ const columns: DataTableColumns<Keyword> = [
                   <span class="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ String(idx + 1).padStart(2, '0') }}</span>
                   <button
                     type="button"
-                    class="flex size-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    class="flex size-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                     :disabled="idx === 0"
                     title="上移"
+                    aria-label="上移此块"
                     @click="moveBlock(idx, -1)"
                   >
                     <NIcon :size="14"><ArrowUp /></NIcon>
                   </button>
                   <button
                     type="button"
-                    class="flex size-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    class="flex size-6 items-center justify-center rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                     :disabled="idx === blocks.length - 1"
                     title="下移"
+                    aria-label="下移此块"
                     @click="moveBlock(idx, 1)"
                   >
                     <NIcon :size="14"><ArrowDown /></NIcon>
@@ -534,8 +537,9 @@ const columns: DataTableColumns<Keyword> = [
                     </NTag>
                     <button
                       type="button"
-                      class="flex size-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+                      class="flex size-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-500 dark:hover:bg-red-500/10"
                       title="删除此块"
+                      aria-label="删除此块"
                       @click="removeBlock(idx)"
                     >
                       <NIcon :size="13"><X /></NIcon>
@@ -593,7 +597,7 @@ const columns: DataTableColumns<Keyword> = [
                       />
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
-                      <span class="text-xs text-zinc-400 dark:text-zinc-500">权限</span>
+                      <span class="text-xs text-zinc-500 dark:text-zinc-400">权限</span>
                       <div class="flex overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
                         <button
                           v-for="mode in (['free', 'balance', 'membership'] as const)"
@@ -601,7 +605,7 @@ const columns: DataTableColumns<Keyword> = [
                           type="button"
                           class="px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
                           :class="blockAccess(block) === mode
-                            ? 'bg-emerald-700 text-white dark:bg-emerald-400 dark:text-zinc-950'
+                            ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
                             : 'text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'"
                           @click="setAccess(idx, mode)"
                         >
@@ -631,7 +635,7 @@ const columns: DataTableColumns<Keyword> = [
           <div class="rounded-xl border border-zinc-200 dark:border-zinc-700/80">
             <button
               type="button"
-              class="flex w-full items-center justify-between px-4 py-2.5 text-left"
+              class="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
               @click="parserOpen = !parserOpen"
             >
               <span>
@@ -679,7 +683,7 @@ const columns: DataTableColumns<Keyword> = [
           <div class="rounded-xl border border-zinc-200 dark:border-zinc-700/80">
             <button
               type="button"
-              class="flex w-full items-center justify-between px-4 py-2.5 text-left"
+              class="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-emerald-500"
               @click="previewOpen = !previewOpen"
             >
               <span class="flex items-center gap-2">

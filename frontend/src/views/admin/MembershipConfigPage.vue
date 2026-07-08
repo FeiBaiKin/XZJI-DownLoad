@@ -1,32 +1,35 @@
 <script setup lang="ts">
-// 会员配置：卡片式档位编辑器，保留全部 6 字段与后端契约
-// GET /admin/membership-config 返回纯数组，PUT 接收纯数组，按 level_name 全量同步
+// 会员配置：行式内联编辑器 + 前台展示效果实时预览 + 悬浮保存栏
+// 后端契约不变：GET /admin/membership-config 返回纯数组，PUT 接收纯数组，按 level_name 全量同步
+// 视觉体系：面板 rounded-2xl / 控件与图标章 rounded-lg；emerald 为操作强调色，档位色为数据驱动语义色
 import { ref, computed, onMounted } from 'vue'
-import { NButton, NInput, NInputNumber, NIcon, NSkeleton, NColorPicker } from 'naive-ui'
-import { Plus, Trash, Crown, Calendar, Download, Discount, Coin } from '@vicons/tabler'
+import { NButton, NInput, NInputNumber, NIcon, NSkeleton, NColorPicker, NPopconfirm } from 'naive-ui'
+import { Plus, Trash, Copy, Crown, DeviceFloppy, Eye } from '@vicons/tabler'
 import api from '@/api'
 import type { MembershipConfig } from '@/types/api'
 import { useToastStore } from '@/stores/toast'
+import { tierIcon, tierColor, tierWash, readableOn, periodText, dlText, discountLabel, priceText, recommendedIndex, NEW_TIER_COLORS } from '@/utils/tier'
 
 const levels = ref<MembershipConfig[]>([])
 const loading = ref(true)
 const saving = ref(false)
-const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
 const dirty = ref(false)
 const toast = useToastStore()
 
 onMounted(() => { fetchLevels() })
 
-async function fetchLevels() {
+async function fetchLevels(opts: { silent?: boolean } = {}) {
+  if (!opts.silent) loading.value = true
   try {
     const res = await api.get('/admin/membership-config')
     levels.value = (res.data || []).map(normalize)
+    dirty.value = false
   } catch (err) {
     console.error(err)
     toast.error('加载失败，请刷新重试')
+  } finally {
+    loading.value = false
   }
-  finally { loading.value = false }
-  dirty.value = false
 }
 
 function normalize(lv: Partial<MembershipConfig>): MembershipConfig {
@@ -46,7 +49,24 @@ function update(idx: number, field: keyof MembershipConfig, value: string | numb
 }
 
 function addLevel() {
-  levels.value.push({ level_name: '', days: 30, price: 0, daily_download_limit: 20, discount: 0, color: '#10b981' })
+  levels.value.push({
+    level_name: '',
+    days: 30,
+    price: 0,
+    daily_download_limit: 20,
+    discount: 0,
+    color: NEW_TIER_COLORS[levels.value.length % NEW_TIER_COLORS.length]!,
+  })
+  dirty.value = true
+}
+
+function duplicateLevel(idx: number) {
+  const src = levels.value[idx]!
+  const names = new Set(levels.value.map((l) => l.level_name))
+  let name = `${src.level_name || '未命名'} 副本`
+  let n = 2
+  while (names.has(name)) name = `${src.level_name || '未命名'} 副本${n++}`
+  levels.value.splice(idx + 1, 0, { ...src, level_name: name })
   dirty.value = true
 }
 
@@ -58,234 +78,307 @@ function removeLevel(idx: number) {
 async function handleSave() {
   const names = levels.value.map((l) => l.level_name.trim())
   if (names.some((n) => !n)) {
-    message.value = { type: 'error', text: '每档等级名称不能为空' }
+    toast.error('每档等级名称不能为空')
     return
   }
   if (new Set(names).size !== names.length) {
-    message.value = { type: 'error', text: '存在重复的等级名称' }
+    toast.error('存在重复的等级名称，请修改后再保存')
     return
   }
   saving.value = true
-  message.value = null
   try {
     await api.put('/admin/membership-config', levels.value)
-    message.value = { type: 'success', text: '保存成功，前台已生效' }
-    await fetchLevels()
+    toast.success('保存成功，前台已生效')
+    await fetchLevels({ silent: true })
   } catch (err: unknown) {
     const errorObj = err as { response?: { data?: { error?: string } } }
-    message.value = { type: 'error', text: errorObj?.response?.data?.error || '保存失败' }
+    toast.error(errorObj?.response?.data?.error || '保存失败')
+  } finally {
+    saving.value = false
   }
-  finally { saving.value = false }
 }
 
-// 展示用辅助函数
-function discountText(lv: MembershipConfig) {
-  return lv.discount > 0 && lv.discount < 1 ? `${Math.round(lv.discount * 100)} 折` : '原价'
-}
-function periodText(days: number) {
-  if (!days) return '-'
-  if (days >= 365) return `${Math.floor(days / 365)} 年`
-  if (days >= 30) return `${Math.floor(days / 30)} 个月`
-  return `${days} 天`
-}
-function dlText(lv: MembershipConfig) {
-  const d = lv.daily_download_limit
-  if (d === -1 || d === 0) return '不限'
-  return `${d} 次/天`
-}
-function planColor(lv: MembershipConfig) {
-  return lv.color || '#10b981'
+async function discardChanges() {
+  await fetchLevels({ silent: true })
 }
 
-const orderedLevels = computed(() => [...levels.value])
+const recIdx = computed(() => recommendedIndex(levels.value.length))
 </script>
 
 <template>
   <div>
-    <!-- 加载骨架 -->
-    <div v-if="loading" class="space-y-4">
+    <!-- 加载骨架：页眉 + 编辑面板 + 预览 -->
+    <div v-if="loading" class="space-y-5">
       <NSkeleton text width="18%" size="large" />
-      <div class="grid gap-4 sm:grid-cols-2">
-        <NSkeleton v-for="i in 2" :key="i" height="200px" :sharp="false" />
-      </div>
+      <NSkeleton height="280px" :sharp="false" />
+      <NSkeleton height="150px" :sharp="false" />
     </div>
 
     <template v-else>
       <!-- 页眉 -->
       <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 class="text-[26px] font-bold leading-tight tracking-tight text-zinc-900 sm:text-3xl dark:text-zinc-50">会员配置</h1>
-          <p class="mt-1.5 max-w-[60ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">配置会员档位的名称、时长、价格、下载额度、折扣率与标识色。保存后立即对前台生效。</p>
+          <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">会员配置</h1>
+          <p class="mt-1 max-w-[60ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+            配置会员档位的名称、时长、价格、下载额度、折扣与标识色，保存后立即对前台生效。
+          </p>
         </div>
-        <NButton
-          type="primary"
-          class="!bg-emerald-600 !text-white hover:!bg-emerald-700 dark:!bg-emerald-500 dark:hover:!bg-emerald-400"
-          @click="addLevel"
-        >
+        <NButton type="primary" @click="addLevel">
           <template #icon><NIcon><Plus /></NIcon></template>
           添加档位
         </NButton>
       </header>
-
-      <!-- 提示条 -->
-      <div
-        v-if="message"
-        class="mt-4 flex flex-col items-start gap-3 rounded-xl border px-4 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between"
-        :class="message.type === 'success'
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-400'
-          : 'border-red-200 bg-red-50 text-red-600 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-400'"
-      >
-        <span>{{ message.text }}</span>
-        <button type="button" class="shrink-0 rounded opacity-70 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60" @click="message = null">关闭</button>
-      </div>
 
       <!-- 空状态 -->
       <div
         v-if="levels.length === 0"
         class="mt-6 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/40 py-20 text-center dark:border-zinc-700 dark:bg-zinc-900/40"
       >
-        <span class="mx-auto grid size-14 place-items-center rounded-2xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
+        <span class="mx-auto grid size-14 place-items-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
           <NIcon :size="28"><Crown /></NIcon>
         </span>
         <p class="mt-4 text-sm font-medium text-zinc-600 dark:text-zinc-300">暂无会员档位</p>
-        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">点击右上角「添加档位」开始配置</p>
+        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">创建第一个档位后，前台会员中心即可展示并售卖。</p>
+        <NButton type="primary" size="small" class="mt-5" @click="addLevel">
+          <template #icon><NIcon><Plus /></NIcon></template>
+          创建第一个档位
+        </NButton>
       </div>
 
-      <!-- 档位卡片网格 -->
-      <div v-else class="mt-6 grid gap-5 lg:grid-cols-2">
-        <article
-          v-for="(lv, idx) in orderedLevels"
-          :key="idx"
-          class="flex overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
-        >
-          <!-- 左侧色条 -->
-          <div class="w-1.5 shrink-0" :style="{ backgroundColor: planColor(lv) }" />
+      <!-- 档位编辑器 -->
+      <section v-else class="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <!-- 列头（宽屏） -->
+        <div class="hidden border-b border-zinc-100 px-5 py-3 text-xs font-medium text-zinc-500 xl:grid xl:grid-cols-[minmax(220px,1.6fr)_repeat(4,minmax(120px,1fr))_96px] xl:items-end xl:gap-3 dark:border-zinc-800 dark:text-zinc-400">
+          <span>档位名称与标识色</span>
+          <span>价格（元）</span>
+          <span>有效天数</span>
+          <span>每日下载<span class="ml-1 font-normal text-zinc-400 dark:text-zinc-500">0 不限</span></span>
+          <span>付费折扣<span class="ml-1 font-normal text-zinc-400 dark:text-zinc-500">0 原价</span></span>
+          <span class="text-right">操作</span>
+        </div>
 
-          <div class="flex-1 p-5">
-            <!-- 卡片头：色块 + 名称 + 删除 -->
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex min-w-0 flex-1 items-center gap-2.5">
+        <!-- 行（窄屏折叠为带标签的卡式块） -->
+        <div class="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <div
+            v-for="(lv, idx) in levels"
+            :key="idx"
+            class="grid grid-cols-2 gap-3 px-4 py-4 transition-colors hover:bg-zinc-50/60 sm:px-5 xl:grid-cols-[minmax(220px,1.6fr)_repeat(4,minmax(120px,1fr))_96px] xl:items-center dark:hover:bg-zinc-800/30"
+          >
+            <!-- 档位：图标章即取色器 + 名称 -->
+            <div class="col-span-2 flex items-center gap-2.5 xl:col-span-1">
+              <div
+                class="relative size-9 shrink-0 rounded-lg focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-emerald-500"
+                title="点击修改标识色"
+              >
+                <span
+                  class="pointer-events-none absolute inset-0 grid place-items-center rounded-lg"
+                  :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
+                >
+                  <NIcon :size="18"><component :is="tierIcon(idx)" /></NIcon>
+                </span>
                 <NColorPicker
+                  class="tier-color-overlay"
                   :modes="['hex']"
                   :show-alpha="false"
-                  size="small"
-                  :value="lv.color || '#10b981'"
+                  :value="tierColor(lv.color)"
                   :render-label="() => null"
-                  class="!w-8 shrink-0"
                   @update:value="(v: string) => update(idx, 'color', v)"
                 />
-                <NInput
-                  :value="lv.level_name"
-                  placeholder="等级名称，如 普通 / 高级 / 永久"
-                  size="medium"
-                  class="!w-full"
-                  @update:value="(v: string) => update(idx, 'level_name', v)"
-                />
               </div>
+              <NInput
+                :value="lv.level_name"
+                placeholder="等级名称，如：高级会员"
+                class="!w-full"
+                @update:value="(v: string) => update(idx, 'level_name', v)"
+              />
+              <!-- 窄屏操作按钮 -->
+              <div class="flex shrink-0 items-center gap-1 xl:hidden">
+                <button
+                  type="button"
+                  class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                  title="复制档位"
+                  aria-label="复制档位"
+                  @click="duplicateLevel(idx)"
+                >
+                  <NIcon :size="16"><Copy /></NIcon>
+                </button>
+                <NPopconfirm @positive-click="removeLevel(idx)">
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                      title="删除档位"
+                      aria-label="删除档位"
+                    >
+                      <NIcon :size="16"><Trash /></NIcon>
+                    </button>
+                  </template>
+                  确认移除「{{ lv.level_name || '未命名' }}」？保存后生效。
+                </NPopconfirm>
+              </div>
+            </div>
+
+            <!-- 价格 -->
+            <div>
+              <label class="mb-1 block text-xs font-medium text-zinc-500 xl:hidden dark:text-zinc-400">价格（元）</label>
+              <NInputNumber
+                :min="0"
+                :step="0.01"
+                :value="lv.price"
+                class="!w-full"
+                placeholder="0"
+                @update:value="(v: number | null) => update(idx, 'price', v ?? 0)"
+              />
+            </div>
+            <!-- 有效天数 -->
+            <div>
+              <label class="mb-1 block text-xs font-medium text-zinc-500 xl:hidden dark:text-zinc-400">有效天数</label>
+              <NInputNumber
+                :min="1"
+                :value="lv.days"
+                class="!w-full"
+                placeholder="30"
+                @update:value="(v: number | null) => update(idx, 'days', v ?? 1)"
+              />
+            </div>
+            <!-- 每日下载 -->
+            <div>
+              <label class="mb-1 block text-xs font-medium text-zinc-500 xl:hidden dark:text-zinc-400">每日下载（0 不限）</label>
+              <NInputNumber
+                :min="0"
+                :value="lv.daily_download_limit"
+                class="!w-full"
+                placeholder="20"
+                @update:value="(v: number | null) => update(idx, 'daily_download_limit', v ?? 0)"
+              />
+            </div>
+            <!-- 折扣 -->
+            <div>
+              <label class="mb-1 block text-xs font-medium text-zinc-500 xl:hidden dark:text-zinc-400">付费折扣（0 原价）</label>
+              <NInputNumber
+                :min="0"
+                :max="1"
+                :step="0.05"
+                :value="lv.discount || 0"
+                class="!w-full"
+                placeholder="0.8"
+                :format="(v: number | null) => v ? `${Math.round(v * 100)} 折` : '原价'"
+                :parse="(s: string) => { const m = s.match(/(\d+(?:\.\d+)?)/); return m ? Math.min(1, Number(m[1]!) / 100) : 0 }"
+                @update:value="(v: number | null) => update(idx, 'discount', v ?? 0)"
+              />
+            </div>
+
+            <!-- 宽屏操作 -->
+            <div class="hidden items-center justify-end gap-1 xl:flex">
               <button
                 type="button"
-                class="flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-red-500/10 dark:hover:text-red-400 dark:focus-visible:ring-emerald-400/60"
-                title="删除档位"
-                aria-label="删除档位"
-                @click="removeLevel(idx)"
+                class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                title="复制档位"
+                aria-label="复制档位"
+                @click="duplicateLevel(idx)"
               >
-                <NIcon :size="16"><Trash /></NIcon>
+                <NIcon :size="16"><Copy /></NIcon>
               </button>
-            </div>
-
-            <!-- 字段分组：计费 -->
-            <div class="mt-4 grid grid-cols-2 gap-3">
-              <div>
-                <label class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  <NIcon :size="13"><Coin /></NIcon>价格（元）
-                </label>
-                <NInputNumber
-                  :min="0"
-                  :step="0.01"
-                  :value="lv.price"
-                  size="medium"
-                  class="!w-full"
-                  placeholder="¥0"
-                  @update:value="(v: number | null) => update(idx, 'price', v ?? 0)"
-                />
-              </div>
-              <div>
-                <label class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  <NIcon :size="13"><Calendar /></NIcon>有效天数
-                </label>
-                <NInputNumber
-                  :min="1"
-                  :value="lv.days"
-                  size="medium"
-                  class="!w-full"
-                  placeholder="30"
-                  @update:value="(v: number | null) => update(idx, 'days', v ?? 1)"
-                />
-              </div>
-            </div>
-
-            <!-- 字段分组：额度 -->
-            <div class="mt-3 grid grid-cols-2 gap-3">
-              <div>
-                <label class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  <NIcon :size="13"><Download /></NIcon>每日下载（0 不限）
-                </label>
-                <NInputNumber
-                  :min="0"
-                  :value="lv.daily_download_limit"
-                  size="medium"
-                  class="!w-full"
-                  placeholder="20"
-                  @update:value="(v: number | null) => update(idx, 'daily_download_limit', v ?? 0)"
-                />
-              </div>
-              <div>
-                <label class="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  <NIcon :size="13"><Discount /></NIcon>折扣（0 不打折）
-                </label>
-                <NInputNumber
-                  :min="0"
-                  :max="1"
-                  :step="0.05"
-                  :value="lv.discount || 0"
-                  size="medium"
-                  class="!w-full"
-                  placeholder="0.8"
-                  :format="(v: number | null) => v ? `${Math.round(v * 100)} 折` : '原价'"
-                  :parse="(s: string) => { const m = s.match(/(\d+(?:\.\d+)?)/); return m ? Math.min(1, Number(m[1]!) / 100) : 0 }"
-                  @update:value="(v: number | null) => update(idx, 'discount', v ?? 0)"
-                />
-              </div>
-            </div>
-
-            <!-- 实时预览条 -->
-            <div class="mt-4 flex items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs dark:bg-zinc-800/60">
-              <span class="size-2 rounded-full" :style="{ backgroundColor: planColor(lv) }" />
-              <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ lv.level_name || '未命名' }}</span>
-              <span class="text-zinc-400 dark:text-zinc-500">·</span>
-              <span class="text-zinc-500 dark:text-zinc-400">¥{{ lv.price }} · {{ periodText(lv.days) }} · {{ dlText(lv) }} · {{ discountText(lv) }}</span>
+              <NPopconfirm @positive-click="removeLevel(idx)">
+                <template #trigger>
+                  <button
+                    type="button"
+                    class="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                    title="删除档位"
+                    aria-label="删除档位"
+                  >
+                    <NIcon :size="16"><Trash /></NIcon>
+                  </button>
+                </template>
+                确认移除「{{ lv.level_name || '未命名' }}」？保存后生效。
+              </NPopconfirm>
             </div>
           </div>
-        </article>
-      </div>
+        </div>
+      </section>
 
-      <!-- 底部保存 -->
-      <div v-if="levels.length > 0" class="mt-6 flex flex-col items-stretch gap-3 border-t border-zinc-100 pt-5 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800">
-        <p class="flex items-center gap-1.5 text-xs">
-          <span v-if="dirty" class="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-            <span class="size-1.5 rounded-full bg-amber-500" />有未保存的修改
+      <!-- 前台展示效果预览 -->
+      <section v-if="levels.length > 0" class="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50/60 p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 class="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Eye /></NIcon>
+            前台展示效果
+          </h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">按上方顺序展示，中间档位自动标注「推荐」，随编辑实时更新</p>
+        </div>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <article
+            v-for="(lv, idx) in levels"
+            :key="idx"
+            class="overflow-hidden rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div class="p-4 pb-3" :style="{ background: tierWash(lv.color) }">
+              <div class="flex items-center gap-2.5">
+                <span
+                  class="grid size-9 shrink-0 place-items-center rounded-lg"
+                  :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
+                >
+                  <NIcon :size="18"><component :is="tierIcon(idx)" /></NIcon>
+                </span>
+                <p class="min-w-0 truncate text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ lv.level_name || '未命名档位' }}</p>
+                <span
+                  v-if="idx === recIdx"
+                  class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none"
+                  :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
+                >推荐</span>
+              </div>
+            </div>
+            <div class="px-4 pb-3.5">
+              <div class="flex items-baseline gap-1">
+                <span class="text-xs text-zinc-400 dark:text-zinc-500">¥</span>
+                <span class="font-mono text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{{ priceText(lv.price) }}</span>
+                <span class="text-xs text-zinc-400 dark:text-zinc-500">/ {{ periodText(lv.days) }}</span>
+              </div>
+              <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ dlText(lv.daily_download_limit) }} · {{ discountLabel(lv.discount) ?? '标准价' }}</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- 悬浮保存栏 -->
+      <div
+        v-if="levels.length > 0"
+        class="sticky bottom-4 z-10 mt-5 flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white/95 p-4 shadow-lg shadow-zinc-900/5 backdrop-blur sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900/95 dark:shadow-black/30"
+      >
+        <p class="text-xs">
+          <span v-if="dirty" class="inline-flex items-center gap-1.5 font-medium text-amber-600 dark:text-amber-400">
+            <span class="size-1.5 rounded-full bg-current" />有未保存的修改
           </span>
           <span v-else class="text-zinc-500 dark:text-zinc-400">保存后立即对前台生效</span>
         </p>
-        <NButton
-          type="primary"
-          size="large"
-          :loading="saving"
-          :disabled="!dirty && levels.length > 0"
-          class="!bg-emerald-600 hover:!bg-emerald-700 dark:!bg-emerald-500 dark:hover:!bg-emerald-400"
-          @click="handleSave"
-        >保存配置</NButton>
+        <div class="flex items-center gap-2.5">
+          <NPopconfirm v-if="dirty" @positive-click="discardChanges">
+            <template #trigger>
+              <NButton quaternary :disabled="saving">放弃修改</NButton>
+            </template>
+            放弃所有未保存的修改？
+          </NPopconfirm>
+          <NButton type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
+            <template #icon><NIcon><DeviceFloppy /></NIcon></template>
+            保存配置
+          </NButton>
+        </div>
       </div>
     </template>
   </div>
 </template>
+
+<style scoped>
+/* 图标章即取色器：透明的 NColorPicker 铺满整个图标章作为点击区 */
+.tier-color-overlay {
+  position: absolute !important;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0;
+}
+.tier-color-overlay :deep(.n-color-picker-trigger) {
+  height: 100%;
+}
+</style>
