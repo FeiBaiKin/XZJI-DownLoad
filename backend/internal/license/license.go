@@ -35,7 +35,7 @@ import (
 const (
 	CenterBaseURL = "https://www.xzji.top"
 	ProductSlug   = "xzji"
-	PublicKeyB64  = "LVV7BWPlw5/lU2n/+CGJhcBiTyp5VVOrEJHdzR5psKQ="
+	PublicKeyB64  = "JtMYJerOlRTZ/SOxEM5Jt4TOPxhvF3WGuaqfxnWlFdg="
 )
 
 // 授权状态值（与中心契约一致）
