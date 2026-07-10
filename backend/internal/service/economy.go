@@ -257,9 +257,10 @@ func (s *EconomyService) GetMembership(userID uint) (map[string]any, error) {
 	var user models.User
 	s.DB.First(&user, userID)
 	m := checkMembershipInternal(&user)
-	today := time.Now().UTC().Format("2006-01-02")
+	// 日界线口径同 downloadsTodayOf：本地时区 + DATE 列直接 Format
+	today := time.Now().Format("2006-01-02")
 	downloads := downloadsTodayOf(&user)
-	if user.DownloadDate == nil || user.DownloadDate.UTC().Format("2006-01-02") != today {
+	if user.DownloadDate == nil || user.DownloadDate.Format("2006-01-02") != today {
 		s.DB.Model(&user).Updates(map[string]any{"daily_downloads": 0, "download_date": today})
 	}
 	var configs []models.MembershipConfig
@@ -292,15 +293,17 @@ func checkMembershipInternal(u *models.User) *memberBrief {
 }
 
 func downloadsTodayOf(u *models.User) int {
-	today := time.Now().UTC().Format("2006-01-02")
-	if u.DownloadDate != nil && u.DownloadDate.UTC().Format("2006-01-02") == today {
+	// 日界线用服务器本地时区，与 incrementDailyDownloads 写入口径一致；
+	// DATE 列被驱动按 DSN loc 解析为本地零点，直接 Format 还原存储日期，禁用 .UTC()（东八区会回退一天）
+	today := time.Now().Format("2006-01-02")
+	if u.DownloadDate != nil && u.DownloadDate.Format("2006-01-02") == today {
 		return u.DailyDownloads
 	}
 	return 0
 }
 
 func incrementDailyDownloads(db *gorm.DB, userID uint) error {
-	today := time.Now().UTC().Format("2006-01-02")
+	today := time.Now().Format("2006-01-02")
 	return db.Exec("UPDATE users SET daily_downloads = IF(download_date = ?, daily_downloads + 1, 1), download_date = ? WHERE id = ?", today, today, userID).Error
 }
 

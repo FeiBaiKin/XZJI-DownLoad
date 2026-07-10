@@ -1,17 +1,24 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
+	gomysql "github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"xzji/backend/internal/models"
 )
 
 // ====== 签到 ======
 
 func CheckInStatus(db *gorm.DB, userID uint) (map[string]any, error) {
-	today := time.Now().UTC().Format("2006-01-02")
+	// 签到日界线统一用服务器本地时区（与写入侧、DashboardStats 一致），不可用 UTC：
+	// DSN loc=Local 下时间参数按本地时区序列化，混用 UTC 会在本地 0 点到 UTC 0 点
+	// 的时间窗内查错一天
+	now := time.Now()
+	today := now.Format("2006-01-02")
 	var todayRec models.CheckInRecord
 	// 用 Find 替代 First：用户今日未签到是正常情况，不应触发 GORM "record not found" 日志
 	db.Where("user_id = ? AND check_in_date = ?", userID, today).Limit(1).Find(&todayRec)
@@ -20,16 +27,17 @@ func CheckInStatus(db *gorm.DB, userID uint) (map[string]any, error) {
 	// 优化：一次性获取所有签到记录，在内存中计算连续天数（避免 N+1 查询）
 	var records []models.CheckInRecord
 	db.Where("user_id = ?", userID).Order("check_in_date DESC").Select("check_in_date").Find(&records)
-	
-	// 构建日期集合用于快速查找
+
+	// 构建日期集合用于快速查找。DATE 列被驱动解析为 DSN loc 时区的当日零点，
+	// 直接 Format 即还原存储日期；再做 .UTC() 会在东八区把日期回退一天
 	dateSet := make(map[string]bool)
 	for _, r := range records {
-		dateSet[r.CheckInDate.UTC().Format("2006-01-02")] = true
+		dateSet[r.CheckInDate.Format("2006-01-02")] = true
 	}
-	
+
 	// 计算连续签到天数
 	streak := 0
-	cursor := time.Now().UTC()
+	cursor := now
 	if !checkedIn {
 		cursor = cursor.AddDate(0, 0, -1)
 	}
@@ -66,7 +74,9 @@ func CheckInStatus(db *gorm.DB, userID uint) (map[string]any, error) {
 }
 
 func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
-	today := time.Now().UTC().Format("2006-01-02")
+	// 日界线与 CheckInStatus、写入的 check_in_date 保持同一本地时区，见 CheckInStatus 注释
+	now := time.Now()
+	today := now.Format("2006-01-02")
 
 	// 事务外读取签到配置（只读，无需加锁）
 	var cfg models.CheckInConfig
@@ -80,15 +90,15 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 	var records []models.CheckInRecord
 	db.Where("user_id = ?", userID).Order("check_in_date DESC").Select("check_in_date").Find(&records)
 	
-	// 构建日期集合用于快速查找
+	// 构建日期集合用于快速查找（DATE 列直接 Format 还原存储日期，禁用 .UTC()，见 CheckInStatus 注释）
 	dateSet := make(map[string]bool)
 	for _, r := range records {
-		dateSet[r.CheckInDate.UTC().Format("2006-01-02")] = true
+		dateSet[r.CheckInDate.Format("2006-01-02")] = true
 	}
-	
+
 	// 计算连续签到天数（从昨天开始，因为今天还没签到）
 	streak := 0
-	cursor := time.Now().UTC().AddDate(0, 0, -1)
+	cursor := now.AddDate(0, 0, -1)
 	for {
 		ds := cursor.Format("2006-01-02")
 		if !dateSet[ds] {
@@ -110,22 +120,29 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 	// 事务内执行写操作：检查重复签到 + 创建记录 + 更新余额 + 创建流水
 	var user models.User
 	err := db.Transaction(func(tx *gorm.DB) error {
-		// 锁定用户行，防止并发签到
-		if err := tx.Set("gorm:query_option", "FOR UPDATE").First(&user, userID).Error; err != nil {
+		// 锁定用户行，防止并发签到（GORM v2 中 gorm:query_option 已失效，必须用 clause.Locking）
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
 			return fmt.Errorf("用户不存在")
 		}
 
-		// 检查今日是否已签到
+		// 检查今日是否已签到（Find 避免未签到时的 "record not found" 噪音日志）
 		var exist models.CheckInRecord
-		if err := tx.Where("user_id = ? AND check_in_date = ?", userID, today).First(&exist).Error; err == nil {
+		tx.Where("user_id = ? AND check_in_date = ?", userID, today).Limit(1).Find(&exist)
+		if exist.ID > 0 {
 			return fmt.Errorf("今日已签到，请明天再来")
 		}
 
-		// 创建签到记录
+		// 创建签到记录：写入本地日期零点，保证与 today 查询条件、unique_daily 落在同一天
 		if err := tx.Create(&models.CheckInRecord{
-			UserID: userID, CheckInDate: time.Now(),
+			UserID:        userID,
+			CheckInDate:   time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()),
 			BalanceEarned: bal, ExpEarned: exp, IsBonus: isBonus,
 		}).Error; err != nil {
+			// 撞 unique_daily 唯一键说明并发下已有当日记录，按已签到返回而非暴露内部错误
+			var mysqlErr *gomysql.MySQLError
+			if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+				return fmt.Errorf("今日已签到，请明天再来")
+			}
 			return fmt.Errorf("创建签到记录失败: %w", err)
 		}
 

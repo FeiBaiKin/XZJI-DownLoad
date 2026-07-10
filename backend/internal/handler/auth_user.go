@@ -232,9 +232,10 @@ func DownloadsToday(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取下载次数失败"})
 		return
 	}
-	today := time.Now().UTC().Format("2006-01-02")
+	// 日界线用本地时区，与 incrementDailyDownloads 写入口径一致；DATE 列直接 Format（禁用 .UTC()）
+	today := time.Now().Format("2006-01-02")
 	downloads := 0
-	if user.DownloadDate != nil && user.DownloadDate.UTC().Format("2006-01-02") == today {
+	if user.DownloadDate != nil && user.DownloadDate.Format("2006-01-02") == today {
 		downloads = user.DailyDownloads
 	}
 	c.JSON(http.StatusOK, gin.H{"downloads": downloads, "date": today})
