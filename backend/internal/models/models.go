@@ -55,10 +55,10 @@ func (KeywordCategory) TableName() string { return "keyword_categories" }
 
 // KeywordCategoryLink 关键词←→分类 多对多关联（对齐 keyword_category_links）
 type KeywordCategoryLink struct {
-	ID         uint `gorm:"primaryKey" json:"id"`
-	KeywordID  uint `gorm:"uniqueIndex:unique_link" json:"keyword_id"`
+	ID         uint            `gorm:"primaryKey" json:"id"`
+	KeywordID  uint            `gorm:"uniqueIndex:unique_link" json:"keyword_id"`
 	Keyword    KeywordResponse `gorm:"foreignKey:KeywordID;constraint:OnDelete:CASCADE" json:"-"`
-	CategoryID uint `gorm:"uniqueIndex:unique_link" json:"category_id"`
+	CategoryID uint            `gorm:"uniqueIndex:unique_link" json:"category_id"`
 	Category   KeywordCategory `gorm:"foreignKey:CategoryID;constraint:OnDelete:CASCADE" json:"-"`
 }
 
@@ -69,7 +69,7 @@ type Page struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Title       string    `gorm:"size:200" json:"title"`
 	Slug        string    `gorm:"size:100;uniqueIndex" json:"slug"`
-	Content     string    `gorm:"type:longtext" json:"content"`
+	Content     string    `gorm:"type:text" json:"content"`
 	IsPublished bool      `gorm:"default:false" json:"is_published"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -150,15 +150,15 @@ func (MembershipConfig) TableName() string { return "membership_config" }
 
 // MembershipOrder 会员购买订单（对齐 membership_orders）
 type MembershipOrder struct {
-	ID             uint       `gorm:"primaryKey" json:"id"`
-	OrderNo        string     `gorm:"size:64;uniqueIndex" json:"order_no"`
-	UserID         uint       `json:"user_id"`
-	MembershipLevel string    `gorm:"size:50" json:"membership_level"`
-	Amount         float64    `gorm:"type:decimal(10,2)" json:"amount"`
-	Days           int        `json:"days"`
-	Status         string     `gorm:"size:20;default:paid" json:"status"`
-	CreatedAt      time.Time  `json:"created_at"`
-	PaidAt         *time.Time `json:"paid_at"`
+	ID              uint       `gorm:"primaryKey" json:"id"`
+	OrderNo         string     `gorm:"size:64;uniqueIndex" json:"order_no"`
+	UserID          uint       `json:"user_id"`
+	MembershipLevel string     `gorm:"size:50" json:"membership_level"`
+	Amount          float64    `gorm:"type:decimal(10,2)" json:"amount"`
+	Days            int        `json:"days"`
+	Status          string     `gorm:"size:20;default:paid" json:"status"`
+	CreatedAt       time.Time  `json:"created_at"`
+	PaidAt          *time.Time `json:"paid_at"`
 }
 
 func (MembershipOrder) TableName() string { return "membership_orders" }
@@ -205,26 +205,26 @@ func (KeywordFavorite) TableName() string { return "keyword_favorites" }
 
 // PointsTransaction 余额/经验流水（对齐 points_transactions）
 type PointsTransaction struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	UserID         uint      `json:"user_id"`
-	Type           string    `gorm:"size:20" json:"type"`
-	Amount         float64   `gorm:"type:decimal(10,2);default:0.00" json:"amount"`
-	BalanceAmount  float64   `gorm:"type:decimal(10,2);default:0.00" json:"balance_amount"`
-	ExpEarned      int       `gorm:"default:0" json:"exp_earned"`
-	Description    string    `gorm:"size:255;default:''" json:"description"`
-	RefID          *uint     `json:"ref_id"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	UserID        uint      `json:"user_id"`
+	Type          string    `gorm:"size:20" json:"type"`
+	Amount        float64   `gorm:"type:decimal(10,2);default:0.00" json:"amount"`
+	BalanceAmount float64   `gorm:"type:decimal(10,2);default:0.00" json:"balance_amount"`
+	ExpEarned     int       `gorm:"default:0" json:"exp_earned"`
+	Description   string    `gorm:"size:255;default:''" json:"description"`
+	RefID         *uint     `json:"ref_id"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 func (PointsTransaction) TableName() string { return "points_transactions" }
 
 // MembershipReminder 会员到期提醒记录（对齐 membership_reminders）
 type MembershipReminder struct {
-	ID             uint      `gorm:"primaryKey" json:"id"`
-	UserID         uint      `gorm:"index:idx_user_days" json:"user_id"`
+	ID              uint      `gorm:"primaryKey" json:"id"`
+	UserID          uint      `gorm:"index:idx_user_days" json:"user_id"`
 	MembershipLevel string    `gorm:"size:50" json:"membership_level"`
-	DaysLeft       int       `gorm:"index:idx_user_days" json:"days_left"`
-	SentAt         time.Time `json:"sent_at"`
+	DaysLeft        int       `gorm:"index:idx_user_days" json:"days_left"`
+	SentAt          time.Time `json:"sent_at"`
 }
 
 func (MembershipReminder) TableName() string { return "membership_reminders" }
@@ -253,17 +253,17 @@ func (SchemaMigration) TableName() string { return "schema_migrations" }
 
 // MediaFile 媒体库文件元数据（对齐 media_files）
 type MediaFile struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	URL         string    `gorm:"size:255;index" json:"url"`           // /uploads/media/<filename>
-	Filename    string    `gorm:"size:255" json:"filename"`            // 物理文件名
-	OriginName  string    `gorm:"size:255;default:''" json:"origin_name"`
-	Mime        string    `gorm:"size:100;default:''" json:"mime"`
-	Size        int64     `gorm:"default:0" json:"size"`                // 字节
-	Width       int       `gorm:"default:0" json:"width"`
-	Height      int       `gorm:"default:0" json:"height"`
-	Source      string    `gorm:"size:20;default:local" json:"source"` // local | remote
-	UploaderID  uint      `gorm:"default:0" json:"uploader_id"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID         uint      `gorm:"primaryKey" json:"id"`
+	URL        string    `gorm:"size:255;index" json:"url"` // /uploads/media/<filename>
+	Filename   string    `gorm:"size:255" json:"filename"`  // 物理文件名
+	OriginName string    `gorm:"size:255;default:''" json:"origin_name"`
+	Mime       string    `gorm:"size:100;default:''" json:"mime"`
+	Size       int64     `gorm:"default:0" json:"size"` // 字节
+	Width      int       `gorm:"default:0" json:"width"`
+	Height     int       `gorm:"default:0" json:"height"`
+	Source     string    `gorm:"size:20;default:local" json:"source"` // local | remote
+	UploaderID uint      `gorm:"default:0" json:"uploader_id"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 func (MediaFile) TableName() string { return "media_files" }
@@ -305,6 +305,9 @@ func Migrate(db *gorm.DB) error {
 
 // cleanOrphanedData 清理孤立的关联数据
 func cleanOrphanedData(db *gorm.DB) error {
+	if !db.Migrator().HasTable("keyword_category_links") {
+		return nil
+	}
 	// 清理 keyword_category_links 中引用不存在的 keyword_id 的记录
 	sql := `DELETE FROM keyword_category_links
 	        WHERE keyword_id NOT IN (SELECT id FROM keyword_responses)`

@@ -17,6 +17,8 @@ export interface InstallRequest {
   dbUser: string
   dbPassword: string
   dbName: string
+  dbSSLMode: string
+  dbTimeZone: string
 }
 
 export interface InstallResponse {

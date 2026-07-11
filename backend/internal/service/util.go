@@ -1,13 +1,14 @@
 package service
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"time"
 
 	"xzji/backend/internal/util"
 
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -28,7 +29,14 @@ func writeInstallLockImpl(t time.Time) error {
 	return os.WriteFile(installLockPath(), []byte(content), 0644)
 }
 
-// mysqlDialector 返回 MySQL Dialector
-func mysqlDialector(dsn string) gorm.Dialector {
-	return mysql.Open(dsn)
+// postgresDialector 返回 PostgreSQL Dialector。
+func postgresDialector(dsn string) gorm.Dialector {
+	return postgres.Open(dsn)
+}
+
+// isUniqueViolation 识别 PostgreSQL unique_violation（SQLSTATE 23505）。
+func isUniqueViolation(err error) bool {
+	type sqlStateError interface{ SQLState() string }
+	var stateErr sqlStateError
+	return errors.As(err, &stateErr) && stateErr.SQLState() == "23505"
 }

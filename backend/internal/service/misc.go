@@ -1,11 +1,9 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
-	gomysql "github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"xzji/backend/internal/models"
@@ -52,15 +50,25 @@ func CheckInStatus(db *gorm.DB, userID uint) (map[string]any, error) {
 
 	var cfg models.CheckInConfig
 	db.First(&cfg)
-	if cfg.ConsecutiveDays == 0 { cfg.ConsecutiveDays = 7 }
-	if cfg.DailyBalance == 0 { cfg.DailyBalance = 0.50 }
-	if cfg.ConsecutiveBonusBalance == 0 { cfg.ConsecutiveBonusBalance = 2.00 }
-	if cfg.DailyExp == 0 { cfg.DailyExp = 10 }
+	if cfg.ConsecutiveDays == 0 {
+		cfg.ConsecutiveDays = 7
+	}
+	if cfg.DailyBalance == 0 {
+		cfg.DailyBalance = 0.50
+	}
+	if cfg.ConsecutiveBonusBalance == 0 {
+		cfg.ConsecutiveBonusBalance = 2.00
+	}
+	if cfg.DailyExp == 0 {
+		cfg.DailyExp = 10
+	}
 
 	tomorrowStreak := streak + 1
 	tomorrowBonus := tomorrowStreak >= cfg.ConsecutiveDays
 	tomorrowBalance := cfg.DailyBalance
-	if tomorrowBonus { tomorrowBalance += cfg.ConsecutiveBonusBalance }
+	if tomorrowBonus {
+		tomorrowBalance += cfg.ConsecutiveBonusBalance
+	}
 
 	return map[string]any{
 		"checkedIn": checkedIn, "streak": streak,
@@ -81,15 +89,23 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 	// 事务外读取签到配置（只读，无需加锁）
 	var cfg models.CheckInConfig
 	db.First(&cfg)
-	if cfg.DailyBalance == 0 { cfg.DailyBalance = 0.50 }
-	if cfg.ConsecutiveDays == 0 { cfg.ConsecutiveDays = 7 }
-	if cfg.ConsecutiveBonusBalance == 0 { cfg.ConsecutiveBonusBalance = 2.00 }
-	if cfg.DailyExp == 0 { cfg.DailyExp = 10 }
+	if cfg.DailyBalance == 0 {
+		cfg.DailyBalance = 0.50
+	}
+	if cfg.ConsecutiveDays == 0 {
+		cfg.ConsecutiveDays = 7
+	}
+	if cfg.ConsecutiveBonusBalance == 0 {
+		cfg.ConsecutiveBonusBalance = 2.00
+	}
+	if cfg.DailyExp == 0 {
+		cfg.DailyExp = 10
+	}
 
 	// 优化：一次性获取所有签到记录，在内存中计算连续天数（避免 N+1 查询）
 	var records []models.CheckInRecord
 	db.Where("user_id = ?", userID).Order("check_in_date DESC").Select("check_in_date").Find(&records)
-	
+
 	// 构建日期集合用于快速查找（DATE 列直接 Format 还原存储日期，禁用 .UTC()，见 CheckInStatus 注释）
 	dateSet := make(map[string]bool)
 	for _, r := range records {
@@ -139,8 +155,7 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 			BalanceEarned: bal, ExpEarned: exp, IsBonus: isBonus,
 		}).Error; err != nil {
 			// 撞 unique_daily 唯一键说明并发下已有当日记录，按已签到返回而非暴露内部错误
-			var mysqlErr *gomysql.MySQLError
-			if errors.As(err, &mysqlErr) && mysqlErr.Number == 1062 {
+			if isUniqueViolation(err) {
 				return fmt.Errorf("今日已签到，请明天再来")
 			}
 			return fmt.Errorf("创建签到记录失败: %w", err)
@@ -190,7 +205,8 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 // ====== 等级 ======
 
 func CheckLevelUp(db *gorm.DB, userID uint) map[string]any {
-	var user models.User; db.First(&user, userID)
+	var user models.User
+	db.First(&user, userID)
 	var lvl models.LevelConfig
 	err := db.Where("exp_required <= ?", user.Exp).Order("level DESC").First(&lvl).Error
 	if err == nil && lvl.Level > user.Level {
@@ -202,7 +218,8 @@ func CheckLevelUp(db *gorm.DB, userID uint) map[string]any {
 
 func LevelInfo(db *gorm.DB, userID uint) (map[string]any, error) {
 	CheckLevelUp(db, userID)
-	var user models.User; db.First(&user, userID)
+	var user models.User
+	db.First(&user, userID)
 	var currentCfg models.LevelConfig
 	db.Where("level = ?", user.Level).First(&currentCfg)
 	var nextCfg models.LevelConfig
@@ -214,7 +231,9 @@ func LevelInfo(db *gorm.DB, userID uint) (map[string]any, error) {
 		expNeeded = nextCfg.ExpRequired - currentCfg.ExpRequired
 		if expNeeded > 0 {
 			progress = expInLevel * 100 / expNeeded
-			if progress > 100 { progress = 100 }
+			if progress > 100 {
+				progress = 100
+			}
 		}
 	}
 	var allLevels []models.LevelConfig
@@ -254,18 +273,18 @@ func DashboardStats(db *gorm.DB) (map[string]any, error) {
 			SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as new_week,
 			SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as new_month,
 			SUM(CASE WHEN membership_level IS NOT NULL AND membership_expires_at > NOW() THEN 1 ELSE 0 END) as active_mem,
-			SUM(CASE WHEN membership_level IS NOT NULL AND membership_expires_at > NOW() AND membership_expires_at <= DATE_ADD(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as exp_mem
+			SUM(CASE WHEN membership_level IS NOT NULL AND membership_expires_at > NOW() AND membership_expires_at <= NOW() + INTERVAL '7 days' THEN 1 ELSE 0 END) as exp_mem
 		FROM users
 	`, today, weekAgo, monthAgo).Scan(&us)
 
 	// 优化：合并订单统计查询（总数/已支付/待支付 + 收入统计）
 	type orderStats struct {
-		Total      int64
-		Paid       int64
-		Pending    int64
-		RevTotal   float64
-		RevMonth   float64
-		RevToday   float64
+		Total    int64
+		Paid     int64
+		Pending  int64
+		RevTotal float64
+		RevMonth float64
+		RevToday float64
 	}
 	var os orderStats
 	db.Raw(`
@@ -312,15 +331,22 @@ func SiteSettings(db *gorm.DB) (map[string]string, error) {
 	var rows []models.SiteSetting
 	db.Find(&rows)
 	m := map[string]string{}
-	for _, r := range rows { m[r.SettingKey] = r.SettingValue }
-	if _, ok := m["siteName"]; !ok { m["siteName"] = "XZJI" }
+	for _, r := range rows {
+		m[r.SettingKey] = r.SettingValue
+	}
+	if _, ok := m["siteName"]; !ok {
+		m["siteName"] = "XZJI"
+	}
 	return m, nil
 }
 
 func UpdateSiteSettings(db *gorm.DB, settings map[string]string) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		for k, v := range settings {
-			if err := tx.Exec("INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?", k, v, v).Error; err != nil {
+			if err := tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "setting_key"}},
+				DoUpdates: clause.AssignmentColumns([]string{"setting_value"}),
+			}).Create(&models.SiteSetting{SettingKey: k, SettingValue: v}).Error; err != nil {
 				return err
 			}
 		}

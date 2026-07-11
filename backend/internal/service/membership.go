@@ -16,6 +16,7 @@ import (
 //   - daysLeft = ceil((expires - now) / 1d)，仅在阈值 {7,3,1} 时提醒
 //   - 同一 (user, days_left) 仅提醒一次（membership_reminders 去重）
 //   - 发送成功后写入 membership_reminders
+//
 // 返回本次发送的提醒数量。
 func CheckMembershipExpiryReminders(db *gorm.DB) (int, error) {
 	cfg, err := GetEmailConfig(db)
@@ -43,7 +44,7 @@ func CheckMembershipExpiryReminders(db *gorm.DB) (int, error) {
 		  AND membership_expires_at IS NOT NULL
 		  AND email != ''
 		  AND membership_expires_at > NOW()
-		  AND membership_expires_at <= DATE_ADD(NOW(), INTERVAL 7 DAY)`).Scan(&users).Error; err != nil {
+		  AND membership_expires_at <= NOW() + INTERVAL '7 days'`).Scan(&users).Error; err != nil {
 		return 0, err
 	}
 	if len(users) == 0 {

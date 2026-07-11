@@ -11,10 +11,12 @@ server:
 
 database:
   host: 127.0.0.1
-  port: 3306
-  user: admin
-  password: "123456"
+  port: 5432
+  user: postgres
+  password: ""
   name: xzji
+  sslmode: disable  # 远程生产数据库建议 require 或 verify-full
+  timezone: Asia/Shanghai
 
 jwt:
   secret: ""  # 安装时自动生成

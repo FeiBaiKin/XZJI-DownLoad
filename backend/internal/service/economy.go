@@ -304,7 +304,7 @@ func downloadsTodayOf(u *models.User) int {
 
 func incrementDailyDownloads(db *gorm.DB, userID uint) error {
 	today := time.Now().Format("2006-01-02")
-	return db.Exec("UPDATE users SET daily_downloads = IF(download_date = ?, daily_downloads + 1, 1), download_date = ? WHERE id = ?", today, today, userID).Error
+	return db.Exec("UPDATE users SET daily_downloads = CASE WHEN download_date = ? THEN daily_downloads + 1 ELSE 1 END, download_date = ? WHERE id = ?", today, today, userID).Error
 }
 
 // ====== 交易记录 ======

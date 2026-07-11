@@ -77,8 +77,8 @@ func PublicSiteConfig(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"forceVerify":         cfg.ForceVerify,
-		"enablePasswordless":  cfg.EnablePasswordless,
+		"forceVerify":        cfg.ForceVerify,
+		"enablePasswordless": cfg.EnablePasswordless,
 	})
 }
 
@@ -134,7 +134,9 @@ func AdminEmailConfigPut(c *gin.Context) {
 }
 
 func AdminEmailTest(c *gin.Context) {
-	var req struct{ To string `json:"to"` }
+	var req struct {
+		To string `json:"to"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil || req.To == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请提供测试邮箱"})
 		return
@@ -209,7 +211,7 @@ func AdminLevelConfigPut(c *gin.Context) {
 	db := app.DB
 	keep := make([]any, 0, len(items))
 	for _, it := range items {
-		db.Exec("INSERT INTO level_config (level, exp_required, label, updated_at) VALUES (?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE exp_required = VALUES(exp_required), label = VALUES(label), updated_at = NOW()",
+		db.Exec("INSERT INTO level_config (level, exp_required, label, updated_at) VALUES (?, ?, ?, NOW()) ON CONFLICT (level) DO UPDATE SET exp_required = EXCLUDED.exp_required, label = EXCLUDED.label, updated_at = NOW()",
 			it["level"], it["exp_required"], it["label"])
 		keep = append(keep, it["level"])
 	}
@@ -239,7 +241,7 @@ func AdminMembershipConfigPut(c *gin.Context) {
 	db := getApp(c).DB
 	keep := make([]any, 0, len(items))
 	for _, it := range items {
-		db.Exec("INSERT INTO membership_config (level_name, days, price, daily_download_limit, discount, color, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW()) ON DUPLICATE KEY UPDATE days = VALUES(days), price = VALUES(price), daily_download_limit = VALUES(daily_download_limit), discount = VALUES(discount), color = VALUES(color), updated_at = NOW()",
+		db.Exec("INSERT INTO membership_config (level_name, days, price, daily_download_limit, discount, color, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW()) ON CONFLICT (level_name) DO UPDATE SET days = EXCLUDED.days, price = EXCLUDED.price, daily_download_limit = EXCLUDED.daily_download_limit, discount = EXCLUDED.discount, color = EXCLUDED.color, updated_at = NOW()",
 			it["level_name"], it["days"], it["price"], it["daily_download_limit"], it["discount"], it["color"])
 		keep = append(keep, it["level_name"])
 	}
@@ -264,25 +266,25 @@ func AdminPaymentConfigGet(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"payment_site_url":            cfg.SiteURL,
-		"payment_enabled_providers":   enabledProvidersJSON,
-		"payment_wx_appid":            cfg.WxAppId,
-		"payment_wx_mchid":            cfg.WxMchId,
-		"payment_wx_serial_no":        cfg.WxSerialNo,
-		"payment_wx_api_v3_key":       cfg.WxApiV3Key,
-		"payment_wx_private_key":      cfg.WxPrivateKey,
-		"payment_wx_notify_url":       cfg.WxNotifyUrl,
-		"payment_ali_appid":           cfg.AliAppId,
-		"payment_ali_private_key":     cfg.AliPrivateKey,
-		"payment_ali_public_key":      cfg.AliPublicKey,
-		"payment_ali_scene":           cfg.AliScene,
-		"payment_ali_notify_url":      cfg.AliNotifyUrl,
-		"payment_ali_return_url":      cfg.AliReturnUrl,
-		"payment_epay_gateway":        cfg.EpayGateway,
-		"payment_epay_pid":            cfg.EpayPid,
-		"payment_epay_key":            cfg.EpayKey,
-		"payment_epay_notify_url":     cfg.EpayNotifyUrl,
-		"payment_epay_return_url":     cfg.EpayReturnUrl,
+		"payment_site_url":          cfg.SiteURL,
+		"payment_enabled_providers": enabledProvidersJSON,
+		"payment_wx_appid":          cfg.WxAppId,
+		"payment_wx_mchid":          cfg.WxMchId,
+		"payment_wx_serial_no":      cfg.WxSerialNo,
+		"payment_wx_api_v3_key":     cfg.WxApiV3Key,
+		"payment_wx_private_key":    cfg.WxPrivateKey,
+		"payment_wx_notify_url":     cfg.WxNotifyUrl,
+		"payment_ali_appid":         cfg.AliAppId,
+		"payment_ali_private_key":   cfg.AliPrivateKey,
+		"payment_ali_public_key":    cfg.AliPublicKey,
+		"payment_ali_scene":         cfg.AliScene,
+		"payment_ali_notify_url":    cfg.AliNotifyUrl,
+		"payment_ali_return_url":    cfg.AliReturnUrl,
+		"payment_epay_gateway":      cfg.EpayGateway,
+		"payment_epay_pid":          cfg.EpayPid,
+		"payment_epay_key":          cfg.EpayKey,
+		"payment_epay_notify_url":   cfg.EpayNotifyUrl,
+		"payment_epay_return_url":   cfg.EpayReturnUrl,
 	})
 }
 
@@ -329,7 +331,10 @@ func AdminUserGet(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
 	var u map[string]any
 	getApp(c).DB.Raw("SELECT * FROM users WHERE id = ?", id).Scan(&u)
-	if len(u) == 0 { c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"}); return }
+	if len(u) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		return
+	}
 	c.JSON(http.StatusOK, u)
 }
 
@@ -341,12 +346,24 @@ func AdminUserUpdate(c *gin.Context) {
 		return
 	}
 	allowed := map[string]any{}
-	if v, ok := s["nickname"]; ok { allowed["nickname"] = v }
-	if v, ok := s["email"]; ok { allowed["email"] = v }
-	if v, ok := s["role"]; ok { allowed["role"] = v }
-	if v, ok := s["balance"]; ok { allowed["balance"] = v }
-	if v, ok := s["exp"]; ok { allowed["exp"] = v }
-	if v, ok := s["level"]; ok { allowed["level"] = v }
+	if v, ok := s["nickname"]; ok {
+		allowed["nickname"] = v
+	}
+	if v, ok := s["email"]; ok {
+		allowed["email"] = v
+	}
+	if v, ok := s["role"]; ok {
+		allowed["role"] = v
+	}
+	if v, ok := s["balance"]; ok {
+		allowed["balance"] = v
+	}
+	if v, ok := s["exp"]; ok {
+		allowed["exp"] = v
+	}
+	if v, ok := s["level"]; ok {
+		allowed["level"] = v
+	}
 	// 会员字段（编辑用户时设置/清除会员）
 	ml, _ := s["membership_level"].(string)
 	mea, _ := s["membership_expires_at"].(string)
@@ -364,7 +381,10 @@ func AdminUserUpdate(c *gin.Context) {
 			allowed["membership_expires_at"] = t
 		}
 	}
-	if len(allowed) == 0 { c.JSON(http.StatusBadRequest, gin.H{"error": "无有效更新字段"}); return }
+	if len(allowed) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无有效更新字段"})
+		return
+	}
 	getApp(c).DB.Model(&models.User{}).Where("id = ?", id).Updates(allowed)
 	c.JSON(http.StatusOK, gin.H{"message": "已更新"})
 }

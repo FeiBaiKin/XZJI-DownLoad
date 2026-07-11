@@ -117,7 +117,7 @@ func seedDefaultKeywords(db *gorm.DB) error {
 		{Keyword: "hello", Response: "你好！欢迎使用关键词搜索应用。"},
 		{Keyword: "node", Response: "Node.js 是一个基于 Chrome V8 引擎的 JavaScript 运行时。"},
 		{Keyword: "react", Response: "React 是一个用于构建用户界面的 JavaScript 库。"},
-		{Keyword: "mysql", Response: "MySQL 是最流行的关系型数据库管理系统之一。"},
+		{Keyword: "postgresql", Response: "PostgreSQL 是功能强大的开源对象关系型数据库系统。"},
 		{Keyword: "search", Response: "搜索功能已启用，正在探索关键词的奥秘。"},
 	}
 	// INSERT IGNORE 语义：用 clause.OnConflict 忽略唯一键冲突

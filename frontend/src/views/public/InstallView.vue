@@ -10,7 +10,7 @@ const errorMsg = ref('')
 const form = ref({
   siteName: '', siteDescription: '', siteURL: '', footerText: '',
   adminUsername: '', adminPassword: '', adminEmail: '',
-  dbHost: '127.0.0.1', dbPort: 3306, dbUser: 'admin', dbPassword: '123456', dbName: 'xzji',
+  dbHost: '127.0.0.1', dbPort: 5432, dbUser: 'postgres', dbPassword: '', dbName: 'xzji', dbSSLMode: 'disable', dbTimeZone: 'Asia/Shanghai',
 })
 
 async function submit() {
@@ -97,7 +97,7 @@ async function submit() {
                   :value="form.dbPort"
                   :show-button="false"
                   class="w-full"
-                  @update:value="(v: number | null) => form.dbPort = v ?? 3306"
+                  @update:value="(v: number | null) => form.dbPort = v ?? 5432"
                 />
               </div>
             </div>
@@ -112,6 +112,11 @@ async function submit() {
             <div>
               <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">数据库名</label>
               <NInput v-model:value="form.dbName" />
+            </div>
+            <div>
+              <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">SSL 模式</label>
+              <NInput v-model:value="form.dbSSLMode" placeholder="disable / require / verify-full" />
+              <p class="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">本机可用 disable；远程生产数据库建议 require 或 verify-full</p>
             </div>
           </div>
         </section>

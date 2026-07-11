@@ -4,8 +4,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -28,6 +32,8 @@ type DatabaseConfig struct {
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	Name     string `mapstructure:"name"`
+	SSLMode  string `mapstructure:"sslmode"`
+	TimeZone string `mapstructure:"timezone"`
 }
 
 type JWTConfig struct {
@@ -87,7 +93,7 @@ func Load() (*Config, error) {
 }
 
 // SaveConfig 将安装向导提交的配置写入 config.yaml
-func SaveConfig(dbHost string, dbPort int, dbUser, dbPassword, dbName string, allowedOrigins []string, jwtSecret string) error {
+func SaveConfig(dbHost string, dbPort int, dbUser, dbPassword, dbName, dbSSLMode, dbTimeZone string, allowedOrigins []string, jwtSecret string) error {
 	v := viper.New()
 	v.SetConfigFile(ConfigPath)
 	v.SetConfigType("yaml")
@@ -101,6 +107,8 @@ func SaveConfig(dbHost string, dbPort int, dbUser, dbPassword, dbName string, al
 	v.Set("database.user", dbUser)
 	v.Set("database.password", dbPassword)
 	v.Set("database.name", dbName)
+	v.Set("database.sslmode", dbSSLMode)
+	v.Set("database.timezone", dbTimeZone)
 	if jwtSecret == "" {
 		jwtSecret = GenerateJWTSecret()
 	}
@@ -140,14 +148,32 @@ func SetAllowedOrigins(origins []string) error {
 	return v.WriteConfig()
 }
 
-// DSN 拼接 GORM/MySQL 连接串
+// DSN 拼接 PostgreSQL 连接串。URL 形式会安全转义用户名、密码和数据库名。
 func (c *DatabaseConfig) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		c.User, c.Password, c.Host, c.Port, c.Name)
+	return postgresDSN(c.Host, c.Port, c.User, c.Password, c.Name, c.SSLMode, c.TimeZone)
 }
 
-// DSNWithoutDB 拼接不含库名的连接串（用于安装时建库）
+// DSNWithoutDB 连接 PostgreSQL 的默认维护库，用于安装时创建目标库。
 func (c *DatabaseConfig) DSNWithoutDB() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
-		c.User, c.Password, c.Host, c.Port)
+	return postgresDSN(c.Host, c.Port, c.User, c.Password, "postgres", c.SSLMode, c.TimeZone)
+}
+
+func postgresDSN(host string, port int, user, password, database, sslMode, timeZone string) string {
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(user, password),
+		Host:   net.JoinHostPort(host, strconv.Itoa(port)),
+		Path:   database,
+	}
+	q := u.Query()
+	if sslMode == "" {
+		sslMode = "disable"
+	}
+	q.Set("sslmode", sslMode)
+	if timeZone == "" {
+		timeZone = "Asia/Shanghai"
+	}
+	q.Set("TimeZone", timeZone)
+	u.RawQuery = strings.ReplaceAll(q.Encode(), "%2F", "/")
+	return u.String()
 }

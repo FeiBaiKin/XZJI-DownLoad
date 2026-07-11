@@ -536,11 +536,11 @@ type SearchResult struct {
 }
 
 var fallbackResponses = map[string]string{
-	"hello":  `"你好！欢迎使用关键词搜索应用。"`,
-	"node":   `"Node.js 是一个基于 Chrome V8 引擎的 JavaScript 运行时。"`,
-	"react":  `"React 是一个用于构建用户界面的 JavaScript 库。"`,
-	"mysql":  `"MySQL 是最流行的关系型数据库管理系统之一。"`,
-	"search": `"搜索功能已启用，正在探索关键词的奥秘。"`,
+	"hello":      `"你好！欢迎使用关键词搜索应用。"`,
+	"node":       `"Node.js 是一个基于 Chrome V8 引擎的 JavaScript 运行时。"`,
+	"react":      `"React 是一个用于构建用户界面的 JavaScript 库。"`,
+	"postgresql": `"PostgreSQL 是功能强大的开源对象关系型数据库系统。"`,
+	"search":     `"搜索功能已启用，正在探索关键词的奥秘。"`,
 }
 
 func (s *ContentService) SearchKeyword(keyword string) (*SearchResult, error) {
