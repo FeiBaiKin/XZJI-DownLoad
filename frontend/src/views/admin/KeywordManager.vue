@@ -5,7 +5,7 @@
 import { ref, onMounted, computed, h } from 'vue'
 import {
   NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup,
-  NSelect, NPagination, NDrawer, NDrawerContent,
+  NSelect, NDrawer, NDrawerContent,
   type DataTableColumns,
 } from 'naive-ui'
 import {
@@ -16,6 +16,7 @@ import type { KeywordAttribute } from '@/types/api'
 import { cloudPlatforms } from '@/constants/admin'
 import { useToastStore } from '@/stores/toast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AppPagination from '@/components/AppPagination.vue'
 import IconCropperModal from '@/components/IconCropperModal.vue'
 
 const toast = useToastStore()
@@ -77,10 +78,9 @@ const attributes = ref<KeywordAttribute[]>([])
 // 列表分页 + 分类筛选
 const page = ref(1)
 const total = ref(0)
-const limit = 10
+const limit = ref(10)
 const filterCategoryId = ref<number | null>(null)
 
-const totalPages = computed(() => Math.ceil(total.value / limit))
 const categoryNameMap = computed(() => {
   const m = new Map<number, string>()
   for (const c of categories.value) m.set(c.id, c.name)
@@ -98,7 +98,7 @@ async function fetchKeywords() {
   try {
     const res = await contentApi.keywords.list({
       page: page.value,
-      limit,
+      limit: limit.value,
       category: filterCategoryId.value ?? undefined,
     })
     keywords.value = res.items
@@ -127,6 +127,7 @@ async function fetchKeywordCategories(keywordId: number) {
 }
 
 function setPage(p: number) { page.value = p; fetchKeywords() }
+function setPageSize(size: number) { limit.value = size; page.value = 1; fetchKeywords() }
 function onFilterChange(v: number) {
   filterCategoryId.value = v > 0 ? v : null
   page.value = 1
@@ -761,8 +762,14 @@ const columns: DataTableColumns<Keyword> = [
         class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
       />
 
-      <div v-if="totalPages > 1" class="flex justify-end">
-        <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
+      <div v-if="total > 0">
+        <AppPagination
+          :page="page"
+          :page-size="limit"
+          :item-count="total"
+          @update:page="setPage"
+          @update:page-size="setPageSize"
+        />
       </div>
     </section>
 

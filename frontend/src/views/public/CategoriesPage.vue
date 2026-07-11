@@ -2,17 +2,18 @@
 // 分类页：分类切换 + 资源列表（使用 ResourceCard 组件）
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NEmpty, NSkeleton, NPagination } from 'naive-ui'
+import { NEmpty, NSkeleton } from 'naive-ui'
 import { contentApi, type Category, type PublicKeyword } from '@/api/content'
 import { useToastStore } from '@/stores/toast'
 import { useFavoritesStore } from '@/stores/favorites'
 import ResourceCard from '@/components/ResourceCard.vue'
+import AppPagination from '@/components/AppPagination.vue'
 
 const toast = useToastStore()
 const router = useRouter()
 const favorites = useFavoritesStore()
 
-const PAGE_SIZE = 8
+const pageSize = ref(8)
 
 const categories = ref<Category[]>([])
 const selectedCategory = ref<number | null>(null)
@@ -21,7 +22,6 @@ const total = ref(0)
 const page = ref(1)
 const loading = ref(true)
 
-const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 const currentCategoryName = computed(() => {
   if (selectedCategory.value == null) return '全部分类'
   return categories.value.find((c) => c.id === selectedCategory.value)?.name || '分类'
@@ -52,7 +52,7 @@ async function fetchKeywords() {
     const data = await contentApi.public.keywords(
       selectedCategory.value ?? undefined,
       page.value,
-      PAGE_SIZE,
+      pageSize.value,
     )
     keywords.value = data?.items ?? []
     total.value = data?.total ?? 0
@@ -70,6 +70,12 @@ function selectCategory(id: number | null) {
   selectedCategory.value = id
   page.value = 1
   router.replace({ query: id ? { category: String(id) } : {} })
+  fetchKeywords()
+}
+
+function handlePageSizeChange(size: number) {
+  pageSize.value = size
+  page.value = 1
   fetchKeywords()
 }
 
@@ -171,13 +177,14 @@ function pillClass(active: boolean) {
       </div>
 
       <!-- 分页 -->
-      <div v-if="!loading && total > PAGE_SIZE" class="mt-6 flex justify-center">
-        <NPagination
+      <div v-if="!loading && total > 0" class="mt-6">
+        <AppPagination
           :page="page"
-          :page-count="pageCount"
+          :page-size="pageSize"
           :item-count="total"
-          show-quick-jumper
+          :page-sizes="[8, 12, 20, 50]"
           @update:page="handlePageChange"
+          @update:page-size="handlePageSizeChange"
         />
       </div>
     </section>

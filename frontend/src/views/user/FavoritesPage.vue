@@ -1,23 +1,23 @@
 <script setup lang="ts">
 // 我的收藏页：ResourceCard 列表 + 分页，取消收藏从列表移除
-import { ref, computed, onMounted } from 'vue'
-import { NEmpty, NSkeleton, NPagination } from 'naive-ui'
+import { ref, onMounted } from 'vue'
+import { NEmpty, NSkeleton } from 'naive-ui'
 import { favoritesApi } from '@/api/favorite'
 import type { PublicKeyword, PaginatedKeywords } from '@/api/content'
 import { useFavoritesStore } from '@/stores/favorites'
 import { useToastStore } from '@/stores/toast'
 import ResourceCard from '@/components/ResourceCard.vue'
+import AppPagination from '@/components/AppPagination.vue'
 
 const favorites = useFavoritesStore()
 const toast = useToastStore()
 
-const PAGE_SIZE = 8
+const pageSize = ref(8)
 const items = ref<PublicKeyword[]>([])
 const total = ref(0)
 const page = ref(1)
 const loading = ref(true)
 
-const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)))
 
 onMounted(() => {
   favorites.fetchIds()
@@ -27,7 +27,7 @@ onMounted(() => {
 async function fetchList() {
   loading.value = true
   try {
-    const data: PaginatedKeywords = await favoritesApi.list(page.value, PAGE_SIZE)
+    const data: PaginatedKeywords = await favoritesApi.list(page.value, pageSize.value)
     items.value = data?.items ?? []
     total.value = data?.total ?? 0
   } catch {
@@ -37,6 +37,12 @@ async function fetchList() {
   } finally {
     loading.value = false
   }
+}
+
+function handlePageSizeChange(size: number) {
+  pageSize.value = size
+  page.value = 1
+  fetchList()
 }
 
 function handlePageChange(p: number) {
@@ -117,13 +123,14 @@ function handleKeywordCopy(kw: PublicKeyword) {
       </div>
 
       <!-- 分页 -->
-      <div v-if="!loading && total > PAGE_SIZE" class="mt-6 flex justify-center">
-        <NPagination
+      <div v-if="!loading && total > 0" class="mt-6">
+        <AppPagination
           :page="page"
-          :page-count="pageCount"
+          :page-size="pageSize"
           :item-count="total"
-          show-quick-jumper
+          :page-sizes="[8, 12, 20, 50]"
           @update:page="handlePageChange"
+          @update:page-size="handlePageSizeChange"
         />
       </div>
     </section>

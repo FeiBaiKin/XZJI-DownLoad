@@ -3,12 +3,13 @@
 // 业务逻辑与后端契约保持不变（后端返回 camelCase 行）；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted, onUnmounted, h } from 'vue'
 import {
-  NButton, NInput, NDataTable, NAlert, NSelect, NTag, NPagination, NSkeleton,
+  NButton, NInput, NDataTable, NAlert, NSelect, NTag, NSkeleton,
   type DataTableColumns,
 } from 'naive-ui'
 import api from '@/api'
 import { formatTime } from '@/utils/format'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AppPagination from '@/components/AppPagination.vue'
 import { useToastStore } from '@/stores/toast'
 
 // 后端 adminOrderRow（handler/economy.go）返回 camelCase 字段
@@ -87,7 +88,9 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 
+let ordersRequestId = 0
 async function fetchOrders() {
+  const requestId = ++ordersRequestId
   loading.value = true
   try {
     const params: QueryParams = { page: pagination.value.page, limit: pagination.value.limit, status: filter.value.status, method: filter.value.method }
@@ -96,15 +99,17 @@ async function fetchOrders() {
       api.get('/admin/payment-orders', { params }),
       api.get('/admin/payment-orders/stats'),
     ])
+    if (requestId !== ordersRequestId) return
     orders.value = ordersRes.data.list || []
     pagination.value = ordersRes.data.pagination
     stats.value = statsRes.data
     selectedIds.value = []
   } catch (e) {
+    if (requestId !== ordersRequestId) return
     console.error(e)
     toast.error('加载失败，请刷新重试')
   }
-  finally { loading.value = false }
+  finally { if (requestId === ordersRequestId) loading.value = false }
 }
 
 function handleFilterChange(key: 'status' | 'method' | 'search', value: string) {
@@ -118,6 +123,7 @@ function handleFilterChange(key: 'status' | 'method' | 'search', value: string) 
   }
 }
 function setPage(p: number) { pagination.value.page = p; fetchOrders() }
+function setPageSize(size: number) { pagination.value.limit = size; pagination.value.page = 1; fetchOrders() }
 
 function handleDelete(id: number) {
   confirmMeta.value = { title: '删除订单', message: '确定删除该订单吗？', confirmLabel: '删除', danger: true }
@@ -285,9 +291,14 @@ const columns: DataTableColumns<Order> = [
         @update:checked-row-keys="(keys) => selectedIds = keys as number[]"
       />
 
-      <div v-if="pagination.totalPages > 1" class="mt-4 flex flex-wrap items-center justify-end gap-3">
-        <span class="font-mono text-xs text-zinc-500 dark:text-zinc-400">共 {{ pagination.total }} 条</span>
-        <NPagination :page="pagination.page" :page-count="pagination.totalPages" @update:page="setPage" />
+      <div v-if="pagination.total > 0" class="mt-4">
+        <AppPagination
+          :page="pagination.page"
+          :page-size="pagination.limit"
+          :item-count="pagination.total"
+          @update:page="setPage"
+          @update:page-size="setPageSize"
+        />
       </div>
     </template>
 

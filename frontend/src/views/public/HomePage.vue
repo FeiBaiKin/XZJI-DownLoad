@@ -2,7 +2,7 @@
 // 首页：双栏布局（主内容 + 侧边栏），对话式搜索，分类Tab精选资源，公告/购买弹窗
 import { ref, computed, onMounted, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NPagination, NAvatar } from 'naive-ui'
+import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-ui'
 import {
   Search, Copy, ExternalLink, Lock, Crown, AlertCircle, Check, X,
   Clock, TrendingUp, ChevronRight, Send, Stars,
@@ -18,6 +18,7 @@ import { useFavoritesStore } from '@/stores/favorites'
 import { blockAccess } from '@/utils/blockAccess'
 import type { KeywordBlock, KeywordAttribute } from '@/types/api'
 import ResourceCard from '@/components/ResourceCard.vue'
+import AppPagination from '@/components/AppPagination.vue'
 import DOMPurify from 'dompurify'
 
 const auth = useAuthStore()
@@ -75,7 +76,7 @@ const purchasedCodes = ref<Record<string, string>>({})
 const searchHistory = ref<string[]>([])
 
 // 精选资源
-const FEATURED_PAGE_SIZE = 8
+const featuredPageSize = ref(8)
 const featuredItems = ref<PublicKeyword[]>([])
 const featuredTotal = ref(0)
 const featuredPage = ref(1)
@@ -133,9 +134,6 @@ const annTagType = computed(() => {
 })
 const annTypeLabels: Record<string, string> = { info: '通知', warning: '重要', success: '活动' }
 
-const featuredPageCount = computed(() =>
-  Math.max(1, Math.ceil(featuredTotal.value / FEATURED_PAGE_SIZE)),
-)
 
 // 热门关键词（取前6个用于快捷搜索）
 const hotKeywords = computed(() => {
@@ -170,9 +168,9 @@ async function fetchFeatured() {
   try {
     let data: PaginatedKeywords
     if (selectedCategory.value) {
-      data = await contentApi.public.keywords(selectedCategory.value, featuredPage.value, FEATURED_PAGE_SIZE)
+      data = await contentApi.public.keywords(selectedCategory.value, featuredPage.value, featuredPageSize.value)
     } else {
-      data = await contentApi.public.featured(4, featuredPage.value, FEATURED_PAGE_SIZE)
+      data = await contentApi.public.featured(4, featuredPage.value, featuredPageSize.value)
     }
     featuredItems.value = data?.items ?? []
     featuredTotal.value = data?.total ?? 0
@@ -206,6 +204,12 @@ async function fetchDownloadsToday() {
     const res = await api.get('/user/downloads-today')
     downloadsToday.value = res.data?.downloads ?? null
   } catch { downloadsToday.value = null }
+}
+
+async function handleFeaturedPageSizeChange(size: number) {
+  featuredPageSize.value = size
+  featuredPage.value = 1
+  await fetchFeatured()
 }
 
 async function handleFeaturedPageChange(p: number) {
@@ -668,13 +672,14 @@ function handleQuickAction(action: string) {
           </div>
 
           <!-- 分页 -->
-          <div v-if="!featuredLoading && featuredTotal > FEATURED_PAGE_SIZE" class="mt-6 flex justify-center">
-            <NPagination
+          <div v-if="!featuredLoading && featuredTotal > 0" class="mt-6">
+            <AppPagination
               :page="featuredPage"
-              :page-count="featuredPageCount"
+              :page-size="featuredPageSize"
               :item-count="featuredTotal"
-              show-quick-jumper
+              :page-sizes="[8, 12, 20, 50]"
               @update:page="handleFeaturedPageChange"
+              @update:page-size="handleFeaturedPageSizeChange"
             />
           </div>
         </section>

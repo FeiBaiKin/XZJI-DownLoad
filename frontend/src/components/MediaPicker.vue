@@ -3,11 +3,12 @@
 // 用法：
 //   1) 作为管理页内联使用：父组件直接渲染 <MediaPicker />
 //   2) 作为选择器：父组件监听 @select 事件，拿到的参数是 MediaFile
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { NIcon, NButton, NInput, NPagination, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { NIcon, NButton, NInput, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
 import { Upload, Link as LinkIcon, Trash, Search } from '@vicons/tabler'
 import { contentApi, type MediaFile } from '@/api/content'
 import { useToastStore } from '@/stores/toast'
+import AppPagination from '@/components/AppPagination.vue'
 
 const props = withDefaults(defineProps<{
   /** 选择模式：true 时点击图片会 emit select / enter；管理模式下点击无反应 */
@@ -28,7 +29,7 @@ const emit = defineEmits<{
 
 const toast = useToastStore()
 
-const PAGE_SIZE = computed(() => props.pageSize || 24)
+const pageSize = ref(props.pageSize || 24)
 
 const items = ref<MediaFile[]>([])
 const total = ref(0)
@@ -44,7 +45,13 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const uploadError = ref('')
 const uploadHint = ref('')
 
-const pageCount = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE.value)))
+
+watch(() => props.pageSize, (size) => {
+  if (!size || size === pageSize.value) return
+  pageSize.value = size
+  page.value = 1
+  fetchMedia()
+})
 
 onMounted(() => fetchMedia())
 onBeforeUnmount(() => { if (dragTimer) clearTimeout(dragTimer) })
@@ -53,7 +60,7 @@ async function fetchMedia() {
   loading.value = true
   uploadError.value = ''
   try {
-    const data = await contentApi.media.list(page.value, PAGE_SIZE.value, q.value || undefined)
+    const data = await contentApi.media.list(page.value, pageSize.value, q.value || undefined)
     items.value = data?.items ?? []
     total.value = data?.total ?? 0
   } catch (err) {
@@ -67,6 +74,12 @@ async function fetchMedia() {
 }
 
 function handleSearch() {
+  page.value = 1
+  fetchMedia()
+}
+
+function handlePageSizeChange(size: number) {
+  pageSize.value = size
   page.value = 1
   fetchMedia()
 }
@@ -370,13 +383,14 @@ function fmtSize(s: number) {
     </div>
 
     <!-- 分页 -->
-    <div v-if="!loading && total > PAGE_SIZE" class="flex justify-center">
-      <NPagination
+    <div v-if="!loading && total > 0">
+      <AppPagination
         :page="page"
-        :page-count="pageCount"
+        :page-size="pageSize"
         :item-count="total"
-        show-quick-jumper
+        :page-sizes="[12, 24, 48, 96]"
         @update:page="handlePageChange"
+        @update:page-size="handlePageSizeChange"
       />
     </div>
   </div>

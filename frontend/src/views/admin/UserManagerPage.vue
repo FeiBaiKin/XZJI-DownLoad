@@ -1,14 +1,15 @@
 <script setup lang="ts">
 // 用户管理：分页列表 + 编辑（余额/经验/等级/会员/角色）+ 删除
 // 业务逻辑与接口契约保持不变；UI 重构为 Naive UI + Tailwind
-import { ref, onMounted, computed, h } from 'vue'
+import { ref, onMounted, h } from 'vue'
 import {
-  NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NPagination, NModal, NIcon, NSkeleton,
+  NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NModal, NIcon, NSkeleton,
   type DataTableColumns,
 } from 'naive-ui'
 import { X } from '@vicons/tabler'
 import api from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import AppPagination from '@/components/AppPagination.vue'
 import { useToastStore } from '@/stores/toast'
 import type { UserBrief } from '@/types/api'
 
@@ -42,7 +43,7 @@ const editForm = ref<UserEditForm>({
 const saving = ref(false)
 const message = ref('')
 const confirmDeleteId = ref<number | null>(null)
-const limit = 15
+const limit = ref(15)
 
 const roleOptions = [
   { label: '普通用户', value: 'user' },
@@ -63,7 +64,7 @@ onMounted(() => { fetchUsers(); fetchTierOptions() })
 async function fetchUsers() {
   loading.value = true
   try {
-    const res = await api.get('/admin/users', { params: { page: page.value, limit } })
+    const res = await api.get('/admin/users', { params: { page: page.value, limit: limit.value } })
     users.value = res.data.users
     total.value = res.data.total
   } catch (err) { console.error(err); toast.error('加载失败，请刷新重试') }
@@ -71,8 +72,7 @@ async function fetchUsers() {
 }
 
 function setPage(p: number) { page.value = p; fetchUsers() }
-
-const totalPages = computed(() => Math.ceil(total.value / limit))
+function setPageSize(size: number) { limit.value = size; page.value = 1; fetchUsers() }
 
 function openEdit(user: UserBrief) {
   editingUser.value = user
@@ -179,8 +179,15 @@ const columns: DataTableColumns<UserBrief> = [
         class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800"
       />
 
-      <div v-if="totalPages > 1" class="mt-4 flex justify-end">
-        <NPagination :page="page" :page-count="totalPages" @update:page="setPage" />
+      <div v-if="total > 0" class="mt-4">
+        <AppPagination
+          :page="page"
+          :page-size="limit"
+          :item-count="total"
+          :page-sizes="[10, 15, 20, 50, 100]"
+          @update:page="setPage"
+          @update:page-size="setPageSize"
+        />
       </div>
 
       <!-- 编辑弹窗 -->
