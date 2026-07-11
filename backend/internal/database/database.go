@@ -44,9 +44,6 @@ func Init(cfg *config.Config) error {
 	if err := RunMigrations(gdb, migrationsDir); err != nil {
 		return fmt.Errorf("增量迁移执行失败: %w", err)
 	}
-	if err := Seed(gdb); err != nil {
-		return fmt.Errorf("种子数据写入失败: %w", err)
-	}
 	db = gdb
 	slog.Info("数据库连接成功", "host", cfg.Database.Host, "db", cfg.Database.Name)
 	return nil
@@ -101,7 +98,7 @@ func isSafeDatabaseName(name string) bool {
 	return true
 }
 
-// SetupFromInstall 安装向导专用：建库 → 连库 → 建表 → 种子
+// SetupFromInstall 安装向导专用：建库 → 连库 → 建表 → 写入最小安装数据
 func SetupFromInstall(host string, port int, user, password, dbName, sslMode, timeZone string) error {
 	if err := CreateDatabase(host, port, user, password, dbName, sslMode, timeZone); err != nil {
 		return err
@@ -121,9 +118,9 @@ func SetupFromInstall(host string, port int, user, password, dbName, sslMode, ti
 	if err := RunMigrations(gdb, migrationsDir); err != nil {
 		return fmt.Errorf("增量迁移执行失败: %w", err)
 	}
-	if err := Seed(gdb); err != nil {
-		return fmt.Errorf("种子数据失败: %w", err)
+	if err := SeedInstallData(gdb); err != nil {
+		return fmt.Errorf("最小安装数据写入失败: %w", err)
 	}
-	slog.Info("安装：建表与种子数据完成", "db", dbName)
+	slog.Info("安装：建表完成", "db", dbName)
 	return nil
 }

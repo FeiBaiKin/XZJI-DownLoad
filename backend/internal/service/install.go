@@ -102,7 +102,7 @@ func PerformInstall(req *InstallRequest) error {
 	if IsInstalled() {
 		return fmt.Errorf("系统已安装")
 	}
-	// 1. 建库 + 建表 + 种子
+	// 1. 建库 + 建表 + 最小安装数据
 	if err := database.SetupFromInstall(req.DBHost, req.DBPort, req.DBUser, req.DBPassword, req.DBName, req.DBSSLMode, req.DBTimeZone); err != nil {
 		return err
 	}

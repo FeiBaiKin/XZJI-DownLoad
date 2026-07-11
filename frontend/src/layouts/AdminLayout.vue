@@ -129,13 +129,15 @@ function handleLogout() {
       <div class="flex items-center justify-between gap-2 border-t border-zinc-200 p-4 dark:border-zinc-800">
         <p class="min-w-0 truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ auth.user?.username || 'Admin' }}</p>
         <div class="flex shrink-0 items-center gap-1">
-          <router-link
-            to="/"
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
             class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-            title="返回首页"
+            title="返回前台"
           >
             <NIcon :size="16"><Home /></NIcon>
-          </router-link>
+          </a>
           <button
             type="button"
             class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
@@ -189,9 +191,17 @@ function handleLogout() {
         <div class="flex items-center justify-between border-t border-zinc-200 p-4 dark:border-zinc-800">
           <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ auth.user?.username || 'Admin' }}</span>
           <div class="flex items-center gap-2">
-            <NButton size="small" quaternary @click="router.push('/'); mobileNavOpen = false">
+            <NButton
+              tag="a"
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              size="small"
+              quaternary
+              @click="mobileNavOpen = false"
+            >
               <template #icon><NIcon><Home /></NIcon></template>
-              返回首页
+              返回前台
             </NButton>
             <NButton size="small" quaternary type="error" @click="handleLogout">退出登录</NButton>
           </div>
