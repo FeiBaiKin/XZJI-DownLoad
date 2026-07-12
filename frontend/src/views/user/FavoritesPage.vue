@@ -8,6 +8,7 @@ import { useFavoritesStore } from '@/stores/favorites'
 import { useToastStore } from '@/stores/toast'
 import ResourceCard from '@/components/ResourceCard.vue'
 import AppPagination from '@/components/AppPagination.vue'
+import { scrollToElement } from '@/utils/motion'
 
 const favorites = useFavoritesStore()
 const toast = useToastStore()
@@ -48,7 +49,7 @@ function handlePageSizeChange(size: number) {
 function handlePageChange(p: number) {
   page.value = p
   fetchList()
-  document.getElementById('fav-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  scrollToElement('fav-list')
 }
 
 async function handleToggleFav(kw: PublicKeyword) {
@@ -111,16 +112,17 @@ function handleKeywordCopy(kw: PublicKeyword) {
       </div>
 
       <!-- 收藏列表 -->
-      <div v-else class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+      <TransitionGroup v-else name="resource-list" tag="div" class="grid gap-3 sm:grid-cols-2 sm:gap-4" appear>
         <ResourceCard
-          v-for="kw in items"
+          v-for="(kw, index) in items"
           :key="kw.id"
           :keyword="kw"
           :favorited="true"
+          :style="{ '--item-index': index }"
           @copy="handleKeywordCopy"
           @toggle-favorite="handleToggleFav(kw)"
         />
-      </div>
+      </TransitionGroup>
 
       <!-- 分页 -->
       <div v-if="!loading && total > 0" class="mt-6">

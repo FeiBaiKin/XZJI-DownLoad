@@ -247,3 +247,202 @@
 [data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.important,
 [data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.regex,
 [data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.variable { color: #e5c07b; }
+
+
+/* ── 公共动效系统：层级、状态切换与操作反馈；不使用装饰性常驻动画 ── */
+:root {
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.sidebar-card {
+  isolation: isolate;
+}
+.sidebar-row:hover,
+.sidebar-quick-item:hover {
+  background: color-mix(in oklab, var(--color-emerald-50) 54%, transparent);
+}
+[data-theme='dark'] .sidebar-row:hover,
+[data-theme='dark'] .sidebar-quick-item:hover {
+  background: color-mix(in oklab, var(--color-emerald-400) 6%, transparent);
+}
+.sidebar-action:hover:not(:disabled) {
+  color: var(--color-emerald-600);
+  background: color-mix(in oklab, var(--color-emerald-50) 70%, transparent);
+}
+[data-theme='dark'] .sidebar-action:hover:not(:disabled) {
+  color: var(--color-emerald-400);
+  background: color-mix(in oklab, var(--color-emerald-400) 8%, transparent);
+}
+.sidebar-quick-item:nth-child(odd) {
+  border-right: 1px solid var(--color-zinc-100);
+}
+.sidebar-quick-item:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--color-zinc-100);
+}
+[data-theme='dark'] .sidebar-quick-item:nth-child(odd) {
+  border-right-color: var(--color-zinc-800);
+}
+[data-theme='dark'] .sidebar-quick-item:nth-child(-n + 2) {
+  border-bottom-color: var(--color-zinc-800);
+}
+
+@keyframes ui-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ui-enter {
+    animation: ui-enter 520ms var(--motion-ease-out) both;
+    animation-delay: var(--enter-delay, 0ms);
+  }
+
+  .sidebar-stack > * {
+    animation: ui-enter 480ms var(--motion-ease-out) both;
+  }
+  .sidebar-stack > :nth-child(1) { animation-delay: 70ms; }
+  .sidebar-stack > :nth-child(2) { animation-delay: 120ms; }
+  .sidebar-stack > :nth-child(3) { animation-delay: 170ms; }
+  .sidebar-stack > :nth-child(4) { animation-delay: 220ms; }
+  .sidebar-stack > :nth-child(5) { animation-delay: 270ms; }
+
+  .resource-card {
+    transition:
+      transform 240ms var(--motion-ease-out),
+      border-color 200ms var(--motion-ease-standard),
+      box-shadow 240ms var(--motion-ease-out),
+      background-color 200ms var(--motion-ease-standard);
+  }
+  .resource-card__icon {
+    transition: transform 300ms var(--motion-ease-out);
+  }
+
+  .sidebar-row,
+  .sidebar-quick-item,
+  .sidebar-action,
+  .sidebar-row__arrow {
+    transition:
+      color 180ms var(--motion-ease-standard),
+      border-color 180ms var(--motion-ease-standard),
+      background-color 180ms var(--motion-ease-standard),
+      transform 220ms var(--motion-ease-out);
+  }
+  .sidebar-row:hover .sidebar-row__arrow {
+    color: var(--color-emerald-500);
+    transform: translate(2px, -2px);
+  }
+  .sidebar-row:active,
+  .sidebar-quick-item:active {
+    transform: scale(0.99);
+  }
+  .sidebar-action:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+  .discovery-refresh.is-loading > * {
+    animation: refresh-spin 700ms linear infinite;
+  }
+
+  .result-reveal-enter-active,
+  .result-reveal-leave-active {
+    transition:
+      opacity 240ms var(--motion-ease-standard),
+      transform 320ms var(--motion-ease-out);
+  }
+  .result-reveal-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  .result-reveal-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  .resource-list-enter-active {
+    transition:
+      opacity 300ms var(--motion-ease-standard),
+      transform 360ms var(--motion-ease-out);
+    transition-delay: calc(var(--item-index, 0) * 34ms);
+  }
+  .resource-list-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  .resource-list-leave-active {
+    transition:
+      opacity 180ms var(--motion-ease-standard),
+      transform 220ms var(--motion-ease-out);
+  }
+  .resource-list-leave-to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  .resource-list-move {
+    transition: transform 320ms var(--motion-ease-out);
+  }
+
+
+  .history-list-enter-active,
+  .history-list-leave-active {
+    transition:
+      opacity 180ms var(--motion-ease-standard),
+      transform 220ms var(--motion-ease-out);
+  }
+  .history-list-enter-from,
+  .history-list-leave-to {
+    opacity: 0;
+    transform: translateX(5px);
+  }
+
+  .discovery-swap-enter-active,
+  .discovery-swap-leave-active {
+    transition:
+      opacity 180ms var(--motion-ease-standard),
+      transform 240ms var(--motion-ease-out);
+  }
+  .discovery-swap-enter-from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  .discovery-swap-leave-to {
+    opacity: 0;
+    transform: translateX(-4px);
+  }
+
+  .page-shift-enter-active,
+  .page-shift-leave-active {
+    transition:
+      opacity 180ms var(--motion-ease-standard),
+      transform 260ms var(--motion-ease-out);
+  }
+  .page-shift-enter-from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  .page-shift-leave-to {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+/* 系统要求减少动态效果时，包含 Naive UI 在内的过渡都快速归零。 */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

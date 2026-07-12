@@ -103,7 +103,7 @@ function handleKeydown(e: KeyboardEvent) {
   <div
     role="button"
     tabindex="0"
-    class="group relative flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left motion-safe:transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:bg-zinc-900"
+    class="resource-card group relative flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 active:scale-[0.995] dark:bg-zinc-900"
     :class="copied
       ? 'border-emerald-500 ring-1 ring-emerald-500/40 dark:border-emerald-400'
       : 'border-zinc-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:shadow-md dark:border-zinc-800 dark:hover:border-emerald-400/50'"
@@ -115,7 +115,7 @@ function handleKeydown(e: KeyboardEvent) {
     <div class="flex items-start gap-2.5 pr-7">
       <!-- 真实图标 / 首字母回退 -->
       <div
-        class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-bold motion-safe:transition-transform group-hover:scale-105"
+        class="resource-card__icon grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-bold group-hover:scale-[1.04]"
         :class="keyword.icon ? '' : avatarColor"
       >
         <img v-if="keyword.icon" :src="keyword.icon" :alt="keyword.keyword" class="size-full object-cover" loading="lazy" />

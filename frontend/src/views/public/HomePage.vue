@@ -6,7 +6,7 @@ import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-
 import {
   Search, Copy, ExternalLink, Lock, Crown, AlertCircle, Check, X,
   Clock, TrendingUp, ChevronRight, Send, Stars,
-  Apps, Help, QuestionMark,
+  Apps, Help, QuestionMark, Compass, Refresh, ArrowUpRight, History,
   User, Coin, Download, Heart,
 } from '@vicons/tabler'
 import api from '@/api'
@@ -16,6 +16,7 @@ import { useToastStore } from '@/stores/toast'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useFavoritesStore } from '@/stores/favorites'
 import { blockAccess } from '@/utils/blockAccess'
+import { scrollToElement } from '@/utils/motion'
 import type { KeywordBlock, KeywordAttribute } from '@/types/api'
 import ResourceCard from '@/components/ResourceCard.vue'
 import AppPagination from '@/components/AppPagination.vue'
@@ -90,11 +91,23 @@ const selectedCategory = ref<number | null>(null)
 const recentKeywords = ref<PublicKeyword[]>([])
 const sidebarLoading = ref(true)
 const downloadsToday = ref<number | null>(null)
+const keywordTotal = ref(0)
+const discoveryKeywords = ref<PublicKeyword[]>([])
+const discoveryLoading = ref(true)
+const discoveryBatch = ref(0)
+let discoveryPage = 0
 
 // 公告
 const visibleAnn = ref<Announcement | null>(null)
 
 const inputRef = ref<HTMLInputElement | null>(null)
+
+const quickActions: { action: string; label: string; icon: Component }[] = [
+  { action: 'search', label: '搜索资源', icon: Search },
+  { action: 'categories', label: '分类浏览', icon: Apps },
+  { action: 'help', label: '帮助中心', icon: Help },
+  { action: 'about', label: '关于本站', icon: QuestionMark },
+]
 
 const isLoggedIn = computed(() => auth.isLoggedIn)
 
@@ -192,10 +205,39 @@ async function fetchRecentKeywords() {
   try {
     const data = await contentApi.public.keywords(undefined, 1, 5)
     recentKeywords.value = data?.items ?? []
+    keywordTotal.value = data?.total ?? 0
   } catch {
     recentKeywords.value = []
+    keywordTotal.value = 0
   } finally {
     sidebarLoading.value = false
+  }
+  await refreshDiscovery()
+}
+
+// 从整个关键词库中随机抽取一页，让侧边栏随内容规模增长而更有探索价值
+async function refreshDiscovery() {
+  discoveryLoading.value = true
+  try {
+    if (keywordTotal.value <= 0) {
+      discoveryKeywords.value = []
+      return
+    }
+    const pageSize = 3
+    const maxPage = Math.max(1, Math.ceil(keywordTotal.value / pageSize))
+    let nextPage = Math.floor(Math.random() * maxPage) + 1
+    if (maxPage > 1 && nextPage === discoveryPage) nextPage = (nextPage % maxPage) + 1
+    discoveryPage = nextPage
+    const data = await contentApi.public.keywords(undefined, nextPage, pageSize)
+    discoveryKeywords.value = data?.items ?? []
+    discoveryBatch.value += 1
+  } catch {
+    if (discoveryKeywords.value.length === 0) {
+      discoveryKeywords.value = recentKeywords.value.slice(0, 3)
+      discoveryBatch.value += 1
+    }
+  } finally {
+    discoveryLoading.value = false
   }
 }
 
@@ -215,7 +257,7 @@ async function handleFeaturedPageSizeChange(size: number) {
 async function handleFeaturedPageChange(p: number) {
   featuredPage.value = p
   await fetchFeatured()
-  document.getElementById('featured')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  scrollToElement('featured')
 }
 
 async function handleCategoryChange(catId: number | null) {
@@ -245,11 +287,9 @@ async function handleSearch(query?: string) {
   purchasedLinks.value = {}
   purchasedCodes.value = {}
   keyword.value = q
-  // 更新搜索历史
-  if (!searchHistory.value.includes(q)) {
-    searchHistory.value = [q, ...searchHistory.value].slice(0, 10)
-    localStorage.setItem('search_history', JSON.stringify(searchHistory.value))
-  }
+  // 更新搜索历史：重复搜索也移动到最前，保持“最近”语义准确
+  searchHistory.value = [q, ...searchHistory.value.filter(item => item !== q)].slice(0, 10)
+  localStorage.setItem('search_history', JSON.stringify(searchHistory.value))
   try {
     const data = await contentApi.public.search(q)
     if (typeof data.response === 'string') {
@@ -306,6 +346,16 @@ function handleCopyCode(code: string, idx: number) {
 function handleKeywordCopy(kw: PublicKeyword) {
   keyword.value = kw.keyword
   inputRef.value?.focus()
+}
+
+async function handleSidebarSearch(query: string) {
+  scrollToElement('search-panel')
+  await handleSearch(query)
+}
+
+function clearSearchHistory() {
+  searchHistory.value = []
+  localStorage.removeItem('search_history')
 }
 
 // ── 链接访问控制 ──
@@ -375,6 +425,7 @@ function dismissAnnouncement() {
 function handleQuickAction(action: string) {
   switch (action) {
     case 'search':
+      scrollToElement('search-panel')
       inputRef.value?.focus()
       break
     case 'categories':
@@ -393,12 +444,12 @@ function handleQuickAction(action: string) {
 <template>
   <div>
     <!-- ═══ 双栏区域 ═══ -->
-    <div class="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 pt-14 sm:pt-20">
+    <div class="home-shell pt-14 sm:pt-20 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
       <!-- ── 左栏：主内容 ── -->
       <div class="min-w-0">
 
         <!-- ① 搜索模块（对话式） -->
-        <section class="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <section id="search-panel" class="ui-enter scroll-mt-24 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <!-- 对话区域 -->
           <div class="px-5 pt-5 sm:px-6 sm:pt-6">
             <!-- 热门关键词快捷标签 -->
@@ -421,7 +472,8 @@ function handleQuickAction(action: string) {
             </div>
 
             <!-- 搜索结果：对话式展示 -->
-            <div v-if="result" class="space-y-4">
+            <Transition name="result-reveal" mode="out-in">
+              <div v-if="result" :key="result.keyword" class="space-y-4">
               <!-- 用户查询气泡 -->
               <div class="flex items-start justify-end gap-2.5">
                 <div class="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 dark:bg-emerald-400">
@@ -540,7 +592,8 @@ function handleQuickAction(action: string) {
                   <p v-else class="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-700 dark:text-zinc-300">{{ result.response }}</p>
                 </div>
               </div>
-            </div>
+              </div>
+            </Transition>
 
             <!-- 搜索结果元信息 -->
             <div
@@ -584,7 +637,7 @@ function handleQuickAction(action: string) {
         </section>
 
         <!-- ② 精选资源模块 -->
-        <section id="featured" class="mt-8 scroll-mt-20">
+        <section id="featured" class="ui-enter mt-8 scroll-mt-20 [--enter-delay:120ms]">
           <div class="mb-4 flex items-center justify-between">
             <div class="flex items-center gap-2">
               <NIcon :size="18" class="text-emerald-600 dark:text-emerald-400"><Stars /></NIcon>
@@ -659,17 +712,24 @@ function handleQuickAction(action: string) {
           </div>
 
           <!-- 资源列表（两列网格卡片） -->
-          <div v-else class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+          <TransitionGroup
+            v-else
+            name="resource-list"
+            tag="div"
+            class="grid gap-3 sm:grid-cols-2 sm:gap-4"
+            appear
+          >
             <ResourceCard
-              v-for="kw in featuredItems"
+              v-for="(kw, index) in featuredItems"
               :key="kw.id"
               :keyword="kw"
               :category-name="categories.find((c: Category) => c.id === selectedCategory)?.name"
               :favorited="favorites.has(kw.id)"
+              :style="{ '--item-index': index }"
               @copy="handleKeywordCopy"
               @toggle-favorite="favorites.toggle(kw.id)"
             />
-          </div>
+          </TransitionGroup>
 
           <!-- 分页 -->
           <div v-if="!featuredLoading && featuredTotal > 0" class="mt-6">
@@ -686,9 +746,9 @@ function handleQuickAction(action: string) {
       </div>
 
       <!-- ── 右栏：侧边栏 ── -->
-      <aside class="mt-8 space-y-5 lg:mt-0">
+      <aside class="sidebar-stack mt-8 space-y-5 lg:mt-0">
         <!-- ① 个人信息卡片 -->
-        <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <!-- 顶部用户信息 -->
           <div class="px-5 pb-3 pt-5">
             <div class="flex items-center gap-3">
@@ -764,82 +824,156 @@ function handleQuickAction(action: string) {
           </div>
         </div>
 
-        <!-- ② 最新更新 -->
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="mb-3 flex items-center justify-between">
+        <!-- ② 灵感漫游 -->
+        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
+            <div class="flex items-center gap-2">
+              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Compass /></NIcon>
+              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">灵感漫游</h3>
+            </div>
+            <button
+              type="button"
+              class="sidebar-action discovery-refresh grid size-8 shrink-0 place-items-center rounded-full text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+              :class="{ 'is-loading': discoveryLoading }"
+              :disabled="discoveryLoading"
+              title="换一组关键词"
+              aria-label="换一组关键词"
+              @click="refreshDiscovery"
+            >
+              <NIcon :size="15"><Refresh /></NIcon>
+            </button>
+          </div>
+
+          <Transition name="discovery-swap" mode="out-in">
+            <div v-if="discoveryLoading && discoveryKeywords.length === 0" key="loading" class="space-y-3 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800">
+              <div v-for="i in 3" :key="i" class="flex items-center gap-3">
+                <NSkeleton circle width="32px" height="32px" />
+                <div class="flex-1 space-y-1.5"><NSkeleton text width="62%" /><NSkeleton text width="88%" /></div>
+              </div>
+            </div>
+            <div v-else-if="discoveryKeywords.length > 0" :key="discoveryBatch" class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+              <button
+                v-for="(kw, index) in discoveryKeywords"
+                :key="kw.id"
+                type="button"
+                class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+                :title="`搜索「${kw.keyword}」`"
+                @click="handleSidebarSearch(kw.keyword)"
+              >
+                <span class="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-zinc-100 font-mono text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                  <img v-if="kw.icon" :src="kw.icon" alt="" class="size-full object-cover" loading="lazy" />
+                  <span v-else>0{{ index + 1 }}</span>
+                </span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ kw.keyword }}</span>
+                  <span class="mt-0.5 block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{{ kw.description || '点击查看相关资源' }}</span>
+                </span>
+                <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+              </button>
+            </div>
+            <div v-else key="empty" class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+              暂无可探索的关键词
+            </div>
+          </Transition>
+        </div>
+
+        <!-- ③ 最近搜索 -->
+        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
+            <div class="flex items-center gap-2">
+              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><History /></NIcon>
+              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">最近搜索</h3>
+            </div>
+            <button
+              v-if="searchHistory.length > 0"
+              type="button"
+              class="sidebar-action rounded-md px-2 py-1 text-[11px] text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+              @click="clearSearchHistory"
+            >清除</button>
+          </div>
+          <TransitionGroup v-if="searchHistory.length > 0" name="history-list" tag="div" class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+            <button
+              v-for="item in searchHistory.slice(0, 5)"
+              :key="item"
+              type="button"
+              class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              @click="handleSidebarSearch(item)"
+            >
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                <NIcon :size="14"><Search /></NIcon>
+              </span>
+              <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ item }}</span>
+              <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+            </button>
+          </TransitionGroup>
+          <div v-else class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+            搜索过的关键词会显示在这里
+          </div>
+        </div>
+
+        <!-- ④ 最新更新 -->
+        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
             <div class="flex items-center gap-2">
               <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Clock /></NIcon>
               <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">最新更新</h3>
             </div>
             <router-link
               to="/categories"
-              class="flex items-center gap-1 rounded text-[11px] text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
-            >
-              更多 <NIcon :size="11"><ChevronRight /></NIcon>
-            </router-link>
+              class="sidebar-action flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+            >更多 <NIcon :size="11"><ChevronRight /></NIcon></router-link>
           </div>
 
-          <div v-if="sidebarLoading" class="space-y-3">
-            <div v-for="i in 4" :key="i" class="flex items-center justify-between gap-2.5">
-              <NSkeleton text width="60%" />
-              <NSkeleton text width="20%" />
+          <div v-if="sidebarLoading" class="space-y-3 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <div v-for="i in 4" :key="i" class="flex items-center gap-3">
+              <NSkeleton circle width="32px" height="32px" />
+              <div class="flex-1 space-y-1.5"><NSkeleton text width="62%" /><NSkeleton text width="34%" /></div>
             </div>
           </div>
-          <div v-else-if="recentKeywords.length === 0" class="py-2 text-center text-xs text-zinc-400 dark:text-zinc-500">
+          <div v-else-if="recentKeywords.length === 0" class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
             暂无更新
           </div>
-          <ul v-else class="space-y-2.5">
-            <li v-for="kw in recentKeywords" :key="kw.id">
-              <button
-                type="button"
-                class="flex w-full items-center gap-2 rounded text-left motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
-                @click="handleSearch(kw.keyword)"
-              >
-                <span class="min-w-0 flex-1 truncate text-[13px] text-zinc-700 dark:text-zinc-300">{{ kw.keyword }}</span>
-                <span class="shrink-0 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{{ formatRelative(kw.updated_at || kw.created_at) }}</span>
-              </button>
-            </li>
-          </ul>
+          <div v-else class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+            <button
+              v-for="(kw, index) in recentKeywords"
+              :key="kw.id"
+              type="button"
+              class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              @click="handleSidebarSearch(kw.keyword)"
+            >
+              <span class="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-zinc-100 font-mono text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                <img v-if="kw.icon" :src="kw.icon" alt="" class="size-full object-cover" loading="lazy" />
+                <span v-else>0{{ index + 1 }}</span>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ kw.keyword }}</span>
+                <span class="mt-0.5 block font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{{ formatRelative(kw.updated_at || kw.created_at) }}</span>
+              </span>
+              <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+            </button>
+          </div>
         </div>
 
-        <!-- ④ 快捷入口 -->
-        <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="mb-3 flex items-center gap-2">
-            <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Apps /></NIcon>
-            <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">快捷入口</h3>
+        <!-- ⑤ 快捷入口 -->
+        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+          <div class="sidebar-card__header flex min-h-16 items-center px-5 py-4">
+            <div class="flex items-center gap-2">
+              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Apps /></NIcon>
+              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">快捷入口</h3>
+            </div>
           </div>
-          <div class="grid grid-cols-2 gap-2.5">
+          <div class="sidebar-quick-grid grid grid-cols-2 border-t border-zinc-100 dark:border-zinc-800">
             <button
+              v-for="item in quickActions"
+              :key="item.action"
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
-              @click="handleQuickAction('search')"
+              class="sidebar-quick-item flex items-center gap-2.5 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              @click="handleQuickAction(item.action)"
             >
-              <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Search /></NIcon>
-              <span class="text-[12px] text-zinc-600 dark:text-zinc-400">搜索资源</span>
-            </button>
-            <button
-              type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
-              @click="handleQuickAction('categories')"
-            >
-              <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Apps /></NIcon>
-              <span class="text-[12px] text-zinc-600 dark:text-zinc-400">分类浏览</span>
-            </button>
-            <button
-              type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
-              @click="handleQuickAction('help')"
-            >
-              <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><Help /></NIcon>
-              <span class="text-[12px] text-zinc-600 dark:text-zinc-400">帮助中心</span>
-            </button>
-            <button
-              type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl border border-zinc-200 py-3 motion-safe:transition-colors hover:border-emerald-400/60 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:hover:border-emerald-400/30 dark:hover:bg-emerald-400/5 dark:focus-visible:ring-emerald-400/60"
-              @click="handleQuickAction('about')"
-            >
-              <NIcon :size="20" class="text-zinc-500 dark:text-zinc-400"><QuestionMark /></NIcon>
-              <span class="text-[12px] text-zinc-600 dark:text-zinc-400">关于本站</span>
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                <NIcon :size="16"><component :is="item.icon" /></NIcon>
+              </span>
+              <span class="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">{{ item.label }}</span>
             </button>
           </div>
         </div>

@@ -157,7 +157,11 @@ function handleUserMenuSelect(key: string) {
 
     <!-- 主体 -->
     <main class="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6">
-      <RouterView />
+      <RouterView v-slot="{ Component, route }">
+        <Transition name="page-shift" mode="out-in">
+          <component :is="Component" :key="route.path" />
+        </Transition>
+      </RouterView>
     </main>
 
     <!-- Footer：自定义页面链接左对齐，站点信息 + 备案号右对齐，共用 | 分隔符 -->

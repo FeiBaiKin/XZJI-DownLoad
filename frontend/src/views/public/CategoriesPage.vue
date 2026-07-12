@@ -8,6 +8,7 @@ import { useToastStore } from '@/stores/toast'
 import { useFavoritesStore } from '@/stores/favorites'
 import ResourceCard from '@/components/ResourceCard.vue'
 import AppPagination from '@/components/AppPagination.vue'
+import { scrollToElement } from '@/utils/motion'
 
 const toast = useToastStore()
 const router = useRouter()
@@ -82,7 +83,7 @@ function handlePageSizeChange(size: number) {
 function handlePageChange(p: number) {
   page.value = p
   fetchKeywords()
-  document.getElementById('kw-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  scrollToElement('kw-list')
 }
 
 function handleKeywordCopy(kw: PublicKeyword) {
@@ -164,17 +165,18 @@ function pillClass(active: boolean) {
       </div>
 
       <!-- 资源列表（两列网格卡片） -->
-      <div v-else class="grid gap-3 sm:grid-cols-2 sm:gap-4">
+      <TransitionGroup v-else name="resource-list" tag="div" class="grid gap-3 sm:grid-cols-2 sm:gap-4" appear>
         <ResourceCard
-          v-for="kw in keywords"
+          v-for="(kw, index) in keywords"
           :key="kw.id"
           :keyword="kw"
           :category-name="currentCategoryName !== '全部分类' ? currentCategoryName : undefined"
           :favorited="favorites.has(kw.id)"
+          :style="{ '--item-index': index }"
           @copy="handleKeywordCopy"
           @toggle-favorite="favorites.toggle(kw.id)"
         />
-      </div>
+      </TransitionGroup>
 
       <!-- 分页 -->
       <div v-if="!loading && total > 0" class="mt-6">

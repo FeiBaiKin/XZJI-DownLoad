@@ -3,4 +3,4 @@ package version
 // Version 当前程序版本号，发版时手动递增。
 // 激活/心跳时上报授权升级中心，中心据此判断是否返回可用更新（update 字段）。
 // 打更新包时须保证包内二进制的该常量与中心后台登记的版本号一致。
-const Version = "1.2.9"
+const Version = "1.3.0"
