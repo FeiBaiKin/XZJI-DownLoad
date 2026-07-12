@@ -19,6 +19,11 @@ func SetupInstallOnly() *gin.Engine {
 	r.Use(gin.Recovery(), middleware.CORS())
 	r.Use(gin.Logger())
 
+	// SEO/GEO machine-readable discovery endpoints
+	r.GET("/robots.txt", handler.RobotsTxt)
+	r.GET("/sitemap.xml", handler.SitemapXML)
+	r.GET("/llms.txt", handler.LlmsTxt)
+
 	api := r.Group("/api")
 	{
 		api.GET("/install/status", handler.InstallStatus)
@@ -43,6 +48,11 @@ func SetupFull(application *app.App) *gin.Engine {
 		c.Next()
 	})
 
+	// SEO/GEO machine-readable discovery endpoints
+	r.GET("/robots.txt", handler.RobotsTxt)
+	r.GET("/sitemap.xml", handler.SitemapXML)
+	r.GET("/llms.txt", handler.LlmsTxt)
+
 	api := r.Group("/api")
 	{
 		api.GET("/health", handler.Health)
@@ -65,6 +75,7 @@ func SetupFull(application *app.App) *gin.Engine {
 		}
 		// 站点设置/授权状态：放行，前端渲染框架与停服遮罩依赖它们
 		api.GET("/settings", handler.PublicSettings)
+		api.GET("/seo", handler.PublicSEOSettings)
 		api.GET("/site/config", handler.PublicSiteConfig)
 		api.GET("/license/status", handler.PublicLicenseStatus)
 
@@ -132,14 +143,14 @@ func SetupFull(application *app.App) *gin.Engine {
 			admin.DELETE("/keywords/:id", handler.AdminKeywordDelete)
 			admin.GET("/keywords/:id/categories", handler.AdminKeywordCategoriesGet)
 			admin.PUT("/keywords/:id/categories", handler.AdminKeywordCategoriesSet)
-		// 关键词图标
-		admin.POST("/keywords/:id/icon", handler.AdminKeywordUploadIcon)
-		admin.DELETE("/keywords/:id/icon", handler.AdminKeywordClearIcon)
-		// 媒体库
-		admin.GET("/media", handler.AdminMediaList)
-		admin.POST("/media", handler.AdminMediaUpload)
-		admin.POST("/media/url", handler.AdminMediaUploadByURL)
-		admin.DELETE("/media/:id", handler.AdminMediaDelete)
+			// 关键词图标
+			admin.POST("/keywords/:id/icon", handler.AdminKeywordUploadIcon)
+			admin.DELETE("/keywords/:id/icon", handler.AdminKeywordClearIcon)
+			// 媒体库
+			admin.GET("/media", handler.AdminMediaList)
+			admin.POST("/media", handler.AdminMediaUpload)
+			admin.POST("/media/url", handler.AdminMediaUploadByURL)
+			admin.DELETE("/media/:id", handler.AdminMediaDelete)
 			// 分类
 			admin.GET("/categories", handler.AdminCategoriesList)
 			admin.POST("/categories", handler.AdminCategoryCreate)

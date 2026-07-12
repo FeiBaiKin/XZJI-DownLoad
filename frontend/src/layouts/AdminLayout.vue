@@ -62,6 +62,7 @@ const menuOptions: MenuOption[] = [
     icon: renderIcon(Settings),
     children: [
       { label: '网站设置', key: '/admin/settings' },
+      { label: 'SEO / GEO', key: '/admin/seo' },
       { label: '邮箱配置', key: '/admin/email' },
       { label: '授权管理', key: '/admin/license' },
     ],

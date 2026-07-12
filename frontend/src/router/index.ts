@@ -54,6 +54,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'pages', name: 'admin-pages', component: () => import('@/views/admin/PageManager.vue') },
       { path: 'announcements', name: 'admin-announcements', component: () => import('@/views/admin/AnnouncementManager.vue') },
       { path: 'settings', name: 'admin-settings', component: () => import('@/views/admin/SettingsPage.vue') },
+      { path: 'seo', name: 'admin-seo', component: () => import('@/views/admin/SeoGeoSettingsPage.vue') },
       { path: 'email', name: 'admin-email', component: () => import('@/views/admin/EmailConfigPage.vue') },
       { path: 'users', name: 'admin-users', component: () => import('@/views/admin/UserManagerPage.vue') },
       { path: 'checkin', name: 'admin-checkin', component: () => import('@/views/admin/CheckinConfigPage.vue') },
