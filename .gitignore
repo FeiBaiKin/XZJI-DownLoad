@@ -3,7 +3,8 @@ backend/backend.exe
 backend/backend
 backend/config.yaml
 backend/.installed
-backend/uploads/*
+# 运行时上传文件：只允许提交占位符
+backend/uploads/**
 !backend/uploads/.gitkeep
 backend/license.json
 backend/backup/
