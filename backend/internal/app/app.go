@@ -36,9 +36,17 @@ func NewApp(db *gorm.DB, jwtSecret string, lic *license.Manager) *App {
 		AuthService: &service.AuthService{DB: db, JWTSecret: jwtSecret},
 		UserService: &service.UserService{DB: db},
 		ContentSvc:  &service.ContentService{DB: db},
-			EconomySvc:  &service.EconomyService{DB: db},
-			FavoriteSvc: &service.FavoriteService{DB: db},
-			Cache:       cache.NewConfigCache(),
+		EconomySvc:  &service.EconomyService{DB: db},
+		FavoriteSvc: &service.FavoriteService{DB: db},
+		Cache:       cache.NewConfigCache(),
 		License:     lic,
 	}
+}
+
+// GetDB 供 middleware 等通过接口取库（避免 import 环）。
+func (a *App) GetDB() *gorm.DB {
+	if a == nil {
+		return nil
+	}
+	return a.DB
 }

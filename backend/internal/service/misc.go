@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"xzji/backend/internal/apperr"
 	"xzji/backend/internal/models"
 )
 
@@ -138,14 +139,14 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 	err := db.Transaction(func(tx *gorm.DB) error {
 		// 锁定用户行，防止并发签到（GORM v2 中 gorm:query_option 已失效，必须用 clause.Locking）
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
-			return fmt.Errorf("用户不存在")
+			return apperr.NotFound("用户不存在")
 		}
 
 		// 检查今日是否已签到（Find 避免未签到时的 "record not found" 噪音日志）
 		var exist models.CheckInRecord
 		tx.Where("user_id = ? AND check_in_date = ?", userID, today).Limit(1).Find(&exist)
 		if exist.ID > 0 {
-			return fmt.Errorf("今日已签到，请明天再来")
+			return apperr.Conflict("今日已签到，请明天再来")
 		}
 
 		// 创建签到记录：写入本地日期零点，保证与 today 查询条件、unique_daily 落在同一天
@@ -156,9 +157,9 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 		}).Error; err != nil {
 			// 撞 unique_daily 唯一键说明并发下已有当日记录，按已签到返回而非暴露内部错误
 			if isUniqueViolation(err) {
-				return fmt.Errorf("今日已签到，请明天再来")
+				return apperr.Conflict("今日已签到，请明天再来")
 			}
-			return fmt.Errorf("创建签到记录失败: %w", err)
+			return apperr.Wrap("创建签到记录失败", err)
 		}
 
 		// 更新用户余额和经验
@@ -166,7 +167,7 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 			"balance": gorm.Expr("balance + ?", bal),
 			"exp":     gorm.Expr("exp + ?", exp),
 		}).Error; err != nil {
-			return fmt.Errorf("更新用户余额失败: %w", err)
+			return apperr.Wrap("更新用户余额失败", err)
 		}
 
 		// 创建积分流水
@@ -180,7 +181,7 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 			UserID: userID, Type: txType, Amount: bal,
 			ExpEarned: exp, Description: desc,
 		}).Error; err != nil {
-			return fmt.Errorf("创建积分流水失败: %w", err)
+			return apperr.Wrap("创建积分流水失败", err)
 		}
 
 		// 重新加载用户数据以返回最新值
@@ -252,11 +253,22 @@ func DashboardStats(db *gorm.DB) (map[string]any, error) {
 	weekAgo := time.Now().AddDate(0, 0, -7)
 	monthAgo := time.Now().AddDate(0, 0, -30)
 
-	// 优化：关键词数量（单独查询，无法合并）
-	var kwCnt int64
-	db.Model(&models.KeywordResponse{}).Count(&kwCnt)
+	// 关键词：总数 + 已上架 / 草稿
+	type kwStats struct {
+		Total     int64
+		Published int64
+		Draft     int64
+	}
+	var ks kwStats
+	db.Raw(`
+		SELECT
+			COUNT(*) as total,
+			SUM(CASE WHEN status = 'published' OR status = '' OR status IS NULL THEN 1 ELSE 0 END) as published,
+			SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft
+		FROM keyword_responses
+	`).Scan(&ks)
 
-	// 优化：合并用户统计查询（总数 + 今日/本周/本月新增）
+	// 合并用户统计
 	type userStats struct {
 		Total     int64
 		NewToday  int64
@@ -277,7 +289,7 @@ func DashboardStats(db *gorm.DB) (map[string]any, error) {
 		FROM users
 	`, today, weekAgo, monthAgo).Scan(&us)
 
-	// 优化：合并订单统计查询（总数/已支付/待支付 + 收入统计）
+	// 订单 + 收入
 	type orderStats struct {
 		Total    int64
 		Paid     int64
@@ -298,15 +310,12 @@ func DashboardStats(db *gorm.DB) (map[string]any, error) {
 		FROM payment_orders
 	`, monthAgo, today).Scan(&os)
 
-	// 今日签到数（单独查询）
 	var ckToday int64
 	db.Model(&models.CheckInRecord{}).Where("check_in_date = ?", today).Count(&ckToday)
 
-	// 站点名称（单独查询）
 	var siteName string
 	db.Raw("SELECT setting_value FROM site_settings WHERE setting_key = 'siteName' LIMIT 1").Scan(&siteName)
 
-	// 支付方式分布（已优化，使用 GROUP BY）
 	type methodStat struct {
 		PaymentMethod string  `json:"payment_method"`
 		Count         int64   `json:"count"`
@@ -316,12 +325,121 @@ func DashboardStats(db *gorm.DB) (map[string]any, error) {
 	db.Raw(`SELECT payment_method, COUNT(*) as count, COALESCE(SUM(amount),0) as revenue
 		FROM payment_orders WHERE status = 'paid' GROUP BY payment_method ORDER BY revenue DESC`).Scan(&methods)
 
+	// 近 7 日收入趋势（含无订单日）
+	type dayRev struct {
+		Day     string  `json:"date"`
+		Revenue float64 `json:"revenue"`
+		Orders  int64   `json:"orders"`
+	}
+	var rawDays []dayRev
+	db.Raw(`
+		SELECT TO_CHAR(DATE(paid_at), 'YYYY-MM-DD') as day,
+		       COALESCE(SUM(amount), 0) as revenue,
+		       COUNT(*) as orders
+		FROM payment_orders
+		WHERE status = 'paid' AND paid_at >= ?
+		GROUP BY DATE(paid_at)
+		ORDER BY day ASC
+	`, weekAgo).Scan(&rawDays)
+	dayMap := map[string]dayRev{}
+	for _, d := range rawDays {
+		dayMap[d.Day] = d
+	}
+	revenueTrend := make([]dayRev, 0, 7)
+	for i := 6; i >= 0; i-- {
+		d := time.Now().AddDate(0, 0, -i).Format("2006-01-02")
+		if v, ok := dayMap[d]; ok {
+			revenueTrend = append(revenueTrend, dayRev{Day: d, Revenue: v.Revenue, Orders: v.Orders})
+		} else {
+			revenueTrend = append(revenueTrend, dayRev{Day: d, Revenue: 0, Orders: 0})
+		}
+	}
+
+	// 链接购买 / 收藏
+	var linkPurchasesTotal, linkPurchasesToday, favoritesTotal int64
+	db.Model(&models.LinkPurchase{}).Count(&linkPurchasesTotal)
+	db.Model(&models.LinkPurchase{}).Where("DATE(created_at) = ?", today).Count(&linkPurchasesToday)
+	db.Model(&models.KeywordFavorite{}).Count(&favoritesTotal)
+
+	// 内容侧：分类数、已发布页面
+	var categoriesCnt, pagesPublished int64
+	db.Model(&models.KeywordCategory{}).Count(&categoriesCnt)
+	db.Model(&models.Page{}).Where("is_published = ?", true).Count(&pagesPublished)
+
+	// 最近已支付订单
+	type recentOrder struct {
+		ID            uint       `json:"id"`
+		OrderNo       string     `json:"order_no"`
+		UserID        uint       `json:"user_id"`
+		Username      string     `json:"username"`
+		Amount        float64    `json:"amount"`
+		PaymentMethod string     `json:"payment_method"`
+		PaidAt        *time.Time `json:"paid_at"`
+	}
+	var recent []recentOrder
+	db.Raw(`
+		SELECT po.id, po.order_no, po.user_id, COALESCE(u.username, '') as username,
+		       po.amount, po.payment_method, po.paid_at
+		FROM payment_orders po
+		LEFT JOIN users u ON u.id = po.user_id
+		WHERE po.status = 'paid'
+		ORDER BY po.paid_at DESC NULLS LAST
+		LIMIT 8
+	`).Scan(&recent)
+	if recent == nil {
+		recent = []recentOrder{}
+	}
+
+	// 热门关键词（按链接购买次数）
+	type topKW struct {
+		KeywordID uint   `json:"keyword_id"`
+		Keyword   string `json:"keyword"`
+		Purchases int64  `json:"purchases"`
+		Status    string `json:"status"`
+	}
+	var topKeywords []topKW
+	db.Raw(`
+		SELECT lp.keyword_id,
+		       COALESCE(kr.keyword, '') as keyword,
+		       COUNT(*) as purchases,
+		       COALESCE(NULLIF(kr.status, ''), 'published') as status
+		FROM link_purchases lp
+		LEFT JOIN keyword_responses kr ON kr.id = lp.keyword_id
+		GROUP BY lp.keyword_id, kr.keyword, kr.status
+		ORDER BY purchases DESC
+		LIMIT 8
+	`).Scan(&topKeywords)
+	if topKeywords == nil {
+		topKeywords = []topKW{}
+	}
+
 	return map[string]any{
-		"keywords": kwCnt, "users": us.Total, "newUsersToday": us.NewToday, "newUsersWeek": us.NewWeek, "newUsersMonth": us.NewMonth,
-		"revenueTotal": os.RevTotal, "revenueMonth": os.RevMonth, "revenueToday": os.RevToday,
-		"ordersTotal": os.Total, "ordersPaid": os.Paid, "ordersPending": os.Pending,
-		"activeMemberships": us.ActiveMem, "expiringMemberships": us.ExpMem, "checkinsToday": ckToday,
-		"siteName": siteName, "methodBreakdown": methods,
+		"keywords":            ks.Total,
+		"keywordsPublished":   ks.Published,
+		"keywordsDraft":       ks.Draft,
+		"users":               us.Total,
+		"newUsersToday":       us.NewToday,
+		"newUsersWeek":        us.NewWeek,
+		"newUsersMonth":       us.NewMonth,
+		"revenueTotal":        os.RevTotal,
+		"revenueMonth":        os.RevMonth,
+		"revenueToday":        os.RevToday,
+		"ordersTotal":         os.Total,
+		"ordersPaid":          os.Paid,
+		"ordersPending":       os.Pending,
+		"activeMemberships":   us.ActiveMem,
+		"expiringMemberships": us.ExpMem,
+		"checkinsToday":       ckToday,
+		"siteName":            siteName,
+		"methodBreakdown":     methods,
+		"revenueTrend":        revenueTrend,
+		"linkPurchasesTotal":  linkPurchasesTotal,
+		"linkPurchasesToday":  linkPurchasesToday,
+		"favoritesTotal":      favoritesTotal,
+		"categories":          categoriesCnt,
+		"pagesPublished":      pagesPublished,
+		"recentOrders":        recent,
+		"topKeywords":         topKeywords,
 	}, nil
 }
 

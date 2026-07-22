@@ -1,6 +1,7 @@
 import api from '.'
 import type {
-  Keyword, KeywordCreate, KeywordUpdate,
+  Keyword, KeywordCreate, KeywordUpdate, KeywordStatus,
+  KeywordExportBundle, KeywordImportResult,
   Category, CategoryCreate, CategoryUpdate,
   Page, PageCreate, PageUpdate,
   Announcement, AnnouncementCreate, AnnouncementUpdate,
@@ -12,7 +13,7 @@ export type { Keyword, Category, Page, Announcement, PublicKeyword, PaginatedKey
 export const contentApi = {
   // 关键词
   keywords: {
-    list: (params?: { page?: number; limit?: number; category?: number }) =>
+    list: (params?: { page?: number; limit?: number; category?: number; status?: KeywordStatus | '' }) =>
       api.get<AdminPaginatedKeywords>('/admin/keywords', { params }).then(r => r.data),
     get: (id: number) => api.get<Keyword>(`/admin/keywords/${id}`).then(r => r.data),
     create: (data: KeywordCreate) => api.post<Keyword>('/admin/keywords', data).then(r => r.data),
@@ -20,6 +21,23 @@ export const contentApi = {
     delete: (id: number) => api.delete(`/admin/keywords/${id}`).then(r => r.data),
     categories: (id: number) => api.get<number[]>(`/admin/keywords/${id}/categories`).then(r => r.data),
     setCategories: (id: number, ids: number[]) => api.put(`/admin/keywords/${id}/categories`, ids).then(r => r.data),
+    batchStatus: (ids: number[], status: KeywordStatus) =>
+      api.post<{ message: string; updated: number }>('/admin/keywords/batch-status', { ids, status }).then(r => r.data),
+    export: (params?: { format?: 'json' | 'csv'; category?: number; status?: KeywordStatus | '' }) =>
+      api.get<KeywordExportBundle | Blob>('/admin/keywords/export', {
+        params,
+        responseType: params?.format === 'csv' ? 'blob' : 'json',
+      }).then(r => r.data),
+    import: (data: { items: KeywordExportBundle['items']; mode?: 'skip' | 'overwrite' }) =>
+      api.post<KeywordImportResult>('/admin/keywords/import', data).then(r => r.data),
+    importFile: (file: File, mode: 'skip' | 'overwrite' = 'skip') => {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('mode', mode)
+      return api.post<KeywordImportResult>('/admin/keywords/import', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(r => r.data)
+    },
     // 关键词图标
     uploadIcon: (id: number, fd: FormData) =>
       api.post<{ icon: string }>(`/admin/keywords/${id}/icon`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),

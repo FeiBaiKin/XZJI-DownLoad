@@ -28,6 +28,12 @@ type User struct {
 
 func (User) TableName() string { return "users" }
 
+// 关键词资源状态
+const (
+	KeywordStatusDraft     = "draft"     // 草稿 / 下架（前台不可见）
+	KeywordStatusPublished = "published" // 已上架
+)
+
 // KeywordResponse 关键词响应（对齐 keyword_responses）
 type KeywordResponse struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
@@ -35,8 +41,10 @@ type KeywordResponse struct {
 	Response   string    `gorm:"type:text" json:"response"`
 	Icon       string    `gorm:"size:255;default:''" json:"icon"`
 	Attributes string    `gorm:"type:text;default:''" json:"attributes"` // JSON: [{label,value}]
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	// Status: draft | published。默认 published，兼容历史数据。
+	Status    string    `gorm:"size:20;default:published;index" json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func (KeywordResponse) TableName() string { return "keyword_responses" }

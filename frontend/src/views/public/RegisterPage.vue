@@ -94,7 +94,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <AuthShell title="创建账户" subtitle="注册一个新账户以使用全部功能">
+  <AuthShell title="注册" subtitle="创建账户后即可搜索、收藏与购买资源">
     <form class="space-y-5" @submit.prevent="handleSubmit">
       <div>
         <label for="username" class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">用户名</label>

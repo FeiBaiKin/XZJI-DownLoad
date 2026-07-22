@@ -39,7 +39,9 @@ export const authApi = {
   resetPassword: (email: string, code: string, password: string) =>
     api.post<{ message: string }>('/auth/reset-password', { email, code, password }).then((r) => r.data),
 
-  profile: () => api.get<UserBrief>('/user/profile').then((r) => r.data),
+  // 会话探测：游客会 401，不得触发整页跳登录
+  profile: () =>
+    api.get<UserBrief>('/user/profile', { skipAuthRedirect: true }).then((r) => r.data),
 
   updateProfile: (data: { nickname?: string; email?: string }) =>
     api.put<UserBrief>('/user/profile', data).then((r) => r.data),

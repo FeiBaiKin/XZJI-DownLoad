@@ -86,7 +86,7 @@ func SetupFull(application *app.App) *gin.Engine {
 			auth.POST("/login", middleware.RateLimitLogin(), handler.Login)
 			auth.POST("/register", guard, middleware.RateLimitRegister(), handler.Register)
 			auth.POST("/send-code", middleware.RateLimitSendCode(), handler.SendCode)
-			auth.POST("/verify-code", handler.VerifyCode)
+			auth.POST("/verify-code", middleware.RateLimitVerifyCode(), handler.VerifyCode)
 			auth.POST("/passwordless-login", middleware.RateLimitPassword(), handler.PasswordlessLogin)
 			auth.POST("/forgot-password", handler.ForgotPassword) // 对齐 Node：返回引导 JSON
 			auth.POST("/reset-password", middleware.RateLimitPassword(), handler.ResetPassword)
@@ -135,8 +135,11 @@ func SetupFull(application *app.App) *gin.Engine {
 		admin.Use(middleware.AuthRequired(application.JWTSecret), middleware.RequireAdmin())
 		admin.Use(middleware.CSRF())
 		{
-			// 关键词
+			// 关键词（静态路径须在 :id 之前注册）
 			admin.GET("/keywords", handler.AdminKeywordsList)
+			admin.GET("/keywords/export", handler.AdminKeywordsExport)
+			admin.POST("/keywords/import", handler.AdminKeywordsImport)
+			admin.POST("/keywords/batch-status", handler.AdminKeywordsBatchStatus)
 			admin.GET("/keywords/:id", handler.AdminKeywordGet)
 			admin.POST("/keywords", handler.AdminKeywordCreate)
 			admin.PUT("/keywords/:id", handler.AdminKeywordUpdate)

@@ -36,12 +36,16 @@ export interface KeywordBlock {
   access?: 'free' | 'balance' | 'membership'
 }
 
+/** 资源状态：draft 草稿/下架 · published 已上架 */
+export type KeywordStatus = 'draft' | 'published'
+
 export interface Keyword {
   id: number
   keyword: string
   response: string | KeywordBlock[]
   icon?: string
   attributes?: string // JSON 字符串: [{label,value}]
+  status?: KeywordStatus
   category_ids?: number[] // 后台列表附带的所属分类 ID
   created_at: string
   updated_at: string
@@ -58,6 +62,7 @@ export interface AdminPaginatedKeywords {
 export interface KeywordCreate {
   keyword: string
   response: string | KeywordBlock[]
+  status?: KeywordStatus
 }
 
 export interface KeywordUpdate {
@@ -65,6 +70,32 @@ export interface KeywordUpdate {
   response?: string | KeywordBlock[]
   icon?: string
   attributes?: string // JSON 字符串
+  status?: KeywordStatus
+}
+
+export interface KeywordExportItem {
+  keyword: string
+  response: string
+  icon?: string
+  attributes?: string
+  status?: KeywordStatus
+  category_names?: string[]
+  category_ids?: number[]
+}
+
+export interface KeywordExportBundle {
+  version: number
+  exported_at: string
+  items: KeywordExportItem[]
+}
+
+export interface KeywordImportResult {
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  errors?: string[]
+  total: number
 }
 
 // 关键词属性 [{label:'大小', value:'56MB'}]

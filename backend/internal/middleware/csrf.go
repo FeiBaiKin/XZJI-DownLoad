@@ -62,11 +62,12 @@ func SetCSRFCookie(c *gin.Context, value string, maxAge int) {
 	})
 }
 
-// GenerateCSRFToken 生成 32 字节随机 hex 令牌
+// GenerateCSRFToken 生成 32 字节随机 hex 令牌。
+// 熵源失败时 panic，禁止使用可预测常量兜底。
 func GenerateCSRFToken() string {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return hex.EncodeToString([]byte("fallback-csrf-token-32-byte-key!"))
+		panic("crypto/rand unavailable for CSRF token: " + err.Error())
 	}
 	return hex.EncodeToString(b)
 }

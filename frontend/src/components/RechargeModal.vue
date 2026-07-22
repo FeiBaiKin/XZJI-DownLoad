@@ -126,7 +126,14 @@ async function renderQR(url: string) {
 
 function startPolling(orderNo: string) {
   if (pollTimer) clearInterval(pollTimer)
+  let attempts = 0
+  const maxAttempts = 90 // 约 3 分钟（2s 间隔）
   pollTimer = setInterval(async () => {
+    attempts += 1
+    if (attempts > maxAttempts) {
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+      return
+    }
     try {
       const data = await economyApi.rechargeStatus(orderNo)
       if (data.status === 'paid') {

@@ -53,16 +53,30 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username: string, password: string) {
     const res = await authApi.login(username, password)
     setAuth(res.token, res.user)
+    // 登录后拉 profile：确认会话 + 确保 CSRF 中间件已种 cookie（写操作依赖）
+    try {
+      const u = await authApi.profile()
+      user.value = u
+    } catch { /* cookie 已写，profile 失败不阻断登录 */ }
   }
 
   async function register(data: { username: string; password: string; email?: string; code?: string }) {
     const res = await authApi.register(data)
     setAuth(res.token, res.user)
+    try {
+      const u = await authApi.profile()
+      user.value = u
+    } catch { /* ignore */ }
   }
 
   async function logout() {
     try { await authApi.logout() } catch {}
     clearAuth()
+    // 避免下一位用户看到上一位的收藏 ID
+    try {
+      const { useFavoritesStore } = await import('@/stores/favorites')
+      useFavoritesStore().clear()
+    } catch { /* ignore */ }
   }
 
   return { user, isLoggedIn, isAdmin, initialized, setAuth, clearAuth, fetchProfile, login, register, logout }

@@ -99,7 +99,7 @@ async function handleResetPassword() {
 
 <template>
   <AuthShell
-    :title="step === 'reset' ? '重置密码' : '找回密码'"
+    :title="step === 'reset' ? '设置新密码' : '找回密码'"
     :subtitle="subtitle"
     back-to="/login"
     back-label="返回登录"

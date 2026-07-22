@@ -5,14 +5,16 @@
 import { ref, onMounted, computed, h } from 'vue'
 import {
   NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup,
-  NSelect, NDrawer, NDrawerContent,
-  type DataTableColumns,
+  NSelect, NDrawer, NDrawerContent, NModal, NRadioGroup, NRadio, NUpload,
+  type DataTableColumns, type UploadFileInfo,
 } from 'naive-ui'
 import {
   Plus, X, ArrowUp, ArrowDown, AlignLeft, Photo, Link as LinkIcon, ExternalLink, ChevronDown, Trash,
+  Download, Upload, Eye, EyeOff,
 } from '@vicons/tabler'
 import { contentApi, type Category, type Keyword } from '@/api/content'
-import type { KeywordAttribute } from '@/types/api'
+import type { KeywordAttribute, KeywordStatus } from '@/types/api'
+import { extractErrorMessage } from '@/types/error'
 import { cloudPlatforms } from '@/constants/admin'
 import { useToastStore } from '@/stores/toast'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -62,6 +64,7 @@ const loading = ref(true)
 const editingId = ref<number | null>(null)
 const drawerOpen = ref(false)
 const keyword = ref('')
+const keywordStatus = ref<KeywordStatus>('published')
 const blocks = ref<ContentBlock[]>([])
 const linkUrl = ref('')
 const parsedLink = ref<ParsedLink | null>(null)
@@ -75,11 +78,19 @@ const keywordIcon = ref<string>('')
 const iconPickerOpen = ref(false)
 // 关键词属性
 const attributes = ref<KeywordAttribute[]>([])
-// 列表分页 + 分类筛选
+// 列表分页 + 分类/状态筛选
 const page = ref(1)
 const total = ref(0)
 const limit = ref(10)
 const filterCategoryId = ref<number | null>(null)
+const filterStatus = ref<KeywordStatus | ''>('')
+const checkedRowKeys = ref<Array<string | number>>([])
+// 导入
+const importOpen = ref(false)
+const importMode = ref<'skip' | 'overwrite'>('skip')
+const importBusy = ref(false)
+const importResult = ref<{ created: number; updated: number; skipped: number; failed: number; errors?: string[] } | null>(null)
+const exportBusy = ref(false)
 
 const categoryNameMap = computed(() => {
   const m = new Map<number, string>()
@@ -90,6 +101,11 @@ const categoryFilterOptions = computed(() => [
   { label: '全部分类', value: 0 },
   ...categories.value.map((c) => ({ label: c.name, value: c.id })),
 ])
+const statusFilterOptions = [
+  { label: '全部状态', value: '' },
+  { label: '已上架', value: 'published' },
+  { label: '已下架', value: 'draft' },
+]
 
 onMounted(() => { fetchKeywords(); fetchCategories() })
 
@@ -100,16 +116,18 @@ async function fetchKeywords() {
       page: page.value,
       limit: limit.value,
       category: filterCategoryId.value ?? undefined,
+      status: filterStatus.value || undefined,
     })
     keywords.value = res.items
     total.value = res.total
+    checkedRowKeys.value = []
     // 当前页被删空且非首页时回退一页
     if (res.items.length === 0 && page.value > 1) {
       page.value -= 1
       return fetchKeywords()
     }
   } catch (err) {
-    toast.error('获取关键词失败，请刷新重试')
+    toast.error(extractErrorMessage(err, '获取关键词失败，请刷新重试'))
     console.error('获取关键词失败:', err)
   } finally {
     loading.value = false
@@ -132,6 +150,92 @@ function onFilterChange(v: number) {
   filterCategoryId.value = v > 0 ? v : null
   page.value = 1
   fetchKeywords()
+}
+function onStatusFilterChange(v: KeywordStatus | '') {
+  filterStatus.value = v || ''
+  page.value = 1
+  fetchKeywords()
+}
+
+function statusOf(row: Keyword): KeywordStatus {
+  return row.status === 'draft' ? 'draft' : 'published'
+}
+
+async function toggleRowStatus(row: Keyword) {
+  const next: KeywordStatus = statusOf(row) === 'published' ? 'draft' : 'published'
+  try {
+    await contentApi.keywords.update(row.id, { status: next })
+    toast.success(next === 'published' ? '已上架' : '已下架')
+    fetchKeywords()
+  } catch (err) {
+    toast.error(extractErrorMessage(err, '更新状态失败'))
+  }
+}
+
+async function batchSetStatus(status: KeywordStatus) {
+  const ids = checkedRowKeys.value.map(Number).filter((n) => n > 0)
+  if (ids.length === 0) {
+    toast.error('请先勾选关键词')
+    return
+  }
+  try {
+    const res = await contentApi.keywords.batchStatus(ids, status)
+    toast.success(`已更新 ${res.updated} 条`)
+    fetchKeywords()
+  } catch (err) {
+    toast.error(extractErrorMessage(err, '批量更新失败'))
+  }
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+async function handleExport(format: 'json' | 'csv') {
+  exportBusy.value = true
+  try {
+    const data = await contentApi.keywords.export({
+      format,
+      category: filterCategoryId.value ?? undefined,
+      status: filterStatus.value || undefined,
+    })
+    if (format === 'csv') {
+      downloadBlob(data as Blob, 'keywords-export.csv')
+    } else {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      downloadBlob(blob, 'keywords-export.json')
+    }
+    toast.success('导出成功')
+  } catch (err) {
+    toast.error(extractErrorMessage(err, '导出失败'))
+  } finally {
+    exportBusy.value = false
+  }
+}
+
+async function onImportFile({ file }: { file: UploadFileInfo }) {
+  if (!file.file) return
+  if (importMode.value === 'overwrite') {
+    const ok = window.confirm(`确认以「覆盖已存在」模式导入文件「${file.name || file.file.name}」？\n已存在的关键词内容将被覆盖，此操作不可撤销。`)
+    if (!ok) return
+  }
+  importBusy.value = true
+  importResult.value = null
+  try {
+    const res = await contentApi.keywords.importFile(file.file, importMode.value)
+    importResult.value = res
+    toast.success(`导入完成：新建 ${res.created} / 更新 ${res.updated} / 跳过 ${res.skipped}`)
+    fetchKeywords()
+  } catch (err) {
+    toast.error(extractErrorMessage(err, '导入失败'))
+  } finally {
+    importBusy.value = false
+  }
 }
 
 function addBlock(type: 'text' | 'image' | 'link') {
@@ -194,29 +298,36 @@ async function handleSubmit() {
   try {
     // attributes 序列化为 JSON 字符串，空数组保留空字符串避免阻塞
     const attrsStr = attributes.value.length > 0 ? JSON.stringify(attributes.value) : ''
-    const payload = { keyword: keyword.value.trim(), response: blocks.value, icon: keywordIcon.value, attributes: attrsStr }
+    const payload = {
+      keyword: keyword.value.trim(),
+      response: blocks.value,
+      icon: keywordIcon.value,
+      attributes: attrsStr,
+      status: keywordStatus.value,
+    }
     let savedId: number | undefined | null = editingId.value
     if (editingId.value) {
       const kw = await contentApi.keywords.update(editingId.value, payload)
       savedId = kw?.id ?? editingId.value
     } else {
-      // 新建时 icon/attributes 随 payload 一并 create（后端 KeywordCreate 仅含 keyword+response，
-      // 故新建后立即 update 一次填入 icon/attributes）
-      const kw = await contentApi.keywords.create({ keyword: payload.keyword, response: payload.response })
+      const kw = await contentApi.keywords.create({
+        keyword: payload.keyword,
+        response: payload.response,
+        status: payload.status,
+      })
       savedId = kw?.id
       if (savedId && (keywordIcon.value || attrsStr)) {
-        await contentApi.keywords.update(savedId, { icon: keywordIcon.value, attributes: attrsStr })
+        await contentApi.keywords.update(savedId, { icon: keywordIcon.value, attributes: attrsStr, status: keywordStatus.value })
       }
     }
     if (savedId) {
-      // 后端 setCategories 接收纯数组 []uint
       await contentApi.keywords.setCategories(savedId, selectedCategoryIds.value)
     }
     toast.success(editingId.value ? '保存成功' : '添加成功')
     handleCancel()
     fetchKeywords()
   } catch (err) {
-    toast.error('保存失败，请重试')
+    toast.error(extractErrorMessage(err, '保存失败，请重试'))
     console.error('保存失败:', err)
   }
 }
@@ -224,6 +335,7 @@ async function handleSubmit() {
 function handleEdit(item: Keyword) {
   editingId.value = item.id
   keyword.value = item.keyword
+  keywordStatus.value = statusOf(item)
   // 后端返回 response 为 JSON 字符串（块数组或纯文本），前端解析
   let resp: string | ContentBlock[] = item.response as string | ContentBlock[]
   if (typeof resp === 'string') {
@@ -267,7 +379,7 @@ async function doDelete() {
     toast.success('删除成功')
     fetchKeywords()
   } catch (err) {
-    toast.error('删除失败，请重试')
+    toast.error(extractErrorMessage(err, '删除失败，请重试'))
     console.error('删除失败:', err)
   }
 }
@@ -275,6 +387,7 @@ async function doDelete() {
 function handleCancel() {
   editingId.value = null
   keyword.value = ''
+  keywordStatus.value = 'published'
   blocks.value = []
   linkUrl.value = ''
   parsedLink.value = null
@@ -330,12 +443,26 @@ const blockTypeLabel = (t: ContentBlock['type']) => (t === 'text' ? '文本' : t
 
 // 列表表格列
 const columns: DataTableColumns<Keyword> = [
+  { type: 'selection', width: 40 },
   { title: 'ID', key: 'id', width: 60, render: (row) => h('span', { class: 'font-mono text-xs text-zinc-500 dark:text-zinc-400' }, row.id) },
   { title: '关键词', key: 'keyword', width: 140, render: (row) => h('span', { class: 'font-medium' }, row.keyword) },
   {
+    title: '状态',
+    key: 'status',
+    width: 88,
+    render: (row) => {
+      const published = statusOf(row) === 'published'
+      return h(
+        NTag,
+        { size: 'small', bordered: false, type: published ? 'success' : 'default' },
+        { default: () => (published ? '已上架' : '已下架') },
+      )
+    },
+  },
+  {
     title: '分类',
     key: 'categories',
-    width: 150,
+    width: 140,
     render: (row) => {
       const ids = row.category_ids || []
       if (ids.length === 0) return h('span', { class: 'text-xs text-zinc-400 dark:text-zinc-500' }, '-')
@@ -360,12 +487,19 @@ const columns: DataTableColumns<Keyword> = [
   {
     title: '操作',
     key: 'actions',
-    width: 110,
-    render: (row) =>
-      h('div', { class: 'flex gap-1' }, [
+    width: 168,
+    render: (row) => {
+      const published = statusOf(row) === 'published'
+      return h('div', { class: 'flex flex-wrap gap-1' }, [
         h(NButton, { size: 'tiny', quaternary: true, type: 'primary', onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        h(
+          NButton,
+          { size: 'tiny', quaternary: true, onClick: () => toggleRowStatus(row) },
+          { default: () => (published ? '下架' : '上架') },
+        ),
         h(NButton, { size: 'tiny', quaternary: true, type: 'error', onClick: () => handleDelete(row.id) }, { default: () => '删除' }),
-      ]),
+      ])
+    },
   },
 ]
 </script>
@@ -375,12 +509,26 @@ const columns: DataTableColumns<Keyword> = [
     <header class="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">关键词管理</h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">全宽列表展示，点击添加/编辑打开右侧抽屉</p>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">资源上下架、批量导入导出与内容编辑</p>
       </div>
-      <NButton type="primary" @click="openCreate">
-        <template #icon><NIcon><Plus /></NIcon></template>
-        添加关键词
-      </NButton>
+      <div class="flex flex-wrap items-center gap-2">
+        <NButton secondary :loading="exportBusy" @click="handleExport('json')">
+          <template #icon><NIcon><Download /></NIcon></template>
+          导出 JSON
+        </NButton>
+        <NButton secondary :loading="exportBusy" @click="handleExport('csv')">
+          <template #icon><NIcon><Download /></NIcon></template>
+          导出 CSV
+        </NButton>
+        <NButton secondary @click="importOpen = true; importResult = null">
+          <template #icon><NIcon><Upload /></NIcon></template>
+          导入
+        </NButton>
+        <NButton type="primary" @click="openCreate">
+          <template #icon><NIcon><Plus /></NIcon></template>
+          添加关键词
+        </NButton>
+      </div>
     </header>
 
     <!-- ══ 右侧抽屉：添加 / 编辑表单 ══ -->
@@ -390,6 +538,37 @@ const columns: DataTableColumns<Keyword> = [
           <div>
             <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">关键词</label>
             <NInput v-model:value="keyword" placeholder="输入关键词，例如: hello, react..." />
+          </div>
+
+          <div>
+            <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">资源状态</label>
+            <div class="flex overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <button
+                type="button"
+                class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
+                :class="keywordStatus === 'published'
+                  ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
+                  : 'text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800'"
+                @click="keywordStatus = 'published'"
+              >
+                <NIcon :size="15"><Eye /></NIcon>
+                已上架
+              </button>
+              <button
+                type="button"
+                class="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors"
+                :class="keywordStatus === 'draft'
+                  ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
+                  : 'text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800'"
+                @click="keywordStatus = 'draft'"
+              >
+                <NIcon :size="15"><EyeOff /></NIcon>
+                已下架
+              </button>
+            </div>
+            <p class="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+              下架后前台搜索与列表不可见，后台仍可编辑
+            </p>
           </div>
 
           <!-- 图标 + 属性：抽屉窄宽下垂直堆叠，避免属性值输入框被挤压 -->
@@ -741,21 +920,39 @@ const columns: DataTableColumns<Keyword> = [
     <!-- ══ 列表主区（全宽） ══ -->
     <section class="space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <span class="text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个关键词</span>
-        <NSelect
-          :value="filterCategoryId ?? 0"
-          :options="categoryFilterOptions"
-          size="small"
-          class="w-40"
-          aria-label="按分类筛选"
-          @update:value="onFilterChange"
-        />
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm text-zinc-500 dark:text-zinc-400">共 {{ total }} 个关键词</span>
+          <template v-if="checkedRowKeys.length > 0">
+            <span class="font-mono text-xs text-emerald-600 dark:text-emerald-400">已选 {{ checkedRowKeys.length }}</span>
+            <NButton size="tiny" secondary @click="batchSetStatus('published')">批量上架</NButton>
+            <NButton size="tiny" secondary @click="batchSetStatus('draft')">批量下架</NButton>
+          </template>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <NSelect
+            :value="filterStatus"
+            :options="statusFilterOptions"
+            size="small"
+            class="w-32"
+            aria-label="按状态筛选"
+            @update:value="onStatusFilterChange"
+          />
+          <NSelect
+            :value="filterCategoryId ?? 0"
+            :options="categoryFilterOptions"
+            size="small"
+            class="w-40"
+            aria-label="按分类筛选"
+            @update:value="onFilterChange"
+          />
+        </div>
       </div>
 
       <NDataTable
         :columns="columns"
         :data="keywords"
         :row-key="(row: Keyword) => row.id"
+        v-model:checked-row-keys="checkedRowKeys"
         :bordered="false"
         :loading="loading"
         :scroll-x="600"
@@ -791,5 +988,63 @@ const columns: DataTableColumns<Keyword> = [
       @close="iconPickerOpen = false"
       @saved="onIconSaved"
     />
+
+    <!-- 批量导入 -->
+    <NModal
+      v-model:show="importOpen"
+      preset="card"
+      title="批量导入关键词"
+      class="w-full max-w-lg"
+      :bordered="false"
+      :segmented="{ content: true, footer: 'soft' }"
+    >
+      <div class="space-y-4">
+        <p class="text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+          支持导出包 JSON，或 CSV（列：keyword, status, icon, attributes, categories, response）。
+          分类名不存在时会自动创建。
+        </p>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-zinc-300">冲突处理</label>
+          <NRadioGroup v-model:value="importMode" name="import-mode">
+            <div class="flex flex-wrap gap-4">
+              <NRadio value="skip">跳过已存在</NRadio>
+              <NRadio value="overwrite">覆盖已存在</NRadio>
+            </div>
+          </NRadioGroup>
+        </div>
+        <NUpload
+          :default-upload="false"
+          :show-file-list="false"
+          accept=".json,.csv,application/json,text/csv"
+          :disabled="importBusy"
+          @change="({ file }) => onImportFile({ file })"
+        >
+          <NButton type="primary" :loading="importBusy" secondary block>
+            <template #icon><NIcon><Upload /></NIcon></template>
+            选择文件并导入
+          </NButton>
+        </NUpload>
+        <div
+          v-if="importResult"
+          class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-800 dark:bg-zinc-900/60"
+        >
+          <p class="font-medium text-zinc-800 dark:text-zinc-100">导入结果</p>
+          <dl class="mt-2 grid grid-cols-2 gap-2 font-mono text-xs text-zinc-600 dark:text-zinc-300 sm:grid-cols-4">
+            <div><dt class="text-zinc-400">新建</dt><dd class="text-base text-emerald-600 dark:text-emerald-400">{{ importResult.created }}</dd></div>
+            <div><dt class="text-zinc-400">更新</dt><dd class="text-base">{{ importResult.updated }}</dd></div>
+            <div><dt class="text-zinc-400">跳过</dt><dd class="text-base">{{ importResult.skipped }}</dd></div>
+            <div><dt class="text-zinc-400">失败</dt><dd class="text-base" :class="importResult.failed ? 'text-red-500' : ''">{{ importResult.failed }}</dd></div>
+          </dl>
+          <ul v-if="importResult.errors?.length" class="mt-3 max-h-32 space-y-1 overflow-y-auto text-xs text-red-500 dark:text-red-400">
+            <li v-for="(e, i) in importResult.errors" :key="i">{{ e }}</li>
+          </ul>
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end">
+          <NButton quaternary @click="importOpen = false">关闭</NButton>
+        </div>
+      </template>
+    </NModal>
   </div>
 </template>

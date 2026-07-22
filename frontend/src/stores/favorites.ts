@@ -27,7 +27,10 @@ export const useFavoritesStore = defineStore('favorites', () => {
     const auth = useAuthStore()
     const toast = useToastStore()
     if (!auth.isLoggedIn) {
-      toast.info('请先登录后再收藏')
+      // 公开页用弹窗登录，避免跳转整页
+      void import('@/stores/authModal').then(({ useAuthModalStore }) => {
+        useAuthModalStore().show('login')
+      })
       return has(keywordId)
     }
     try {

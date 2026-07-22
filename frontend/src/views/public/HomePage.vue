@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // 首页：双栏布局（主内容 + 侧边栏），对话式搜索，分类Tab精选资源，公告/购买弹窗
-import { ref, computed, onMounted, type Component } from 'vue'
+import { ref, computed, onMounted, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-ui'
 import {
@@ -12,6 +12,7 @@ import {
 import api from '@/api'
 import { contentApi, type PublicKeyword, type PaginatedKeywords, type Announcement, type Category } from '@/api/content'
 import { useAuthStore } from '@/stores/auth'
+import { useAuthModalStore } from '@/stores/authModal'
 import { useToastStore } from '@/stores/toast'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useFavoritesStore } from '@/stores/favorites'
@@ -23,6 +24,7 @@ import AppPagination from '@/components/AppPagination.vue'
 import DOMPurify from 'dompurify'
 
 const auth = useAuthStore()
+const authModal = useAuthModalStore()
 const toast = useToastStore()
 const router = useRouter()
 const route = useRoute()
@@ -176,6 +178,17 @@ onMounted(async () => {
   ])
 })
 
+// 弹窗登录后补拉收藏与下载数
+watch(isLoggedIn, (v) => {
+  if (v) {
+    favorites.fetchIds()
+    fetchDownloadsToday()
+  } else {
+    favorites.clear()
+    downloadsToday.value = null
+  }
+})
+
 async function fetchFeatured() {
   featuredLoading.value = true
   try {
@@ -243,7 +256,8 @@ async function refreshDiscovery() {
 
 async function fetchDownloadsToday() {
   try {
-    const res = await api.get('/user/downloads-today')
+    // 会话失效时 401 不跳登录页
+    const res = await api.get('/user/downloads-today', { skipAuthRedirect: true })
     downloadsToday.value = res.data?.downloads ?? null
   } catch { downloadsToday.value = null }
 }
@@ -277,10 +291,14 @@ async function fetchAnnouncements() {
   } catch { /* ignore */ }
 }
 
+// 搜索请求代次，避免快速连搜时乱序覆盖
+let searchSeq = 0
+
 // ── 搜索 ──
 async function handleSearch(query?: string) {
   const q = (query || keyword.value).trim()
   if (!q) { error.value = '请输入关键词'; return }
+  const seq = ++searchSeq
   loading.value = true
   error.value = ''
   result.value = null
@@ -292,6 +310,7 @@ async function handleSearch(query?: string) {
   localStorage.setItem('search_history', JSON.stringify(searchHistory.value))
   try {
     const data = await contentApi.public.search(q)
+    if (seq !== searchSeq) return
     if (typeof data.response === 'string') {
       try { data.response = JSON.parse(data.response) } catch { /* 纯文本 */ }
     }
@@ -299,26 +318,36 @@ async function handleSearch(query?: string) {
     if (isLoggedIn.value && data.keywordId && Array.isArray(data.response)) {
       const paid: Record<string, string> = {}
       const paidCodes: Record<string, string> = {}
+      const tasks: Promise<void>[] = []
       for (let i = 0; i < data.response.length; i++) {
         const block = data.response[i]
         if (block.type !== 'link') continue
         const access = blockAccess(block)
         if (access === 'free') continue
-        try {
-          const sRes = await api.get('/user/purchase-status', { params: { keywordId: data.keywordId, blockIndex: i } })
-          if (sRes.data?.purchased) {
-            paid[`${data.keywordId}-${i}`] = sRes.data?.url || ''
-            paidCodes[`${data.keywordId}-${i}`] = sRes.data?.code || ''
-          }
-        } catch { /* ignore */ }
+        const idx = i
+        tasks.push(
+          api.get('/user/purchase-status', {
+            params: { keywordId: data.keywordId, blockIndex: idx },
+            skipAuthRedirect: true,
+          }).then((sRes) => {
+            if (sRes.data?.purchased) {
+              paid[`${data.keywordId}-${idx}`] = sRes.data?.url || ''
+              paidCodes[`${data.keywordId}-${idx}`] = sRes.data?.code || ''
+            }
+          }).catch(() => { /* ignore */ }),
+        )
       }
+      await Promise.all(tasks)
+      if (seq !== searchSeq) return
       purchasedLinks.value = paid
       purchasedCodes.value = paidCodes
     }
   } catch (err: unknown) {
-    error.value = (err as Error)?.message || '搜索失败，请重试'
+    if (seq !== searchSeq) return
+    const { extractErrorMessage } = await import('@/types/error')
+    error.value = extractErrorMessage(err, '搜索失败，请重试')
   } finally {
-    loading.value = false
+    if (seq === searchSeq) loading.value = false
   }
 }
 
@@ -372,14 +401,34 @@ function linkIconOf(block: KeywordBlock): Component {
   return ExternalLink
 }
 
+function isSafeHttpUrl(url?: string): boolean {
+  if (!url) return false
+  try {
+    const u = new URL(url, window.location.origin)
+    return u.protocol === 'http:' || u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function handleLinkClick(e: Event, block: KeywordBlock, idx: number) {
   const access = blockAccess(block)
-  if (access === 'free') return
+  if (access === 'free') {
+    if (!isSafeHttpUrl(block.url)) {
+      e.preventDefault()
+      toast.error('链接地址无效')
+    }
+    return
+  }
   e.preventDefault()
-  if (!isLoggedIn.value) { router.push('/login'); return }
+  if (!isLoggedIn.value) { authModal.show('login'); return }
   if (!result.value?.keywordId) return
   const key = `${result.value.keywordId}-${idx}`
-  if (purchasedLinks.value[key]) { window.open(purchasedLinks.value[key], '_blank'); return }
+  if (purchasedLinks.value[key]) {
+    const url = purchasedLinks.value[key]
+    if (isSafeHttpUrl(url)) window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
   purchaseDialog.value = { keywordId: result.value.keywordId, blockIndex: idx, block, cost: block.cost || 0, access, key }
 }
 
@@ -397,7 +446,11 @@ async function handlePurchase() {
     purchasedLinks.value = { ...purchasedLinks.value, [d.key]: data.url || '' }
     purchasedCodes.value = { ...purchasedCodes.value, [d.key]: data.code || '' }
     purchaseDialog.value = null
-    window.open(data.url, '_blank')
+    if (isSafeHttpUrl(data.url)) {
+      window.open(data.url, '_blank', 'noopener,noreferrer')
+    } else {
+      toast.success(data.message || '购买成功')
+    }
     if (data.balance !== undefined && auth.user) auth.user.balance = data.balance
   } catch (err: unknown) {
     const data = (err as { response?: { data?: { error?: string } } })?.response?.data
@@ -539,7 +592,7 @@ function handleQuickAction(action: string) {
 
                       <a
                         v-else-if="block.type === 'link'"
-                        :href="blockAccess(block) === 'free' ? block.url : 'javascript:void(0)'"
+                        :href="blockAccess(block) === 'free' && isSafeHttpUrl(block.url) ? block.url : 'javascript:void(0)'"
                         target="_blank"
                         rel="noopener noreferrer"
                         class="group flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
@@ -818,8 +871,8 @@ function handleQuickAction(action: string) {
           <!-- 未登录操作 -->
           <div v-if="!isLoggedIn" class="border-t border-zinc-100 px-5 pb-4 pt-3 dark:border-zinc-800">
             <div class="flex gap-2">
-              <NButton type="primary" size="small" block @click="router.push('/login')">登录</NButton>
-              <NButton secondary size="small" block @click="router.push('/register')">注册</NButton>
+              <NButton type="primary" size="small" block @click="authModal.show('login')">登录</NButton>
+              <NButton secondary size="small" block @click="authModal.show('register')">注册</NButton>
             </div>
           </div>
         </div>

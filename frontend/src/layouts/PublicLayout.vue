@@ -2,23 +2,71 @@
 // 公共布局：公开站点（首页 / 分类页）共享的 header + footer
 // Header：Logo + 导航（首页/分类） + 主题切换 + 用户菜单/登录注册
 // Footer：自定义页面链接 + 站点名 + footerText + 备案号（平铺一行展示）
-import { computed, onMounted, ref } from 'vue'
-import { useRouter, RouterView } from 'vue-router'
+// 首页未登录：先展示内容，约 3 秒后弹窗引导登录/注册（可关闭，同会话不重复强弹）
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter, useRoute, RouterView } from 'vue-router'
 import { NButton, NDropdown, NIcon } from 'naive-ui'
 import { Sun, MoonStars, ShieldCheck, ShieldCheckered } from '@vicons/tabler'
 import { useAuthStore } from '@/stores/auth'
+import { useAuthModalStore } from '@/stores/authModal'
 import { useThemeStore } from '@/stores/theme'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { contentApi, type Page } from '@/api/content'
+import AuthModal from '@/components/AuthModal.vue'
 
 const auth = useAuthStore()
+const authModal = useAuthModalStore()
 const theme = useThemeStore()
 const router = useRouter()
+const route = useRoute()
 const settings = useSiteSettingsStore()
+
+const AUTH_PROMPT_DELAY_MS = 3000
+let authPromptTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearAuthPromptTimer() {
+  if (authPromptTimer) {
+    clearTimeout(authPromptTimer)
+    authPromptTimer = null
+  }
+}
+
+function scheduleHomeAuthPrompt() {
+  clearAuthPromptTimer()
+  // 仅首页 + 已完成鉴权初始化 + 游客 + 本会话未主动关闭过
+  if (route.name !== 'home') return
+  if (!auth.initialized || auth.isLoggedIn) return
+  if (authModal.isPromptDismissed()) return
+  if (authModal.open) return
+
+  authPromptTimer = setTimeout(() => {
+    authPromptTimer = null
+    if (route.name !== 'home') return
+    if (auth.isLoggedIn || authModal.isPromptDismissed()) return
+    authModal.show('login')
+  }, AUTH_PROMPT_DELAY_MS)
+}
+
+watch(
+  () => [route.name, auth.initialized, auth.isLoggedIn] as const,
+  () => {
+    if (auth.isLoggedIn) {
+      clearAuthPromptTimer()
+      authModal.hide()
+      return
+    }
+    scheduleHomeAuthPrompt()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   settings.fetch()
   fetchPages()
+})
+
+onUnmounted(() => {
+  clearAuthPromptTimer()
 })
 
 const footerPages = ref<Page[]>([])
@@ -135,8 +183,8 @@ function handleUserMenuSelect(key: string) {
           </NDropdown>
 
           <template v-else>
-            <NButton quaternary size="small" @click="router.push('/login')">登录</NButton>
-            <NButton type="primary" size="small" @click="router.push('/register')">注册</NButton>
+            <NButton quaternary size="small" @click="authModal.show('login')">登录</NButton>
+            <NButton type="primary" size="small" @click="authModal.show('register')">注册</NButton>
           </template>
         </div>
       </div>
@@ -163,6 +211,9 @@ function handleUserMenuSelect(key: string) {
         </Transition>
       </RouterView>
     </main>
+
+    <!-- 登录 / 注册弹窗 -->
+    <AuthModal />
 
     <!-- Footer：自定义页面链接左对齐，站点信息 + 备案号右对齐，共用 | 分隔符 -->
     <footer class="mt-16 border-t border-zinc-200 py-8 dark:border-zinc-800/80">

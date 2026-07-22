@@ -281,9 +281,9 @@ func AdminMediaDelete(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "媒体不存在"})
 		return
 	}
-	// 删除物理文件（忽略不存在）
+	// 删除物理文件（忽略不存在）；强制 Base 防路径穿越
 	if mf.Filename != "" {
-		_ = os.Remove(filepath.Join(mediaDir(), mf.Filename))
+		_ = os.Remove(filepath.Join(mediaDir(), filepath.Base(mf.Filename)))
 	}
 	if err := getApp(c).DB.Delete(&mf).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})

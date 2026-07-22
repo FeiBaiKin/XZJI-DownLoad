@@ -76,26 +76,12 @@ func (rl *rateLimiter) allow(ip string) bool {
 	return true
 }
 
-// clientIP 从请求中提取真实客户端 IP（考虑反向代理）
+// clientIP 从请求中提取客户端 IP。
+// 默认仅使用 RemoteAddr，避免客户端伪造 X-Forwarded-For / X-Real-IP 绕过限流。
+// 若部署在受信反向代理后，请在启动时调用 gin.Engine.SetTrustedProxies，
+// 并改用 c.ClientIP()（其会按受信代理列表解析转发头）。
 func clientIP(c *gin.Context) string {
-	// 优先从 X-Forwarded-For 取（第一个 IP 是真实客户端）
-	if xff := c.GetHeader("X-Forwarded-For"); xff != "" {
-		if idx := net.ParseIP(xff); idx != nil {
-			return idx.String()
-		}
-		// X-Forwarded-For 可能是逗号分隔的多个 IP
-		for i := 0; i < len(xff); i++ {
-			if xff[i] == ',' {
-				return xff[:i]
-			}
-		}
-		return xff
-	}
-	// X-Real-IP
-	if xri := c.GetHeader("X-Real-IP"); xri != "" {
-		return xri
-	}
-	// 直连 IP
+	// 直连 IP（不信任未经配置的转发头）
 	ip, _, err := net.SplitHostPort(c.Request.RemoteAddr)
 	if err != nil {
 		return c.Request.RemoteAddr
@@ -113,6 +99,8 @@ var (
 	sendCodeLimiter = newRateLimiter(3, time.Minute)
 	// passwordLimiter 密码重置限流：每 IP 每分钟最多 5 次
 	passwordLimiter = newRateLimiter(5, time.Minute)
+	// verifyCodeLimiter 验证码校验限流：每 IP 每分钟最多 20 次（防 6 位码爆破）
+	verifyCodeLimiter = newRateLimiter(20, time.Minute)
 )
 
 // RateLimitLogin 登录限流中间件
@@ -160,6 +148,19 @@ func RateLimitPassword() gin.HandlerFunc {
 		ip := clientIP(c)
 		if !passwordLimiter.allow(ip) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"error": "操作过于频繁，请1分钟后再试"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+// RateLimitVerifyCode 验证码校验限流中间件
+func RateLimitVerifyCode() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := clientIP(c)
+		if !verifyCodeLimiter.allow(ip) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "验证过于频繁，请1分钟后再试"})
 			c.Abort()
 			return
 		}

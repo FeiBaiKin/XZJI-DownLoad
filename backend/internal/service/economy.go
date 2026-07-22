@@ -221,27 +221,46 @@ func (s *EconomyService) BuyMembership(userID uint, req BuyMembershipReq) (map[s
 	if err := s.DB.Where("level_name = ?", req.Level).First(&cfg).Error; err != nil {
 		return nil, fmt.Errorf("无效的会员等级")
 	}
-	var user models.User
-	s.DB.First(&user, userID)
-	if user.Balance < cfg.Price {
-		return nil, fmt.Errorf("余额不足，请先充值")
+	if cfg.Price < 0 {
+		return nil, fmt.Errorf("无效的会员价格")
 	}
-	base := time.Now()
-	if user.MembershipExpiresAt != nil && user.MembershipExpiresAt.After(base) {
-		base = *user.MembershipExpiresAt
-	}
-	expiresAt := base.AddDate(0, 0, cfg.Days)
 	orderNo := fmt.Sprintf("M%d%s", time.Now().UnixMilli(), randStr(4))
 
 	var updated models.User
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
+		// 锁用户行后重算到期时间，避免并发购买双扣费只延一次
+		var user models.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, userID).Error; err != nil {
+			return fmt.Errorf("用户不存在")
+		}
+		if user.Balance < cfg.Price {
+			return fmt.Errorf("余额不足，请先充值")
+		}
+		base := time.Now()
+		if user.MembershipExpiresAt != nil && user.MembershipExpiresAt.After(base) {
+			base = *user.MembershipExpiresAt
+		}
+		expiresAt := base.AddDate(0, 0, cfg.Days)
+
 		res := tx.Exec("UPDATE users SET balance = balance - ?, membership_level = ?, membership_expires_at = ? WHERE id = ? AND balance >= ?",
 			cfg.Price, req.Level, expiresAt, userID, cfg.Price)
+		if res.Error != nil {
+			return res.Error
+		}
 		if res.RowsAffected == 0 {
 			return fmt.Errorf("余额不足")
 		}
-		tx.Create(&models.MembershipOrder{OrderNo: orderNo, UserID: userID, MembershipLevel: req.Level, Amount: cfg.Price, Days: cfg.Days, Status: "paid", PaidAt: nowPtr()})
-		tx.Create(&models.PointsTransaction{UserID: userID, Type: "membership", Amount: -cfg.Price, Description: "购买" + req.Level})
+		if err := tx.Create(&models.MembershipOrder{
+			OrderNo: orderNo, UserID: userID, MembershipLevel: req.Level,
+			Amount: cfg.Price, Days: cfg.Days, Status: "paid", PaidAt: nowPtr(),
+		}).Error; err != nil {
+			return fmt.Errorf("创建会员订单失败")
+		}
+		if err := tx.Create(&models.PointsTransaction{
+			UserID: userID, Type: "membership", Amount: -cfg.Price, Description: "购买" + req.Level,
+		}).Error; err != nil {
+			return fmt.Errorf("创建流水失败")
+		}
 		return tx.First(&updated, userID).Error
 	})
 	if err != nil {

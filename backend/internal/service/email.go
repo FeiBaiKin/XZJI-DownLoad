@@ -51,11 +51,12 @@ func GetEmailConfig(db *gorm.DB) (EmailConfig, error) {
 	return cfg, nil
 }
 
-// GenerateCode 生成 6 位随机数字验证码（对齐原 generateCode）
+// GenerateCode 生成 6 位随机数字验证码。
+// 熵源失败时返回 error 路径由调用方处理；此处 panic 禁止可预测兜底码。
 func GenerateCode() string {
 	n, err := rand.Int(rand.Reader, big.NewInt(900000))
 	if err != nil {
-		return "123456" // 兜底不应发生
+		panic("crypto/rand unavailable for verification code: " + err.Error())
 	}
 	return fmt.Sprintf("%06d", n.Int64()+100000)
 }

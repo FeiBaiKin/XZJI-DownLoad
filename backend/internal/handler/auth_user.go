@@ -65,6 +65,8 @@ func Login(c *gin.Context) {
 		return
 	}
 	setAuthCookie(c, res.Token, 86400)
+	// 登录成功即下发 CSRF，避免游客从未进入 CSRF 中间件导致写操作 403
+	middleware.SetCSRFCookie(c, middleware.GenerateCSRFToken(), 86400)
 	c.JSON(http.StatusOK, res)
 }
 
@@ -85,6 +87,7 @@ func Register(c *gin.Context) {
 		return
 	}
 	setAuthCookie(c, res.Token, 86400)
+	middleware.SetCSRFCookie(c, middleware.GenerateCSRFToken(), 86400)
 	c.JSON(http.StatusCreated, res)
 }
 
@@ -139,6 +142,7 @@ func PasswordlessLogin(c *gin.Context) {
 		return
 	}
 	setAuthCookie(c, res.Token, 86400)
+	middleware.SetCSRFCookie(c, middleware.GenerateCSRFToken(), 86400)
 	c.JSON(http.StatusOK, res)
 }
 
@@ -156,10 +160,10 @@ func ResetPassword(c *gin.Context) {
 }
 
 // Logout POST /api/auth/logout
-// 清除 HttpOnly JWT cookie 和 CSRF cookie
+// 清除 HttpOnly JWT cookie。CSRF cookie 保留并刷新，避免游客再次登录后写操作因缺 CSRF 失败。
 func Logout(c *gin.Context) {
 	setAuthCookie(c, "", -1)
-	middleware.SetCSRFCookie(c, "", -1)
+	middleware.SetCSRFCookie(c, middleware.GenerateCSRFToken(), 86400)
 	c.JSON(http.StatusOK, gin.H{"message": "已退出登录"})
 }
 
@@ -310,7 +314,8 @@ func AdminUploadLogo(c *gin.Context) {
 
 	// 扩展名校验（大小写不敏感）
 	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true, ".svg": true}
+	// 禁止 SVG：同源 /uploads 静态托管下可嵌脚本形成 XSS
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
 	if !allowedExts[ext] {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "仅支持 JPG、PNG、GIF、WebP、SVG 格式的图片"})
 		return

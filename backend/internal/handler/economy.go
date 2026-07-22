@@ -240,15 +240,43 @@ func AdminPaymentOrderBatchDelete(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
-	if len(req.IDs) > 0 {
-		getApp(c).DB.Where("id IN ?", req.IDs).Delete(&models.PaymentOrder{})
+	if len(req.IDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请选择订单"})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": fmt.Sprintf("已删除 %d 条订单", len(req.IDs))})
+	// 禁止删除已支付订单，保护账本与回调幂等
+	res := getApp(c).DB.Where("id IN ? AND status <> ?", req.IDs, "paid").Delete(&models.PaymentOrder{})
+	if res.Error != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
+		return
+	}
+	skipped := int64(len(req.IDs)) - res.RowsAffected
+	msg := fmt.Sprintf("已删除 %d 条订单", res.RowsAffected)
+	if skipped > 0 {
+		msg += fmt.Sprintf("（%d 条已支付订单已跳过）", skipped)
+	}
+	c.JSON(http.StatusOK, gin.H{"message": msg, "deleted": res.RowsAffected, "skipped": skipped})
 }
 
 func AdminPaymentOrderDelete(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	getApp(c).DB.Delete(&models.PaymentOrder{}, id)
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效ID"})
+		return
+	}
+	var order models.PaymentOrder
+	if err := getApp(c).DB.First(&order, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "订单不存在"})
+		return
+	}
+	if order.Status == "paid" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "已支付订单不可删除"})
+		return
+	}
+	if err := getApp(c).DB.Delete(&models.PaymentOrder{}, id).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除失败"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
 }
 

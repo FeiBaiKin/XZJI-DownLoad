@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"xzji/backend/internal/models"
 	"xzji/backend/internal/util"
 )
@@ -285,17 +286,30 @@ func (s *AuthService) VerifyCode(req VerifyCodeRequest) error {
 	return nil
 }
 
-// consumeCode 验证并消费验证码（标记已用）
+// consumeCode 验证并消费验证码（标记已用）。
+// 事务内行锁 + used=false 条件更新，保证并发下同一验证码只能成功一次。
 func consumeCode(db *gorm.DB, email, code, purpose string) error {
 	email = strings.TrimSpace(strings.ToLower(email))
-	var v models.EmailVerification
-	err := db.Where("email = ? AND code = ? AND purpose = ? AND used = false AND expires_at > ?",
-		email, code, purpose, time.Now()).
-		Order("id DESC").First(&v).Error
-	if err != nil {
-		return fmt.Errorf("验证码错误或已过期")
-	}
-	return db.Model(&v).Update("used", true).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var v models.EmailVerification
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("email = ? AND code = ? AND purpose = ? AND used = false AND expires_at > ?",
+				email, code, purpose, time.Now()).
+			Order("id DESC").First(&v).Error
+		if err != nil {
+			return fmt.Errorf("验证码错误或已过期")
+		}
+		res := tx.Model(&models.EmailVerification{}).
+			Where("id = ? AND used = ?", v.ID, false).
+			Update("used", true)
+		if res.Error != nil {
+			return fmt.Errorf("验证码校验失败")
+		}
+		if res.RowsAffected == 0 {
+			return fmt.Errorf("验证码错误或已过期")
+		}
+		return nil
+	})
 }
 
 // ====== 免密登录 ======

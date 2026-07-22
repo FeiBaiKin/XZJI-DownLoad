@@ -9,5 +9,5 @@ export const favoritesApi = {
   list: (page = 1, pageSize = 8) =>
     api.get('/user/favorites', { params: { page, page_size: pageSize } }).then(r => r.data),
   ids: () =>
-    api.get<number[]>('/user/favorites/ids').then(r => r.data),
+    api.get<number[]>('/user/favorites/ids', { skipAuthRedirect: true }).then(r => r.data),
 }

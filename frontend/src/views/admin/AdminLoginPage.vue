@@ -6,6 +6,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { NButton, NInput, NIcon } from 'naive-ui'
 import { ShieldLock } from '@vicons/tabler'
 import { useAuthStore } from '@/stores/auth'
+import { safeRedirectPath } from '@/utils/safeRedirect'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,7 +18,7 @@ const loading = ref(false)
 const error = ref('')
 const usernameInput = ref<InstanceType<typeof NInput> | null>(null)
 
-const redirect = (route.query.redirect as string) || '/admin'
+const redirect = safeRedirectPath(route.query.redirect, '/admin')
 
 onMounted(() => {
   // 已是管理员会话则直接进入后台

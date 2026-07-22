@@ -52,11 +52,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 注入 JWT Secret 到全局（middleware + service 共享）
+	// 注入 JWT Secret（禁止空 secret 静默随机：重启/多实例会导致会话失效与签验不一致）
 	jwtSecret := cfg.JWT.Secret
 	if jwtSecret == "" {
-		slog.Warn("JWT secret 为空，使用随机生成（仅开发安全）")
-		jwtSecret = config.GenerateJWTSecret()
+		slog.Error("JWT secret 为空，请在 config.yaml 的 jwt.secret 中配置固定密钥后重启")
+		os.Exit(1)
 	}
 
 	// 注入 CORS 允许来源

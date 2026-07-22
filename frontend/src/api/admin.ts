@@ -3,7 +3,35 @@
 import api from '.'
 
 // ── 类型 ──
-export interface DashboardStats { totalUsers: number; totalRevenue: number; totalOrders: number; activeMembers: number; revenueByMethod: any[]; userGrowth: any[]; contentStats: any }
+/** 对齐后端 service.DashboardStats 实际 JSON 字段 */
+export interface DashboardStats {
+  siteName?: string
+  users?: number
+  newUsersToday?: number
+  newUsersWeek?: number
+  newUsersMonth?: number
+  revenueTotal?: number | string
+  revenueMonth?: number
+  revenueToday?: number
+  ordersTotal?: number
+  ordersPaid?: number
+  ordersPending?: number
+  activeMemberships?: number
+  expiringMemberships?: number
+  keywords?: number
+  keywordsPublished?: number
+  keywordsDraft?: number
+  checkinsToday?: number
+  methodBreakdown?: { payment_method: string; count: number; revenue: number }[]
+  revenueTrend?: { date: string; revenue: number; orders: number }[]
+  linkPurchasesTotal?: number
+  linkPurchasesToday?: number
+  favoritesTotal?: number
+  categories?: number
+  pagesPublished?: number
+  recentOrders?: unknown[]
+  topKeywords?: unknown[]
+}
 export interface SiteSettings { siteName: string; siteDescription: string; footerText: string; siteLogoType: string; siteLogoUrl: string; siteIcp: string; sitePolice: string; [key: string]: string }
 export interface EmailConfig { email_smtp_host: string; email_smtp_port: string; email_smtp_user: string; email_smtp_pass: string; email_from_name: string; email_force_verify: string; email_enable_passwordless: string; [key: string]: string }
 export interface UserRecord { id: number; username: string; role: string; email: string; nickname: string; avatar: string; balance: number; exp: number; level: number; membership_level: string | null; membership_expires_at: string | null; email_verified: boolean; created_at: string }

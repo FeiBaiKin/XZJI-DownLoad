@@ -16,31 +16,43 @@ import (
 // === 签到 ===
 
 func CheckInStatus(c *gin.Context) {
-	res, _ := service.CheckInStatus(getApp(c).DB, middleware.GetUserID(c))
-	c.JSON(http.StatusOK, res)
+	res, err := service.CheckInStatus(getApp(c).DB, middleware.GetUserID(c))
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	OK(c, res)
 }
 
 func CheckIn(c *gin.Context) {
 	res, err := service.CheckIn(getApp(c).DB, middleware.GetUserID(c))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		Fail(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, res)
+	OK(c, res)
 }
 
 // === 等级 ===
 
 func LevelInfo(c *gin.Context) {
-	res, _ := service.LevelInfo(getApp(c).DB, middleware.GetUserID(c))
-	c.JSON(http.StatusOK, res)
+	res, err := service.LevelInfo(getApp(c).DB, middleware.GetUserID(c))
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	OK(c, res)
 }
 
 // === 仪表盘 ===
 
 func AdminStats(c *gin.Context) {
-	res, _ := service.DashboardStats(getApp(c).DB)
-	c.JSON(http.StatusOK, res)
+	res, err := service.DashboardStats(getApp(c).DB)
+	if err != nil {
+		Fail(c, err)
+		return
+	}
+	OK(c, res)
 }
 
 // === 站点设置 ===
@@ -329,9 +341,17 @@ func AdminUsersList(c *gin.Context) {
 
 func AdminUserGet(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	var u map[string]any
-	getApp(c).DB.Raw("SELECT * FROM users WHERE id = ?", id).Scan(&u)
-	if len(u) == 0 {
+	if id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效ID"})
+		return
+	}
+	// 显式列清单，禁止 SELECT * 把 password 哈希带出（User.Password 的 json:"-" 对 map 扫描无效）
+	var u models.User
+	if err := getApp(c).DB.Select(
+		"id", "username", "role", "email", "nickname", "avatar",
+		"balance", "exp", "level", "membership_level", "membership_expires_at",
+		"daily_downloads", "download_date", "email_verified", "created_at",
+	).First(&u, id).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}

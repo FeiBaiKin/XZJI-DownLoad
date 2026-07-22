@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/api/auth'
 import { contentApi } from '@/api/content'
 import AuthShell from '@/components/AuthShell.vue'
+import { safeRedirectPath } from '@/utils/safeRedirect'
 
 const router = useRouter()
 const route = useRoute()
@@ -24,7 +25,7 @@ const sendingCode = ref(false)
 const cooldown = ref(0)
 const enablePasswordless = ref(false)
 
-const redirect = (route.query.redirect as string) || '/user'
+const redirect = safeRedirectPath(route.query.redirect, '/user')
 
 // 获取站点配置（是否开启免密登录）
 onMounted(async () => {
@@ -101,7 +102,7 @@ function switchMode(mode: string | number) {
 </script>
 
 <template>
-  <AuthShell title="登录账户" subtitle="登录以使用全部功能">
+  <AuthShell title="登录" subtitle="使用账户继续访问资源与会员权益">
     <!-- 登录方式切换 -->
     <NTabs
       v-if="enablePasswordless"
