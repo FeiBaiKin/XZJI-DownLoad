@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { watch, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { NConfigProvider, NGlobalStyle, darkTheme, zhCN, dateZhCN } from 'naive-ui'
+import { NConfigProvider, NGlobalStyle, NMessageProvider, darkTheme, zhCN, dateZhCN } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useLicenseStore } from '@/stores/license'
 import { lightThemeOverrides, darkThemeOverrides } from '@/theme'
 import LicenseBlocked from '@/components/LicenseBlocked.vue'
 import { useSEO } from '@/composables/useSEO'
+import ToastBridge from '@/components/ToastBridge.vue'
 
 const theme = useThemeStore()
 const site = useSiteSettingsStore()
@@ -39,7 +40,15 @@ onMounted(() => {
 <template>
   <NConfigProvider :theme="naiveTheme" :theme-overrides="overrides" :locale="zhCN" :date-locale="dateZhCN">
     <NGlobalStyle />
-    <LicenseBlocked v-if="licenseBlocked" />
-    <RouterView v-else />
+    <!--
+      Message API 必须处于 NMessageProvider 的子树中。
+      ToastBridge 会把这里的 useMessage API 注册给 Pinia，避免在 store
+      setup 阶段通过 createDiscreteApi 创建嵌套 Vue 应用。
+    -->
+    <NMessageProvider>
+      <ToastBridge />
+      <LicenseBlocked v-if="licenseBlocked" />
+      <RouterView v-else />
+    </NMessageProvider>
   </NConfigProvider>
 </template>
