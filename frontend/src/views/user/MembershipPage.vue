@@ -9,7 +9,7 @@ import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import type { MembershipConfig, UserBrief } from '@/types/api'
-import { tierIcon, tierColor, tierWash, readableOn, periodText, discountLabel, priceText, perDayText, recommendedIndex } from '@/utils/tier'
+import { tierIcon, tierColor, tierWash, readableOn, periodText, discountLabel, priceText, perDayText, badgeText } from '@/utils/tier'
 import MembershipModal from '@/components/MembershipModal.vue'
 
 const auth = useAuthStore()
@@ -96,8 +96,8 @@ const gridClass = computed(() => {
 function isCurrentPlan(plan: MembershipConfig) {
   return hasMembership.value && membership.value!.membership!.level === plan.level_name
 }
-function isRecommended(i: number) {
-  return i === recommendedIndex(configs.value.length)
+function planBadge(plan: MembershipConfig) {
+  return badgeText(plan.badge)
 }
 function dlBenefit(plan: MembershipConfig) {
   const d = plan.daily_download_limit
@@ -276,8 +276,8 @@ function handleBuySuccess(data: unknown) {
             v-for="(plan, i) in configs"
             :key="plan.level_name"
             class="group relative flex flex-col overflow-hidden rounded-2xl border bg-white transition duration-200 hover:-translate-y-0.5 dark:bg-zinc-900"
-            :class="isRecommended(i) ? 'border-transparent' : 'border-zinc-200 hover:shadow-lg hover:shadow-zinc-900/5 dark:border-zinc-800 dark:hover:shadow-black/20'"
-            :style="isRecommended(i)
+            :class="planBadge(plan) ? 'border-transparent' : 'border-zinc-200 hover:shadow-lg hover:shadow-zinc-900/5 dark:border-zinc-800 dark:hover:shadow-black/20'"
+            :style="planBadge(plan)
               ? { boxShadow: `0 0 0 2px ${tierColor(plan.color)}, 0 16px 40px -16px color-mix(in srgb, ${tierColor(plan.color)} 45%, transparent)` }
               : undefined"
           >
@@ -292,10 +292,10 @@ function handleBuySuccess(data: unknown) {
                 </span>
                 <NTag v-if="isCurrentPlan(plan)" size="small" round type="success" :bordered="false">当前方案</NTag>
                 <span
-                  v-else-if="isRecommended(i)"
+                  v-else-if="planBadge(plan)"
                   class="rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none"
                   :style="{ backgroundColor: tierColor(plan.color), color: readableOn(tierColor(plan.color)) }"
-                >推荐</span>
+                >{{ planBadge(plan) }}</span>
               </div>
               <h3 class="mt-3 truncate text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{{ plan.level_name }}</h3>
             </div>

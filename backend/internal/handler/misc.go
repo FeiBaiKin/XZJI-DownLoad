@@ -239,7 +239,7 @@ func AdminLevelConfigPut(c *gin.Context) {
 
 func AdminMembershipConfigGet(c *gin.Context) {
 	var list []map[string]any
-	getApp(c).DB.Raw("SELECT level_name, days, price, daily_download_limit, discount, color FROM membership_config ORDER BY price").Scan(&list)
+	getApp(c).DB.Raw("SELECT level_name, days, price, daily_download_limit, discount, color, badge FROM membership_config ORDER BY price").Scan(&list)
 	c.JSON(http.StatusOK, list)
 }
 
@@ -253,8 +253,8 @@ func AdminMembershipConfigPut(c *gin.Context) {
 	db := getApp(c).DB
 	keep := make([]any, 0, len(items))
 	for _, it := range items {
-		db.Exec("INSERT INTO membership_config (level_name, days, price, daily_download_limit, discount, color, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW()) ON CONFLICT (level_name) DO UPDATE SET days = EXCLUDED.days, price = EXCLUDED.price, daily_download_limit = EXCLUDED.daily_download_limit, discount = EXCLUDED.discount, color = EXCLUDED.color, updated_at = NOW()",
-			it["level_name"], it["days"], it["price"], it["daily_download_limit"], it["discount"], it["color"])
+		db.Exec("INSERT INTO membership_config (level_name, days, price, daily_download_limit, discount, color, badge, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW()) ON CONFLICT (level_name) DO UPDATE SET days = EXCLUDED.days, price = EXCLUDED.price, daily_download_limit = EXCLUDED.daily_download_limit, discount = EXCLUDED.discount, color = EXCLUDED.color, badge = EXCLUDED.badge, updated_at = NOW()",
+			it["level_name"], it["days"], it["price"], it["daily_download_limit"], it["discount"], it["color"], it["badge"])
 		keep = append(keep, it["level_name"])
 	}
 	if len(keep) > 0 {

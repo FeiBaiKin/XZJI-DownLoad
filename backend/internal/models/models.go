@@ -151,6 +151,7 @@ type MembershipConfig struct {
 	DailyDownloadLimit int       `gorm:"default:20" json:"daily_download_limit"`
 	Discount           float64   `gorm:"type:decimal(5,2);default:0" json:"discount"`
 	Color              string    `gorm:"size:20;default:''" json:"color"`
+	Badge              string    `gorm:"size:20;default:''" json:"badge"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }
 

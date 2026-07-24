@@ -1,4 +1,4 @@
-// 会员档位展示辅助：图标轮换、标识色可读性、周期 / 额度 / 折扣 / 单价文案
+// 会员档位展示辅助：图标轮换、标识色可读性、周期 / 额度 / 折扣 / 单价 / 角标文案
 // 供前台会员中心、后台会员配置、购买弹窗共用，保证三处展示口径一致
 import type { Component } from 'vue'
 import { Diamond, Crown, Medal, Rocket, Star } from '@vicons/tabler'
@@ -76,7 +76,8 @@ export function perDayText(price: number, days: number): string | null {
   return `约 ¥${s}/天`
 }
 
-/** 推荐档位序号：取中间档，少于两档不推荐（前后台共用，保证预览一致） */
-export function recommendedIndex(total: number): number {
-  return total < 2 ? -1 : Math.floor(total / 2)
+/** 套餐角标文案：去空白后为空返回 null 表示不显示（管理员可自定义，如「推荐」「超值」） */
+export function badgeText(badge?: string | null): string | null {
+  const t = (badge ?? '').trim()
+  return t || null
 }

@@ -38,7 +38,7 @@ export interface UserRecord { id: number; username: string; role: string; email:
 export interface PaymentOrderRow { id: number; orderNo: string; userId: number; amount: number; points: number; status: string; paymentMethod: string; paymentScene: string; tradeNo: string; createdAt: string; paidAt: string | null; username: string; avatar: string }
 export interface CheckInConfig { daily_balance: number; daily_exp: number; consecutive_days: number; consecutive_bonus_balance: number }
 export interface LevelConfigItem { level: number; exp_required: number; label: string }
-export interface MembershipConfigItem { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string }
+export interface MembershipConfigItem { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string; badge: string }
 export interface PaymentConfig { payment_site_url: string; payment_enabled_providers: string; payment_wx_appid: string; payment_wx_mchid: string; payment_wx_serial_no: string; payment_wx_api_v3_key: string; payment_wx_private_key: string; payment_wx_notify_url: string; payment_ali_appid: string; payment_ali_private_key: string; payment_ali_public_key: string; payment_ali_scene: string; payment_ali_notify_url: string; payment_ali_return_url: string; payment_epay_gateway: string; payment_epay_pid: string; payment_epay_key: string; payment_epay_notify_url: string; payment_epay_return_url: string; [key: string]: string }
 export interface LicenseUpdateInfo { version: string; changelog: string; file_size: number; sha256: string; forced: boolean }
 export interface LicenseSnapshot {

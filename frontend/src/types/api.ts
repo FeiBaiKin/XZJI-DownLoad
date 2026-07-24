@@ -286,6 +286,7 @@ export interface MembershipConfig {
   daily_download_limit: number
   discount: number
   color: string
+  badge: string
 }
 
 export interface MembershipStatus {

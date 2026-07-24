@@ -2,13 +2,13 @@
 // 会员配置：行式内联编辑器 + 前台展示效果实时预览 + 悬浮保存栏
 // 后端契约不变：GET /admin/membership-config 返回纯数组，PUT 接收纯数组，按 level_name 全量同步
 // 视觉体系：面板 rounded-2xl / 控件与图标章 rounded-lg；emerald 为操作强调色，档位色为数据驱动语义色
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { NButton, NInput, NInputNumber, NIcon, NSkeleton, NColorPicker, NPopconfirm } from 'naive-ui'
 import { Plus, Trash, Copy, Crown, DeviceFloppy, Eye } from '@vicons/tabler'
 import api from '@/api'
 import type { MembershipConfig } from '@/types/api'
 import { useToastStore } from '@/stores/toast'
-import { tierIcon, tierColor, tierWash, readableOn, periodText, dlText, discountLabel, priceText, recommendedIndex, NEW_TIER_COLORS } from '@/utils/tier'
+import { tierIcon, tierColor, tierWash, readableOn, periodText, dlText, discountLabel, priceText, badgeText, NEW_TIER_COLORS } from '@/utils/tier'
 
 const levels = ref<MembershipConfig[]>([])
 const loading = ref(true)
@@ -40,6 +40,7 @@ function normalize(lv: Partial<MembershipConfig>): MembershipConfig {
     daily_download_limit: Number(lv.daily_download_limit ?? 0) || 0,
     discount: Number(lv.discount ?? 0) || 0,
     color: lv.color ?? '',
+    badge: lv.badge ?? '',
   }
 }
 
@@ -56,6 +57,7 @@ function addLevel() {
     daily_download_limit: 20,
     discount: 0,
     color: NEW_TIER_COLORS[levels.value.length % NEW_TIER_COLORS.length]!,
+    badge: '',
   })
   dirty.value = true
 }
@@ -101,8 +103,6 @@ async function handleSave() {
 async function discardChanges() {
   await fetchLevels({ silent: true })
 }
-
-const recIdx = computed(() => recommendedIndex(levels.value.length))
 </script>
 
 <template>
@@ -120,7 +120,7 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
         <div>
           <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">会员配置</h1>
           <p class="mt-1 max-w-[60ch] text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-            配置会员档位的名称、时长、价格、下载额度、折扣与标识色，保存后立即对前台生效。
+            配置会员档位的名称、时长、价格、下载额度、折扣、标识色与推广角标，保存后立即对前台生效。
           </p>
         </div>
         <NButton type="primary" @click="addLevel">
@@ -148,12 +148,13 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
       <!-- 档位编辑器 -->
       <section v-else class="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
         <!-- 列头（宽屏） -->
-        <div class="hidden border-b border-zinc-100 px-5 py-3 text-xs font-medium text-zinc-500 xl:grid xl:grid-cols-[minmax(220px,1.6fr)_repeat(4,minmax(120px,1fr))_96px] xl:items-end xl:gap-3 dark:border-zinc-800 dark:text-zinc-400">
+        <div class="hidden border-b border-zinc-100 px-5 py-3 text-xs font-medium text-zinc-500 xl:grid xl:grid-cols-[minmax(200px,1.5fr)_repeat(4,minmax(104px,1fr))_minmax(96px,0.9fr)_96px] xl:items-end xl:gap-3 dark:border-zinc-800 dark:text-zinc-400">
           <span>档位名称与标识色</span>
           <span>价格（元）</span>
           <span>有效天数</span>
           <span>每日下载<span class="ml-1 font-normal text-zinc-400 dark:text-zinc-500">0 不限</span></span>
           <span>付费折扣<span class="ml-1 font-normal text-zinc-400 dark:text-zinc-500">0 原价</span></span>
+          <span>角标<span class="ml-1 font-normal text-zinc-400 dark:text-zinc-500">选填</span></span>
           <span class="text-right">操作</span>
         </div>
 
@@ -162,7 +163,7 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
           <div
             v-for="(lv, idx) in levels"
             :key="idx"
-            class="grid grid-cols-2 gap-3 px-4 py-4 transition-colors hover:bg-zinc-50/60 sm:px-5 xl:grid-cols-[minmax(220px,1.6fr)_repeat(4,minmax(120px,1fr))_96px] xl:items-center dark:hover:bg-zinc-800/30"
+            class="grid grid-cols-2 gap-3 px-4 py-4 transition-colors hover:bg-zinc-50/60 sm:px-5 xl:grid-cols-[minmax(200px,1.5fr)_repeat(4,minmax(104px,1fr))_minmax(96px,0.9fr)_96px] xl:items-center dark:hover:bg-zinc-800/30"
           >
             <!-- 档位：图标章即取色器 + 名称 -->
             <div class="col-span-2 flex items-center gap-2.5 xl:col-span-1">
@@ -267,6 +268,17 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
                 @update:value="(v: number | null) => update(idx, 'discount', v ?? 0)"
               />
             </div>
+            <!-- 角标 -->
+            <div>
+              <label class="mb-1 block text-xs font-medium text-zinc-500 xl:hidden dark:text-zinc-400">角标（选填）</label>
+              <NInput
+                :value="lv.badge"
+                :maxlength="8"
+                placeholder="如：推荐"
+                class="!w-full"
+                @update:value="(v: string) => update(idx, 'badge', v)"
+              />
+            </div>
 
             <!-- 宽屏操作 -->
             <div class="hidden items-center justify-end gap-1 xl:flex">
@@ -304,7 +316,7 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
             <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Eye /></NIcon>
             前台展示效果
           </h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-400">按上方顺序展示，中间档位自动标注「推荐」，随编辑实时更新</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-400">按上方顺序展示，填写角标的档位会突出标注，随编辑实时更新</p>
         </div>
 
         <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -323,10 +335,10 @@ const recIdx = computed(() => recommendedIndex(levels.value.length))
                 </span>
                 <p class="min-w-0 truncate text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ lv.level_name || '未命名档位' }}</p>
                 <span
-                  v-if="idx === recIdx"
+                  v-if="badgeText(lv.badge)"
                   class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold leading-none"
                   :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
-                >推荐</span>
+                >{{ badgeText(lv.badge) }}</span>
               </div>
             </div>
             <div class="px-4 pb-3.5">
