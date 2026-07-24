@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// 可复用资源卡片：竖向网格卡片，适配两列布局
-// 整卡可点击复制关键词；右上角收藏按钮为真实按钮
+// 资源卡片：图标 + 标题 + 两行描述 + 单一访问 chip + 收藏
+// 整卡点击复制关键词；收藏为独立按钮
 import { ref, computed } from 'vue'
 import { NIcon } from 'naive-ui'
 import { Copy, Check, Heart } from '@vicons/tabler'
@@ -25,34 +25,30 @@ const toast = useToastStore()
 const copied = ref(false)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 
-// 根据关键词名生成首字母
 const firstLetter = computed(() => {
   const c = props.keyword.keyword?.charAt(0)
   return c ? c.toUpperCase() : '?'
 })
 
-// 根据分类名分配颜色（hash 到预设颜色池）
-const CATEGORY_COLORS = [
+// 分类色仅用于无图标时的首字母底，不铺到标签上造成噪声
+const FALLBACK_TONES = [
   'bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400',
-  'bg-blue-100 text-blue-700 dark:bg-blue-400/15 dark:text-blue-400',
-  'bg-purple-100 text-purple-700 dark:bg-purple-400/15 dark:text-purple-400',
+  'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300',
+  'bg-sky-100 text-sky-700 dark:bg-sky-400/15 dark:text-sky-400',
   'bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-400',
+  'bg-violet-100 text-violet-700 dark:bg-violet-400/15 dark:text-violet-400',
   'bg-rose-100 text-rose-700 dark:bg-rose-400/15 dark:text-rose-400',
-  'bg-cyan-100 text-cyan-700 dark:bg-cyan-400/15 dark:text-cyan-400',
-  'bg-indigo-100 text-indigo-700 dark:bg-indigo-400/15 dark:text-indigo-400',
-  'bg-teal-100 text-teal-700 dark:bg-teal-400/15 dark:text-teal-400',
 ]
 
-function categoryColor(name?: string) {
-  if (!name) return CATEGORY_COLORS[0]
+function toneOf(name?: string) {
+  if (!name) return FALLBACK_TONES[0]
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
-  return CATEGORY_COLORS[Math.abs(hash) % CATEGORY_COLORS.length]
+  return FALLBACK_TONES[Math.abs(hash) % FALLBACK_TONES.length]
 }
 
-const avatarColor = computed(() => categoryColor(props.categoryName))
+const avatarTone = computed(() => toneOf(props.categoryName || props.keyword.keyword))
 
-// 解析 properties.attributes JSON 字符串为 [{label,value}]
 const parsedAttributes = computed<KeywordAttribute[]>(() => {
   const raw = props.keyword.attributes
   if (!raw) return []
@@ -68,16 +64,24 @@ const parsedAttributes = computed<KeywordAttribute[]>(() => {
   return []
 })
 
-function formatDate(ts?: string) {
-  if (!ts) return ''
-  const d = new Date(ts)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
-  if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+// 卡片只留一个访问方式 chip，优先「访问/下载/权限」类属性
+const accessChip = computed(() => {
+  const attrs = parsedAttributes.value
+  if (attrs.length === 0) return null
+  const hit = attrs.find((a) => /访问|下载|权限|会员|付费|免费/.test(`${a.label}${a.value}`))
+  return hit || null
+})
+
+const accessTone = computed(() => {
+  const v = `${accessChip.value?.label || ''}${accessChip.value?.value || ''}`
+  if (/会员|专享|VIP/i.test(v)) {
+    return 'border-amber-200/80 bg-amber-50 text-amber-700 dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-400'
+  }
+  if (/余额|付费|积分|金币|¥|￥|\d+(\.\d+)?\s*元/.test(v)) {
+    return 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/80 dark:text-zinc-300'
+  }
+  return 'border-emerald-200/80 bg-emerald-50 text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-400'
+})
 
 function handleCopy() {
   navigator.clipboard.writeText(props.keyword.keyword).then(() => {
@@ -103,30 +107,15 @@ function handleKeydown(e: KeyboardEvent) {
   <div
     role="button"
     tabindex="0"
-    class="resource-card group relative flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 active:scale-[0.995] dark:bg-zinc-900"
+    class="resource-card group relative flex h-full cursor-pointer flex-col rounded-2xl border bg-white p-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 active:scale-[0.995] dark:bg-zinc-900/80"
     :class="copied
       ? 'border-emerald-500 ring-1 ring-emerald-500/40 dark:border-emerald-400'
-      : 'border-zinc-200 hover:-translate-y-0.5 hover:border-emerald-400/70 hover:shadow-md dark:border-zinc-800 dark:hover:border-emerald-400/50'"
+      : 'border-zinc-200/90 hover:-translate-y-0.5 hover:border-emerald-400/60 hover:shadow-[0_8px_24px_-12px_rgba(16,185,129,0.25)] dark:border-zinc-800 dark:hover:border-emerald-400/40 dark:hover:shadow-[0_8px_28px_-14px_rgba(52,211,153,0.18)]'"
     title="点击复制关键词"
     @click="handleCopy"
     @keydown="handleKeydown"
   >
-    <!-- 头部：图标 + 标题 + 右上角收藏 -->
-    <div class="flex items-start gap-2.5 pr-7">
-      <!-- 真实图标 / 首字母回退 -->
-      <div
-        class="resource-card__icon grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-bold group-hover:scale-[1.04]"
-        :class="keyword.icon ? '' : avatarColor"
-      >
-        <img v-if="keyword.icon" :src="keyword.icon" :alt="keyword.keyword" class="size-full object-cover" loading="lazy" />
-        <span v-else>{{ firstLetter }}</span>
-      </div>
-      <h3 class="min-w-0 flex-1 break-words pt-0.5 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
-        {{ keyword.keyword }}
-      </h3>
-    </div>
-
-    <!-- 右上角收藏按钮（真实按钮，避免与卡片可点击区冲突） -->
+    <!-- 收藏 -->
     <button
       type="button"
       class="absolute right-3 top-3 grid size-7 place-items-center rounded-full motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
@@ -140,44 +129,49 @@ function handleKeydown(e: KeyboardEvent) {
       <NIcon :size="16"><Heart /></NIcon>
     </button>
 
-    <!-- 描述：两行截断，撑开卡片高度 -->
-    <p class="mt-2.5 line-clamp-2 min-h-[2.5rem] text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-      {{ keyword.description || '暂无描述' }}
-    </p>
-
-    <!-- 属性标签（键值对，例如 大小=56MB / 平台=安卓） -->
-    <div v-if="parsedAttributes.length > 0" class="mt-3 flex flex-wrap gap-1.5">
-      <span
-        v-for="(attr, idx) in parsedAttributes"
-        :key="idx"
-        class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/70 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-400"
+    <!-- 主体：图标 + 文案 -->
+    <div class="flex items-start gap-3 pr-7">
+      <div
+        class="resource-card__icon grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl text-sm font-bold group-hover:scale-[1.04]"
+        :class="keyword.icon ? 'bg-zinc-100 dark:bg-zinc-800' : avatarTone"
       >
-        <span class="text-emerald-600/80 dark:text-emerald-400/80">{{ attr.label }}</span>
-        <span class="opacity-40">·</span>
-        <span class="text-zinc-600 dark:text-zinc-300">{{ attr.value }}</span>
-      </span>
+        <img v-if="keyword.icon" :src="keyword.icon" :alt="keyword.keyword" class="size-full object-cover" loading="lazy" />
+        <span v-else>{{ firstLetter }}</span>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="break-words text-[15px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-zinc-50">
+          {{ keyword.keyword }}
+        </h3>
+        <p class="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+          {{ keyword.description || '暂无描述' }}
+        </p>
+      </div>
     </div>
 
-    <!-- 底部：分类标签 + 日期 + 复制动作 -->
-    <div class="mt-3 flex items-center justify-between gap-2">
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-        <span
-          v-if="categoryName"
-          class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
-          :class="avatarColor"
-        >
-          {{ categoryName }}
-        </span>
-        <span v-if="createdAt" class="font-mono text-[11px]">{{ formatDate(createdAt) }}</span>
-      </div>
+    <!-- 底栏：访问 chip + 复制反馈 -->
+    <div class="mt-3.5 flex items-center justify-between gap-2">
+      <span
+        v-if="accessChip"
+        class="inline-flex max-w-[70%] items-center truncate rounded-md border px-2 py-0.5 text-[11px] font-medium"
+        :class="accessTone"
+      >
+        {{ accessChip.value }}
+      </span>
+      <span
+        v-else-if="categoryName"
+        class="inline-flex max-w-[70%] items-center truncate rounded-md border border-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-500 dark:border-zinc-700 dark:text-zinc-400"
+      >
+        {{ categoryName }}
+      </span>
+      <span v-else class="flex-1" />
 
       <span
-        class="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium motion-safe:transition-colors"
+        class="flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-0.5 text-[11px] font-medium motion-safe:transition-colors"
         :class="copied
-          ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
-          : 'text-zinc-500 group-hover:bg-emerald-50 group-hover:text-emerald-600 dark:text-zinc-400 dark:group-hover:bg-emerald-400/10 dark:group-hover:text-emerald-400'"
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : 'text-zinc-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-zinc-500'"
       >
-        <NIcon :size="13"><Check v-if="copied" /><Copy v-else /></NIcon>
+        <NIcon :size="12"><Check v-if="copied" /><Copy v-else /></NIcon>
         <span>{{ copied ? '已复制' : '复制' }}</span>
       </span>
     </div>

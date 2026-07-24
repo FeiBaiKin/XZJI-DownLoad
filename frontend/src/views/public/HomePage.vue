@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// 首页：双栏布局（主内容 + 侧边栏），对话式搜索，分类Tab精选资源，公告/购买弹窗
+// 首页：command-bar 搜索 + 结果详情卡 + 精选资源 + 侧栏（用户卡强调）
 import { ref, computed, onMounted, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-ui'
 import {
   Search, Copy, ExternalLink, Lock, Crown, AlertCircle, Check, X,
-  Clock, TrendingUp, ChevronRight, Send, Stars,
+  Clock, TrendingUp, ChevronRight, Stars,
   Apps, Help, QuestionMark, Compass, Refresh, ArrowUpRight, History,
   User, Coin, Download, Heart,
 } from '@vicons/tabler'
@@ -14,7 +14,6 @@ import { contentApi, type PublicKeyword, type PaginatedKeywords, type Announceme
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 import { useToastStore } from '@/stores/toast'
-import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useFavoritesStore } from '@/stores/favorites'
 import { blockAccess } from '@/utils/blockAccess'
 import { scrollToElement } from '@/utils/motion'
@@ -28,7 +27,6 @@ const authModal = useAuthModalStore()
 const toast = useToastStore()
 const router = useRouter()
 const route = useRoute()
-const settings = useSiteSettingsStore()
 const favorites = useFavoritesStore()
 
 // 支付返回检测
@@ -140,6 +138,16 @@ const resultAttributes = computed<KeywordAttribute[]>(() => {
   } catch { /* 忽略损坏的 JSON */ }
   return []
 })
+
+// 结果卡属性最多展示 4 个，避免 chip 噪声
+const visibleResultAttributes = computed(() => resultAttributes.value.slice(0, 4))
+
+function clearResult() {
+  result.value = null
+  error.value = ''
+  purchasedLinks.value = {}
+  purchasedCodes.value = {}
+}
 
 // 公告正文
 const annContent = computed(() => DOMPurify.sanitize(visibleAnn.value?.content || '暂无内容'))
@@ -497,236 +505,266 @@ function handleQuickAction(action: string) {
 <template>
   <div>
     <!-- ═══ 双栏区域 ═══ -->
-    <div class="home-shell pt-14 sm:pt-20 lg:grid lg:grid-cols-[1fr_320px] lg:gap-8">
+    <div class="pt-8 sm:pt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8">
       <!-- ── 左栏：主内容 ── -->
       <div class="min-w-0">
 
-        <!-- ① 搜索模块（对话式） -->
-        <section id="search-panel" class="ui-enter scroll-mt-24 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <!-- 对话区域 -->
-          <div class="px-5 pt-5 sm:px-6 sm:pt-6">
-            <!-- 热门关键词快捷标签 -->
-            <div v-if="hotKeywords.length > 0 && !result" class="mb-4">
-              <p class="mb-2.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="14"><TrendingUp /></NIcon>
-                热门搜索
-              </p>
-              <div class="flex flex-wrap gap-2">
+        <!-- ① Command-bar 搜索 -->
+        <section id="search-panel" class="ui-enter scroll-mt-24">
+          <div
+            class="group flex h-14 items-center gap-3 rounded-2xl border border-zinc-200 bg-white pl-4 pr-2 shadow-[0_1px_0_rgb(0_0_0_/_0.02)] motion-safe:transition-all focus-within:border-emerald-500 focus-within:shadow-[0_0_0_4px_rgb(16_185_129_/_0.12)] dark:border-zinc-800 dark:bg-zinc-900 dark:focus-within:border-emerald-400 dark:focus-within:shadow-[0_0_0_4px_rgb(52_211_153_/_0.12)]"
+          >
+            <span
+              class="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400"
+              aria-hidden="true"
+            >
+              <NIcon :size="18"><Search /></NIcon>
+            </span>
+            <input
+              ref="inputRef"
+              v-model="keyword"
+              type="text"
+              class="h-full min-w-0 flex-1 bg-transparent text-[15px] text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              placeholder="搜索资源、工具或开源项目..."
+              aria-label="输入搜索关键词"
+              :disabled="loading"
+              autocomplete="off"
+              spellcheck="false"
+              @keypress.enter="handleSearch()"
+            />
+            <button
+              v-if="keyword && !loading"
+              type="button"
+              class="grid size-8 shrink-0 place-items-center rounded-lg text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
+              aria-label="清除输入"
+              @click="keyword = ''; clearResult()"
+            >
+              <NIcon :size="14"><X /></NIcon>
+            </button>
+            <span
+              class="mr-1 hidden shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 sm:inline-flex dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-400"
+              aria-hidden="true"
+            >Enter</span>
+            <NButton
+              type="primary"
+              aria-label="搜索"
+              :loading="loading"
+              :disabled="!keyword.trim()"
+              @click="handleSearch()"
+            >搜索</NButton>
+          </div>
+
+          <!-- 热门 / 提示 / 错误：三选一，控制视觉密度 -->
+          <div class="mt-3 flex min-h-[24px] items-center gap-2 pl-1">
+            <p v-if="error" class="text-xs text-red-500 dark:text-red-400">{{ error }}</p>
+            <template v-else-if="hotKeywords.length > 0 && !result">
+              <span class="flex shrink-0 items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
+                <NIcon :size="12"><TrendingUp /></NIcon>
+                热门
+              </span>
+              <div class="flex min-w-0 flex-wrap gap-1.5">
                 <button
                   v-for="kw in hotKeywords"
                   :key="kw"
                   type="button"
-                  class="rounded-full border border-zinc-200 px-3 py-1.5 text-[13px] text-zinc-600 motion-safe:transition-colors hover:border-emerald-400/60 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
+                  class="rounded-full border border-zinc-200 px-2.5 py-0.5 text-[12px] text-zinc-600 motion-safe:transition-colors hover:border-emerald-400/60 hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-emerald-400/50 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
                   @click="handleSearch(kw)"
-                >
-                  {{ kw }}
-                </button>
+                >{{ kw }}</button>
               </div>
-            </div>
-
-            <!-- 搜索结果：对话式展示 -->
-            <Transition name="result-reveal" mode="out-in">
-              <div v-if="result" :key="result.keyword" class="space-y-4">
-              <!-- 用户查询气泡 -->
-              <div class="flex items-start justify-end gap-2.5">
-                <div class="max-w-[85%] rounded-2xl rounded-br-md bg-emerald-600 px-4 py-2.5 dark:bg-emerald-400">
-                  <p class="text-sm text-white dark:text-zinc-950">{{ result.keyword }}</p>
-                </div>
-                <div
-                  class="grid size-8 shrink-0 place-items-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-500 dark:bg-zinc-700 dark:text-zinc-400"
-                >
-                  {{ (auth.user?.nickname || auth.user?.username || 'U')[0]?.toUpperCase() || '?' }}
-                </div>
-              </div>
-
-              <!-- 系统响应区：图标 + 关键词 + 属性 tag + 内容块 -->
-              <div class="flex items-start gap-2.5">
-                <!-- 站点头像：有真实图标则用图标，否则用站点首字母 -->
-                <div
-                  class="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl text-xs font-bold text-white"
-                  :class="result.icon ? '' : 'bg-emerald-600 dark:bg-emerald-400 dark:text-zinc-950'"
-                >
-                  <img v-if="result.icon" :src="result.icon" :alt="result.keyword" class="size-full object-cover" />
-                  <span v-else>{{ (settings.siteName?.[0] || 'X').toUpperCase() }}</span>
-                </div>
-
-                <div class="min-w-0 flex-1 rounded-2xl rounded-bl-md border border-zinc-200 bg-zinc-50/80 px-4 py-3.5 dark:border-zinc-700 dark:bg-zinc-800/60">
-                  <!-- 头部：关键词名称 + 属性 tags -->
-                  <div class="mb-3 flex flex-wrap items-center gap-2">
-                    <span class="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                      {{ result.keyword }}
-                    </span>
-                    <span
-                      v-for="(attr, ai) in resultAttributes"
-                      :key="ai"
-                      class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50/80 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700 dark:border-emerald-400/25 dark:bg-emerald-400/10 dark:text-emerald-400"
-                    >
-                      <span class="opacity-70">{{ attr.label }}</span>
-                      <span class="opacity-40">·</span>
-                      <span>{{ attr.value }}</span>
-                    </span>
-                    <span class="ml-auto text-xs text-zinc-500 dark:text-zinc-400" :title="result.timestamp">
-                      {{ formatRelative(result.timestamp) }}
-                    </span>
-                  </div>
-
-                  <!-- 分隔线 -->
-                  <div class="mb-3 border-t border-zinc-200 dark:border-zinc-700" />
-
-                  <!-- 响应内容块 -->
-                  <div v-if="resultBlocks" class="space-y-2.5">
-                    <template v-for="(block, i) in resultBlocks" :key="i">
-                      <p
-                        v-if="block.type === 'text' && block.text"
-                        class="text-[14px] leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300"
-                      >
-                        {{ block.text }}
-                      </p>
-
-                      <img
-                        v-else-if="block.type === 'image' && block.src"
-                        :src="block.src"
-                        :alt="block.alt || ''"
-                        class="max-h-80 rounded-lg border border-zinc-100 dark:border-zinc-700"
-                      />
-
-                      <a
-                        v-else-if="block.type === 'link'"
-                        :href="blockAccess(block) === 'free' && isSafeHttpUrl(block.url) ? block.url : 'javascript:void(0)'"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="group flex flex-wrap items-center gap-2.5 rounded-lg border px-3 py-2 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
-                        :class="blockAccess(block) !== 'free'
-                          ? 'border-amber-200 bg-amber-50/60 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/5 dark:hover:border-amber-400/40'
-                          : 'border-zinc-200 hover:border-emerald-400 dark:border-zinc-600 dark:hover:border-emerald-400/60'"
-                        @click="(e) => handleLinkClick(e, block, i)"
-                      >
-                        <span
-                          class="grid size-7 shrink-0 place-items-center rounded-md"
-                          :class="blockAccess(block) !== 'free'
-                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
-                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'"
-                        >
-                          <NIcon :size="15"><component :is="linkIconOf(block)" /></NIcon>
-                        </span>
-                        <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white">
-                          {{ block.label || '链接' }}
-                        </span>
-                        <NTag
-                          v-if="blockAccess(block) !== 'free' && !purchasedLinks[`${result.keywordId}-${i}`]"
-                          :type="blockAccess(block) === 'membership' ? 'warning' : 'default'"
-                          size="small"
-                          round
-                        >
-                          {{ blockAccess(block) === 'membership' ? '会员免费' : `¥${block.cost || 0}` }}
-                        </NTag>
-                        <NTag
-                          v-if="blockAccess(block) !== 'free' && purchasedLinks[`${result.keywordId}-${i}`]"
-                          type="success"
-                          size="small"
-                          round
-                        >已购买</NTag>
-                        <button
-                          v-if="blockCode(block, i)"
-                          type="button"
-                          class="flex items-center gap-1 rounded-md border border-dashed px-2 py-1 font-mono text-[11px] motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
-                          :class="copiedIdx === i
-                            ? 'border-emerald-400 text-emerald-600 dark:text-emerald-400'
-                            : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-200'"
-                          title="点击复制提取码"
-                          @click.prevent.stop="handleCopyCode(blockCode(block, i), i)"
-                        >
-                          <NIcon :size="11"><Check v-if="copiedIdx === i" /><Copy v-else /></NIcon>
-                          {{ copiedIdx === i ? '已复制' : `提取码 ${blockCode(block, i)}` }}
-                        </button>
-                      </a>
-                    </template>
-                  </div>
-                  <p v-else class="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-700 dark:text-zinc-300">{{ result.response }}</p>
-                </div>
-              </div>
-              </div>
-            </Transition>
-
-            <!-- 搜索结果元信息 -->
-            <div
-              v-if="result"
-              class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400"
-            >
-              <span v-if="result.source" class="flex items-center gap-1">
-                <NIcon :size="12"><Clock /></NIcon>
-                {{ result.source === 'database' ? '已收录关键词' : '系统默认回复' }}
-              </span>
-            </div>
-          </div>
-
-          <!-- 搜索输入框 -->
-          <div class="border-t border-zinc-100 px-4 py-4 dark:border-zinc-800 sm:px-5">
-            <div class="flex items-center gap-2.5">
-              <div class="flex h-11 flex-1 items-center gap-2.5 rounded-xl border border-zinc-200 bg-zinc-50/60 px-3.5 motion-safe:transition-colors focus-within:border-emerald-500 focus-within:bg-white dark:border-zinc-700 dark:bg-zinc-800/50 dark:focus-within:border-emerald-400 dark:focus-within:bg-zinc-900">
-                <NIcon :size="18" class="shrink-0 text-zinc-400 dark:text-zinc-500"><Search /></NIcon>
-                <input
-                  ref="inputRef"
-                  v-model="keyword"
-                  type="text"
-                  class="h-full min-w-0 flex-1 bg-transparent text-[14px] text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                  placeholder="输入关键词，如：Photoshop、Win11、ChatGPT..."
-                  aria-label="输入搜索关键词"
-                  :disabled="loading"
-                  autocomplete="off"
-                  spellcheck="false"
-                  @keypress.enter="handleSearch()"
-                />
-              </div>
-              <NButton type="primary" circle size="large" aria-label="搜索" :loading="loading" :disabled="!keyword.trim()" @click="handleSearch()">
-                <template #icon><NIcon :size="18"><Send /></NIcon></template>
-              </NButton>
-            </div>
-            <p v-if="error" class="mt-2 pl-1 text-xs text-red-500 dark:text-red-400">{{ error }}</p>
-            <p v-else class="mt-2 pl-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-              提示：请输入软件名称、版本或功能关键词，系统将为你查找相关资源。
+            </template>
+            <p v-else class="text-[11px] text-zinc-400 dark:text-zinc-500">
+              请输入软件名称、版本或功能关键词，回车即可搜索。
             </p>
           </div>
         </section>
 
-        <!-- ② 精选资源模块 -->
-        <section id="featured" class="ui-enter mt-8 scroll-mt-20 [--enter-delay:120ms]">
-          <div class="mb-4 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <NIcon :size="18" class="text-emerald-600 dark:text-emerald-400"><Stars /></NIcon>
-              <h2 class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">精选资源</h2>
+        <!-- ② 搜索结果详情卡 -->
+        <Transition name="result-reveal" mode="out-in">
+          <section
+            v-if="result"
+            :key="result.keyword"
+            class="mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+          >
+            <div class="p-5 sm:p-6">
+              <div class="flex items-start gap-4">
+                <div
+                  class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-emerald-500/10 text-base font-bold text-emerald-700 dark:text-emerald-400"
+                >
+                  <img
+                    v-if="result.icon"
+                    :src="result.icon"
+                    :alt="result.keyword"
+                    class="size-full object-cover"
+                    loading="lazy"
+                  />
+                  <span v-else>{{ (result.keyword?.[0] || 'K').toUpperCase() }}</span>
+                </div>
+
+                <div class="min-w-0 flex-1">
+                  <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <h2 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                      {{ result.keyword }}
+                    </h2>
+                    <span
+                      v-if="result.source"
+                      class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
+                    >
+                      <NIcon :size="10"><Check /></NIcon>
+                      {{ result.source === 'database' ? '已收录' : '默认回复' }}
+                    </span>
+                  </div>
+
+                  <div
+                    v-if="visibleResultAttributes.length > 0"
+                    class="mt-2 flex flex-wrap gap-1.5"
+                  >
+                    <span
+                      v-for="(attr, ai) in visibleResultAttributes"
+                      :key="ai"
+                      class="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50/70 px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300"
+                    >
+                      <span class="text-zinc-400 dark:text-zinc-500">{{ attr.label }}</span>
+                      <span>{{ attr.value }}</span>
+                    </span>
+                  </div>
+
+                  <p
+                    class="mt-2 font-mono text-[11px] text-zinc-400 dark:text-zinc-500"
+                    :title="result.timestamp"
+                  >{{ formatRelative(result.timestamp) }}</p>
+                </div>
+
+                <button
+                  type="button"
+                  class="grid size-8 shrink-0 place-items-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
+                  aria-label="关闭搜索结果"
+                  title="关闭"
+                  @click="clearResult"
+                >
+                  <NIcon :size="14"><X /></NIcon>
+                </button>
+              </div>
+
+              <div class="my-5 border-t border-zinc-100 dark:border-zinc-800" />
+
+              <div v-if="resultBlocks && resultBlocks.length > 0" class="space-y-3">
+                <template v-for="(block, i) in resultBlocks" :key="i">
+                  <p
+                    v-if="block.type === 'text' && block.text"
+                    class="text-[14px] leading-relaxed whitespace-pre-wrap text-zinc-700 dark:text-zinc-300"
+                  >{{ block.text }}</p>
+
+                  <img
+                    v-else-if="block.type === 'image' && block.src"
+                    :src="block.src"
+                    :alt="block.alt || ''"
+                    class="max-h-80 rounded-xl border border-zinc-100 dark:border-zinc-800"
+                    loading="lazy"
+                  />
+
+                  <a
+                    v-else-if="block.type === 'link'"
+                    :href="blockAccess(block) === 'free' && isSafeHttpUrl(block.url) ? block.url : 'javascript:void(0)'"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="group flex flex-wrap items-center gap-2.5 rounded-xl border px-3 py-2.5 motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+                    :class="blockAccess(block) === 'membership'
+                      ? 'border-amber-200 bg-amber-50/50 hover:border-amber-300 dark:border-amber-400/20 dark:bg-amber-400/5 dark:hover:border-amber-400/40'
+                      : blockAccess(block) === 'balance'
+                        ? 'border-zinc-200 bg-white hover:border-emerald-400/70 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-emerald-400/60'
+                        : 'border-zinc-200 bg-white hover:border-emerald-400 hover:bg-emerald-50/40 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-emerald-400/60 dark:hover:bg-emerald-400/5'"
+                    @click="(e) => handleLinkClick(e, block, i)"
+                  >
+                    <span
+                      class="grid size-8 shrink-0 place-items-center rounded-lg"
+                      :class="blockAccess(block) === 'membership'
+                        ? 'bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
+                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'"
+                    >
+                      <NIcon :size="16"><component :is="linkIconOf(block)" /></NIcon>
+                    </span>
+                    <span class="min-w-0 flex-1 truncate text-[13.5px] font-medium text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white">
+                      {{ block.label || '链接' }}
+                    </span>
+                    <NTag
+                      v-if="blockAccess(block) !== 'free' && !purchasedLinks[`${result.keywordId}-${i}`]"
+                      :type="blockAccess(block) === 'membership' ? 'warning' : 'default'"
+                      size="small"
+                      round
+                    >
+                      {{ blockAccess(block) === 'membership' ? '会员免费' : `¥${block.cost || 0}` }}
+                    </NTag>
+                    <NTag
+                      v-if="blockAccess(block) !== 'free' && purchasedLinks[`${result.keywordId}-${i}`]"
+                      type="success"
+                      size="small"
+                      round
+                    >已购买</NTag>
+                    <button
+                      v-if="blockCode(block, i)"
+                      type="button"
+                      class="flex items-center gap-1 rounded-md border border-dashed px-2 py-1 font-mono text-[11px] motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+                      :class="copiedIdx === i
+                        ? 'border-emerald-400 text-emerald-600 dark:text-emerald-400'
+                        : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-zinc-700 dark:border-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                      title="点击复制提取码"
+                      @click.prevent.stop="handleCopyCode(blockCode(block, i), i)"
+                    >
+                      <NIcon :size="11"><Check v-if="copiedIdx === i" /><Copy v-else /></NIcon>
+                      {{ copiedIdx === i ? '已复制' : `提取码 ${blockCode(block, i)}` }}
+                    </button>
+                  </a>
+                </template>
+              </div>
+              <p
+                v-else
+                class="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-700 dark:text-zinc-300"
+              >{{ result.response }}</p>
             </div>
-            <div class="flex items-center gap-3">
-              <span v-if="!featuredLoading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+          </section>
+        </Transition>
+
+        <!-- ③ 精选资源 -->
+        <section
+          id="featured"
+          class="ui-enter mt-10 scroll-mt-20 [--enter-delay:120ms]"
+        >
+          <div class="mb-4 flex items-end justify-between gap-4">
+            <div class="min-w-0">
+              <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+                <NIcon :size="18" class="text-emerald-600 dark:text-emerald-400"><Stars /></NIcon>
+                精选资源
+              </h2>
+              <p v-if="!featuredLoading" class="mt-1 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
                 共 {{ featuredTotal }} 个
-              </span>
-              <router-link
-                to="/categories"
-                class="flex items-center gap-1 rounded text-xs text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
-              >
-                查看更多 <NIcon :size="13"><ChevronRight /></NIcon>
-              </router-link>
+              </p>
             </div>
+            <router-link
+              to="/categories"
+              class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
+            >
+              查看更多 <NIcon :size="13"><ChevronRight /></NIcon>
+            </router-link>
           </div>
 
-          <!-- 分类 Tab -->
-          <div v-if="categories.length > 0" class="mb-4 flex flex-wrap gap-1.5">
+          <!-- 分类 Tab：细边 ghost + 选中 solid -->
+          <div v-if="categories.length > 0" class="mb-5 flex flex-wrap gap-1.5">
             <button
               type="button"
-              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              class="rounded-full px-3 py-1 text-[12.5px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               :class="selectedCategory === null
-                ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
-                : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400'"
+                ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-400 dark:text-zinc-950'
+                : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-emerald-400/50 dark:hover:text-emerald-400'"
               @click="handleCategoryChange(null)"
             >全部</button>
             <button
               v-for="cat in categories"
               :key="cat.id"
               type="button"
-              class="rounded-full px-3.5 py-1.5 text-[13px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              class="rounded-full px-3 py-1 text-[12.5px] font-medium motion-safe:transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               :class="selectedCategory === cat.id
-                ? 'bg-emerald-600 text-white dark:bg-emerald-400 dark:text-zinc-950'
-                : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-emerald-400/40 dark:hover:text-emerald-400'"
+                ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-400 dark:text-zinc-950'
+                : 'border border-zinc-200 text-zinc-600 hover:border-emerald-400/60 hover:text-emerald-600 dark:border-zinc-800 dark:text-zinc-400 dark:hover:border-emerald-400/50 dark:hover:text-emerald-400'"
               @click="handleCategoryChange(cat.id)"
             >{{ cat.name }}</button>
           </div>
@@ -738,33 +776,32 @@ function handleQuickAction(action: string) {
               :key="i"
               class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <div class="flex items-center gap-2.5 pr-7">
+              <div class="flex items-center gap-2.5">
                 <NSkeleton width="40" height="40" :sharp="false" />
-                <div class="flex-1 space-y-2">
-                  <NSkeleton text width="85%" />
-                </div>
+                <NSkeleton text width="60%" />
               </div>
-              <div class="mt-2.5 space-y-2">
+              <div class="mt-3 space-y-2">
                 <NSkeleton text width="100%" />
                 <NSkeleton text width="70%" />
-              </div>
-              <div class="mt-3 flex items-center justify-between">
-                <NSkeleton text width="60px" height="20px" :sharp="false" />
-                <NSkeleton text width="40px" height="20px" :sharp="false" />
               </div>
             </div>
           </div>
 
           <!-- 空状态 -->
-          <div v-else-if="featuredItems.length === 0" class="rounded-2xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700">
+          <div
+            v-else-if="featuredItems.length === 0"
+            class="rounded-2xl border border-dashed border-zinc-300 py-14 dark:border-zinc-700"
+          >
             <NEmpty description="暂无精选资源">
               <template #extra>
-                <span class="text-xs text-zinc-500 dark:text-zinc-400">在管理后台添加关键词与分类后将在此展示</span>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                  在管理后台添加关键词与分类后将在此展示
+                </span>
               </template>
             </NEmpty>
           </div>
 
-          <!-- 资源列表（两列网格卡片） -->
+          <!-- 资源卡片网格 -->
           <TransitionGroup
             v-else
             name="resource-list"
@@ -799,77 +836,90 @@ function handleQuickAction(action: string) {
       </div>
 
       <!-- ── 右栏：侧边栏 ── -->
-      <aside class="sidebar-stack mt-8 space-y-5 lg:mt-0">
-        <!-- ① 个人信息卡片 -->
-        <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <!-- 顶部用户信息 -->
-          <div class="px-5 pb-3 pt-5">
+      <aside class="sidebar-stack mt-10 space-y-4 lg:mt-0">
+        <!-- ① 用户卡：emerald tint 强调 -->
+        <div
+          class="user-card overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-50/80 via-white to-white dark:border-emerald-400/20 dark:from-emerald-400/10 dark:via-zinc-900 dark:to-zinc-900"
+        >
+          <div class="px-5 pb-4 pt-5">
             <div class="flex items-center gap-3">
               <NAvatar
                 v-if="isLoggedIn"
                 :src="auth.user?.avatar || undefined"
                 :size="48"
                 round
-                class="shrink-0"
+                class="shrink-0 ring-2 ring-white dark:ring-zinc-900"
               />
               <span
                 v-else
-                class="grid size-12 shrink-0 place-items-center rounded-full bg-zinc-200 text-base font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                class="grid size-12 shrink-0 place-items-center rounded-full bg-white text-zinc-500 shadow-sm ring-1 ring-emerald-500/20 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-emerald-400/20"
               >
                 <NIcon :size="22"><User /></NIcon>
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="truncate text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  <span class="truncate text-[15px] font-semibold text-zinc-900 dark:text-zinc-50">
                     {{ isLoggedIn ? (auth.user?.nickname || auth.user?.username) : '游客' }}
                   </span>
                   <span
                     v-if="isLoggedIn && auth.user?.level"
-                    class="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400"
+                    class="shrink-0 rounded-full bg-emerald-600/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-400"
                   >Lv.{{ auth.user.level }}</span>
                 </div>
                 <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                  {{ isLoggedIn ? (isMember ? '会员用户' : '普通用户') : '未登录' }}
+                  {{ isLoggedIn ? (isMember ? '会员用户' : '普通用户') : '登录后可购买与下载资源' }}
                 </p>
               </div>
             </div>
-            <p v-if="!isLoggedIn" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-              登录后可购买与下载资源
-            </p>
-            <p v-else-if="isMember && auth.user?.membership_expires_at" class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            <p
+              v-if="isLoggedIn && isMember && auth.user?.membership_expires_at"
+              class="mt-3 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700 dark:bg-amber-400/10 dark:text-amber-400"
+            >
               会员有效期至 {{ new Date(auth.user.membership_expires_at).toLocaleDateString('zh-CN') }}
             </p>
             <router-link
-              v-else
+              v-else-if="isLoggedIn"
               to="/user/membership"
-              class="mt-2 inline-block rounded text-xs text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400"
-            >开通会员享免费下载</router-link>
+              class="mt-3 inline-flex items-center gap-1 rounded-md text-xs font-medium text-emerald-600 hover:underline focus-visible:underline focus-visible:outline-none dark:text-emerald-400"
+            >
+              <NIcon :size="12"><Crown /></NIcon>
+              开通会员享免费下载
+            </router-link>
           </div>
 
-          <!-- 数据统计（3 列） -->
-          <div class="grid grid-cols-3 border-t border-zinc-100 dark:border-zinc-800">
-            <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Coin /></NIcon>余额</span>
-              <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                {{ isLoggedIn ? (currentBalance.toFixed(2)) : '-' }}
+          <!-- 3 列统计 -->
+          <div class="grid grid-cols-3 border-t border-emerald-500/15 bg-white/40 dark:border-emerald-400/15 dark:bg-zinc-900/40">
+            <div class="flex flex-col items-center gap-0.5 py-3">
+              <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <NIcon :size="11"><Coin /></NIcon>余额
+              </span>
+              <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                {{ isLoggedIn ? currentBalance.toFixed(2) : '-' }}
               </span>
             </div>
-            <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Download /></NIcon>下载</span>
-              <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <div class="flex flex-col items-center gap-0.5 border-x border-emerald-500/15 py-3 dark:border-emerald-400/15">
+              <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <NIcon :size="11"><Download /></NIcon>下载
+              </span>
+              <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
                 {{ isLoggedIn ? (downloadsToday !== null ? downloadsToday : '-') : '-' }}
               </span>
             </div>
-            <div class="flex flex-col items-center py-3">
-              <span class="flex items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400"><NIcon :size="12"><Heart /></NIcon>收藏</span>
-              <span class="mt-0.5 font-mono text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            <div class="flex flex-col items-center gap-0.5 py-3">
+              <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                <NIcon :size="11"><Heart /></NIcon>收藏
+              </span>
+              <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
                 {{ isLoggedIn ? favorites.favoritedIds.size : '-' }}
               </span>
             </div>
           </div>
 
-          <!-- 未登录操作 -->
-          <div v-if="!isLoggedIn" class="border-t border-zinc-100 px-5 pb-4 pt-3 dark:border-zinc-800">
+          <!-- 未登录：登录/注册 -->
+          <div
+            v-if="!isLoggedIn"
+            class="border-t border-emerald-500/15 bg-white/60 px-4 py-3 dark:border-emerald-400/15 dark:bg-zinc-900/60"
+          >
             <div class="flex gap-2">
               <NButton type="primary" size="small" block @click="authModal.show('login')">登录</NButton>
               <NButton secondary size="small" block @click="authModal.show('register')">注册</NButton>
@@ -879,37 +929,48 @@ function handleQuickAction(action: string) {
 
         <!-- ② 灵感漫游 -->
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
+          <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Compass /></NIcon>
-              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">灵感漫游</h3>
+              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><Compass /></NIcon>
+              <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">灵感漫游</h3>
             </div>
             <button
               type="button"
-              class="sidebar-action discovery-refresh grid size-8 shrink-0 place-items-center rounded-full text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+              class="sidebar-action discovery-refresh grid size-7 shrink-0 place-items-center rounded-full text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
               :class="{ 'is-loading': discoveryLoading }"
               :disabled="discoveryLoading"
               title="换一组关键词"
               aria-label="换一组关键词"
               @click="refreshDiscovery"
             >
-              <NIcon :size="15"><Refresh /></NIcon>
+              <NIcon :size="13"><Refresh /></NIcon>
             </button>
           </div>
 
           <Transition name="discovery-swap" mode="out-in">
-            <div v-if="discoveryLoading && discoveryKeywords.length === 0" key="loading" class="space-y-3 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800">
+            <div
+              v-if="discoveryLoading && discoveryKeywords.length === 0"
+              key="loading"
+              class="space-y-3 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800"
+            >
               <div v-for="i in 3" :key="i" class="flex items-center gap-3">
                 <NSkeleton circle width="32px" height="32px" />
-                <div class="flex-1 space-y-1.5"><NSkeleton text width="62%" /><NSkeleton text width="88%" /></div>
+                <div class="flex-1 space-y-1.5">
+                  <NSkeleton text width="62%" />
+                  <NSkeleton text width="88%" />
+                </div>
               </div>
             </div>
-            <div v-else-if="discoveryKeywords.length > 0" :key="discoveryBatch" class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+            <div
+              v-else-if="discoveryKeywords.length > 0"
+              :key="discoveryBatch"
+              class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800"
+            >
               <button
                 v-for="(kw, index) in discoveryKeywords"
                 :key="kw.id"
                 type="button"
-                class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+                class="sidebar-row group flex w-full items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
                 :title="`搜索「${kw.keyword}」`"
                 @click="handleSidebarSearch(kw.keyword)"
               >
@@ -921,10 +982,16 @@ function handleQuickAction(action: string) {
                   <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ kw.keyword }}</span>
                   <span class="mt-0.5 block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{{ kw.description || '点击查看相关资源' }}</span>
                 </span>
-                <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+                <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
+                  <ArrowUpRight />
+                </NIcon>
               </button>
             </div>
-            <div v-else key="empty" class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+            <div
+              v-else
+              key="empty"
+              class="border-t border-zinc-100 px-4 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
+            >
               暂无可探索的关键词
             </div>
           </Transition>
@@ -932,10 +999,10 @@ function handleQuickAction(action: string) {
 
         <!-- ③ 最近搜索 -->
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
+          <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><History /></NIcon>
-              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">最近搜索</h3>
+              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><History /></NIcon>
+              <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">最近搜索</h3>
             </div>
             <button
               v-if="searchHistory.length > 0"
@@ -944,54 +1011,78 @@ function handleQuickAction(action: string) {
               @click="clearSearchHistory"
             >清除</button>
           </div>
-          <TransitionGroup v-if="searchHistory.length > 0" name="history-list" tag="div" class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+          <TransitionGroup
+            v-if="searchHistory.length > 0"
+            name="history-list"
+            tag="div"
+            class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800"
+          >
             <button
               v-for="item in searchHistory.slice(0, 5)"
               :key="item"
               type="button"
-              class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              class="sidebar-row group flex w-full items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               @click="handleSidebarSearch(item)"
             >
               <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                <NIcon :size="14"><Search /></NIcon>
+                <NIcon :size="13"><Search /></NIcon>
               </span>
-              <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ item }}</span>
-              <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+              <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
+                {{ item }}
+              </span>
+              <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
+                <ArrowUpRight />
+              </NIcon>
             </button>
           </TransitionGroup>
-          <div v-else class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+          <div
+            v-else
+            class="border-t border-zinc-100 px-4 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
+          >
             搜索过的关键词会显示在这里
           </div>
         </div>
 
         <!-- ④ 最新更新 -->
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="sidebar-card__header flex min-h-16 items-center justify-between gap-4 px-5 py-4">
+          <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Clock /></NIcon>
-              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">最新更新</h3>
+              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><Clock /></NIcon>
+              <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">最新更新</h3>
             </div>
             <router-link
               to="/categories"
-              class="sidebar-action flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
+              class="sidebar-action inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
             >更多 <NIcon :size="11"><ChevronRight /></NIcon></router-link>
           </div>
 
-          <div v-if="sidebarLoading" class="space-y-3 border-t border-zinc-100 px-5 py-4 dark:border-zinc-800">
+          <div
+            v-if="sidebarLoading"
+            class="space-y-3 border-t border-zinc-100 px-4 py-3 dark:border-zinc-800"
+          >
             <div v-for="i in 4" :key="i" class="flex items-center gap-3">
               <NSkeleton circle width="32px" height="32px" />
-              <div class="flex-1 space-y-1.5"><NSkeleton text width="62%" /><NSkeleton text width="34%" /></div>
+              <div class="flex-1 space-y-1.5">
+                <NSkeleton text width="62%" />
+                <NSkeleton text width="34%" />
+              </div>
             </div>
           </div>
-          <div v-else-if="recentKeywords.length === 0" class="border-t border-zinc-100 px-5 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500">
+          <div
+            v-else-if="recentKeywords.length === 0"
+            class="border-t border-zinc-100 px-4 py-5 text-center text-xs text-zinc-400 dark:border-zinc-800 dark:text-zinc-500"
+          >
             暂无更新
           </div>
-          <div v-else class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800">
+          <div
+            v-else
+            class="sidebar-list divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-zinc-800 dark:border-zinc-800"
+          >
             <button
               v-for="(kw, index) in recentKeywords"
               :key="kw.id"
               type="button"
-              class="sidebar-row group flex w-full items-center gap-3 px-5 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
+              class="sidebar-row group flex w-full items-center gap-3 px-4 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:focus-visible:ring-emerald-400/60"
               @click="handleSidebarSearch(kw.keyword)"
             >
               <span class="grid size-8 shrink-0 place-items-center overflow-hidden rounded-lg bg-zinc-100 font-mono text-[10px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
@@ -1000,19 +1091,23 @@ function handleQuickAction(action: string) {
               </span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ kw.keyword }}</span>
-                <span class="mt-0.5 block font-mono text-[11px] text-zinc-500 dark:text-zinc-400">{{ formatRelative(kw.updated_at || kw.created_at) }}</span>
+                <span class="mt-0.5 block font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {{ formatRelative(kw.updated_at || kw.created_at) }}
+                </span>
               </span>
-              <NIcon :size="14" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600"><ArrowUpRight /></NIcon>
+              <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
+                <ArrowUpRight />
+              </NIcon>
             </button>
           </div>
         </div>
 
-        <!-- ⑤ 快捷入口 -->
+        <!-- ⑤ 快捷入口：2×2 -->
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="sidebar-card__header flex min-h-16 items-center px-5 py-4">
+          <div class="flex items-center px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><Apps /></NIcon>
-              <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">快捷入口</h3>
+              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><Apps /></NIcon>
+              <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">快捷入口</h3>
             </div>
           </div>
           <div class="sidebar-quick-grid grid grid-cols-2 border-t border-zinc-100 dark:border-zinc-800">
@@ -1024,9 +1119,9 @@ function handleQuickAction(action: string) {
               @click="handleQuickAction(item.action)"
             >
               <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                <NIcon :size="16"><component :is="item.icon" /></NIcon>
+                <NIcon :size="15"><component :is="item.icon" /></NIcon>
               </span>
-              <span class="text-[12px] font-medium text-zinc-700 dark:text-zinc-300">{{ item.label }}</span>
+              <span class="text-[12.5px] font-medium text-zinc-700 dark:text-zinc-300">{{ item.label }}</span>
             </button>
           </div>
         </div>
