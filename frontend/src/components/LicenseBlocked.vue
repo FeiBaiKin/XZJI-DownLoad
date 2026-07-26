@@ -10,7 +10,7 @@ const license = useLicenseStore()
 
 <template>
   <div class="flex min-h-dvh items-center justify-center px-6 py-12">
-    <div class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm sm:p-10 dark:border-zinc-800 dark:bg-zinc-900">
       <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400">
         <NIcon :size="28"><Lock /></NIcon>
       </div>

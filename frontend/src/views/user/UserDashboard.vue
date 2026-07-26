@@ -133,7 +133,7 @@ function daysLeftOf(expiresAt: string) {
     <!-- 加载骨架 -->
     <div v-if="loading" class="space-y-6">
       <NSkeleton text width="20%" size="large" />
-      <div class="grid gap-4 md:grid-cols-3">
+      <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <div v-for="i in 3" :key="i" class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <NSkeleton text width="40%" />
           <NSkeleton text width="60%" class="mt-3" size="large" />
@@ -151,7 +151,7 @@ function daysLeftOf(expiresAt: string) {
       <NAlert v-if="message" type="success" class="mt-4" closable @close="message = ''">{{ message }}</NAlert>
 
       <!-- 余额 & 会员 & 等级 卡片 -->
-      <div class="mt-6 grid gap-4 md:grid-cols-3">
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <!-- 余额 -->
         <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between">
@@ -228,7 +228,7 @@ function daysLeftOf(expiresAt: string) {
             <p class="font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-50">{{ checkin.streak }} <span class="text-xs font-normal text-zinc-500 dark:text-zinc-400">天</span></p>
           </div>
           <!-- 连续签到进度点：最后一格为奖励日 -->
-          <div class="flex items-center gap-1.5">
+          <div class="flex max-w-full flex-wrap items-center gap-1.5">
             <span
               v-for="i in checkin.config.consecutiveDays"
               :key="i"

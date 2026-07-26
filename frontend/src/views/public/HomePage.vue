@@ -1131,14 +1131,14 @@ function handleQuickAction(action: string) {
     <!-- ═══ 公告弹窗 ═══ -->
     <NModal :show="!!visibleAnn" @update:show="(v: boolean) => { if (!v) dismissAnnouncement() }">
       <div v-if="visibleAnn" class="w-[92vw] max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-        <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
-          <div class="flex items-center gap-2.5">
-            <NTag :type="annTagType" size="small" round>{{ annTypeLabels[visibleAnn.type] || visibleAnn.type }}</NTag>
-            <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ visibleAnn.title }}</h3>
+        <div class="flex items-center justify-between gap-3 border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+          <div class="flex min-w-0 items-center gap-2.5">
+            <NTag :type="annTagType" size="small" round class="shrink-0">{{ annTypeLabels[visibleAnn.type] || visibleAnn.type }}</NTag>
+            <h3 class="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ visibleAnn.title }}</h3>
           </div>
           <button
             type="button"
-            class="flex size-8 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
+            class="flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
             aria-label="关闭"
             @click="dismissAnnouncement"
           >

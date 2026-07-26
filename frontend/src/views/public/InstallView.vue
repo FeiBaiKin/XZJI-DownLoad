@@ -86,7 +86,7 @@ async function submit() {
         <section class="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
           <h2 class="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">数据库配置</h2>
           <div class="space-y-4">
-            <div class="grid grid-cols-[1fr_140px] gap-3">
+            <div class="grid gap-3 sm:grid-cols-[1fr_140px]">
               <div>
                 <label class="mb-1.5 block text-sm text-zinc-600 dark:text-zinc-400">主机</label>
                 <NInput v-model:value="form.dbHost" />

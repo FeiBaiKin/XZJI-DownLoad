@@ -193,11 +193,11 @@ const columns: DataTableColumns<UserBrief> = [
       <!-- 编辑弹窗 -->
       <NModal :show="!!editingUser" :mask-closable="!saving" @update:show="(v: boolean) => { if (!v) editingUser = null }">
         <div v-if="editingUser" class="w-[92vw] max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
-          <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
-            <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">编辑用户：{{ editingUser.username }}</h3>
+          <div class="flex items-center justify-between gap-3 border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
+            <h3 class="min-w-0 truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">编辑用户：{{ editingUser.username }}</h3>
             <button
               type="button"
-              class="flex size-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
+              class="flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 dark:focus-visible:ring-emerald-400/60"
               aria-label="关闭"
               @click="editingUser = null"
             >

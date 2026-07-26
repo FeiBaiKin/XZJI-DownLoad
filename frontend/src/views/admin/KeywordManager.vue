@@ -532,7 +532,7 @@ const columns: DataTableColumns<Keyword> = [
     </header>
 
     <!-- ══ 右侧抽屉：添加 / 编辑表单 ══ -->
-    <NDrawer v-model:show="drawerOpen" :width="520" placement="right" :auto-focus="false">
+    <NDrawer v-model:show="drawerOpen" width="min(520px, 100vw)" placement="right" :auto-focus="false">
       <NDrawerContent :title="editingId ? '编辑关键词' : '添加关键词'" closable>
         <div class="space-y-5">
           <div>
@@ -994,7 +994,7 @@ const columns: DataTableColumns<Keyword> = [
       v-model:show="importOpen"
       preset="card"
       title="批量导入关键词"
-      class="w-full max-w-lg"
+      class="w-[92vw] max-w-lg"
       :bordered="false"
       :segmented="{ content: true, footer: 'soft' }"
     >

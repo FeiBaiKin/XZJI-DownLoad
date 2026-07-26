@@ -94,7 +94,7 @@ function handleLogout() {
 <template>
   <!-- 非管理员拦截 -->
   <div v-if="auth.user && !isAdmin" class="flex min-h-dvh items-center justify-center px-6">
-    <div class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+    <div class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm sm:p-10 dark:border-zinc-800 dark:bg-zinc-900">
       <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-500/10 dark:text-red-400">
         <NIcon :size="28"><ShieldLock /></NIcon>
       </div>

@@ -48,7 +48,7 @@ async function handleBuy() {
       <!-- 渐染头部 -->
       <div class="p-5 pb-4" :style="{ background: tierWash(planColor) }">
         <div class="flex items-start justify-between gap-3">
-          <div class="flex items-center gap-3">
+          <div class="flex min-w-0 items-center gap-3">
             <span
               class="grid size-11 shrink-0 place-items-center rounded-xl"
               :style="{ backgroundColor: planColor, color: readableOn(planColor) }"
