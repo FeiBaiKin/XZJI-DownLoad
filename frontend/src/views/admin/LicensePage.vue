@@ -165,7 +165,7 @@ function pollRestart() {
     <template v-else>
       <header class="mb-6">
         <h1 class="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">授权管理</h1>
-        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">软件授权激活、心跳与在线升级（授权中心：www.xzji.top）</p>
+        <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">软件授权激活、心跳与在线升级（授权中心：sq.xzji.top）</p>
       </header>
 
       <div class="space-y-5">

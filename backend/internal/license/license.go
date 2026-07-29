@@ -1,4 +1,4 @@
-// Package license 实现「授权升级中心」（https://www.xzji.top）的客户端接入：
+// Package license 实现「授权升级中心」（https://sq.xzji.top）的客户端接入：
 // 激活、心跳、Ed25519 响应验签、本地缓存与宽限期状态机、升级下载与应用。
 // 协议契约见授权中心《接入文档》，客户端强制规则：
 //  1. 验签失败视为无效响应，按断网处理（进入宽限期），绝不采信；
@@ -33,7 +33,7 @@ import (
 // 授权中心接入常量。公钥必须硬编码在程序内（协议要求），
 // 用于验证授权响应签名，防止假授权服务器伪造响应。
 const (
-	CenterBaseURL = "https://www.xzji.top"
+	CenterBaseURL = "https://sq.xzji.top"
 	ProductSlug   = "xzji"
 	PublicKeyB64  = "JtMYJerOlRTZ/SOxEM5Jt4TOPxhvF3WGuaqfxnWlFdg="
 )
