@@ -50,18 +50,8 @@ func CheckInStatus(db *gorm.DB, userID uint) (map[string]any, error) {
 	}
 
 	var cfg models.CheckInConfig
-	db.First(&cfg)
-	if cfg.ConsecutiveDays == 0 {
-		cfg.ConsecutiveDays = 7
-	}
-	if cfg.DailyBalance == 0 {
-		cfg.DailyBalance = 0.50
-	}
-	if cfg.ConsecutiveBonusBalance == 0 {
-		cfg.ConsecutiveBonusBalance = 2.00
-	}
-	if cfg.DailyExp == 0 {
-		cfg.DailyExp = 10
+	if err := db.First(&cfg).Error; err != nil {
+		cfg = models.DefaultCheckInConfig()
 	}
 
 	tomorrowStreak := streak + 1
@@ -89,18 +79,8 @@ func CheckIn(db *gorm.DB, userID uint) (map[string]any, error) {
 
 	// 事务外读取签到配置（只读，无需加锁）
 	var cfg models.CheckInConfig
-	db.First(&cfg)
-	if cfg.DailyBalance == 0 {
-		cfg.DailyBalance = 0.50
-	}
-	if cfg.ConsecutiveDays == 0 {
-		cfg.ConsecutiveDays = 7
-	}
-	if cfg.ConsecutiveBonusBalance == 0 {
-		cfg.ConsecutiveBonusBalance = 2.00
-	}
-	if cfg.DailyExp == 0 {
-		cfg.DailyExp = 10
+	if err := db.First(&cfg).Error; err != nil {
+		cfg = models.DefaultCheckInConfig()
 	}
 
 	// 优化：一次性获取所有签到记录，在内存中计算连续天数（避免 N+1 查询）

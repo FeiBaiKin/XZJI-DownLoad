@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"xzji/backend/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // === 签到 ===
@@ -175,7 +177,11 @@ func TriggerMembershipReminders(c *gin.Context) {
 
 func AdminCheckinConfigGet(c *gin.Context) {
 	app := getApp(c)
-	cfg, _ := app.Cache.GetCheckinConfig(app.DB)
+	cfg, err := app.Cache.GetCheckinConfig(app.DB)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "加载失败"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"daily_balance":             cfg.DailyBalance,
 		"consecutive_days":          cfg.ConsecutiveDays,
@@ -185,14 +191,50 @@ func AdminCheckinConfigGet(c *gin.Context) {
 }
 
 func AdminCheckinConfigPut(c *gin.Context) {
-	var s map[string]any
-	if err := c.ShouldBindJSON(&s); err != nil {
+	var req struct {
+		DailyBalance            *float64 `json:"daily_balance"`
+		ConsecutiveDays         *int     `json:"consecutive_days"`
+		ConsecutiveBonusBalance *float64 `json:"consecutive_bonus_balance"`
+		DailyExp                *int     `json:"daily_exp"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误"})
 		return
 	}
 	app := getApp(c)
-	app.DB.Exec("UPDATE check_in_config SET daily_balance=?, consecutive_days=?, consecutive_bonus_balance=?, daily_exp=? WHERE id=1",
-		s["daily_balance"], s["consecutive_days"], s["consecutive_bonus_balance"], s["daily_exp"])
+
+	// check_in_config 始终只保留一行；全新安装时该表为空，此处必须新建记录而不是 UPDATE
+	var cfg models.CheckInConfig
+	switch err := app.DB.First(&cfg).Error; {
+	case err == nil:
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		cfg = models.DefaultCheckInConfig()
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
+
+	if req.DailyBalance != nil {
+		cfg.DailyBalance = *req.DailyBalance
+	}
+	if req.ConsecutiveDays != nil {
+		cfg.ConsecutiveDays = *req.ConsecutiveDays
+	}
+	if req.ConsecutiveBonusBalance != nil {
+		cfg.ConsecutiveBonusBalance = *req.ConsecutiveBonusBalance
+	}
+	if req.DailyExp != nil {
+		cfg.DailyExp = *req.DailyExp
+	}
+	if cfg.DailyBalance < 0 || cfg.ConsecutiveBonusBalance < 0 || cfg.DailyExp < 0 || cfg.ConsecutiveDays < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "参数错误：奖励不能为负数，连续签到天数至少为 1"})
+		return
+	}
+
+	if err := app.DB.Save(&cfg).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "保存失败"})
+		return
+	}
 	// 使缓存失效
 	app.Cache.InvalidateCheckinConfig()
 	c.JSON(http.StatusOK, gin.H{"message": "保存成功"})

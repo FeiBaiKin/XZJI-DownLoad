@@ -118,6 +118,17 @@ type CheckInConfig struct {
 
 func (CheckInConfig) TableName() string { return "check_in_config" }
 
+// DefaultCheckInConfig 返回签到配置的内置默认值。
+// 仅在 check_in_config 尚无记录时使用；已有记录必须原样生效（包括管理员显式设置的 0）。
+func DefaultCheckInConfig() CheckInConfig {
+	return CheckInConfig{
+		DailyBalance:            0.50,
+		ConsecutiveDays:         7,
+		ConsecutiveBonusBalance: 2.00,
+		DailyExp:                10,
+	}
+}
+
 // CheckInRecord 签到记录（对齐 check_in_records）
 type CheckInRecord struct {
 	ID            uint      `gorm:"primaryKey" json:"id"`

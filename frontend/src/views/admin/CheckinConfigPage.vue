@@ -35,6 +35,9 @@ async function handleSave() {
   message.value = ''
   try {
     await api.put('/admin/checkin-config', config.value)
+    // 保存后回读，确保页面展示的是服务端实际持久化的值
+    const res = await api.get('/admin/checkin-config')
+    config.value = res.data
     message.value = '保存成功'
   } catch { message.value = '保存失败' }
   finally { saving.value = false }

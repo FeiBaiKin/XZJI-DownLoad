@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -77,23 +78,13 @@ func (c *ConfigCache) GetCheckinConfig(db *gorm.DB) (models.CheckInConfig, error
 	
 	var cfg models.CheckInConfig
 	if err := db.First(&cfg).Error; err != nil {
-		return cfg, err
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return cfg, err
+		}
+		// 表中尚无配置记录（全新安装未保存过），使用内置默认值
+		cfg = models.DefaultCheckInConfig()
 	}
-	
-	// 应用默认值
-	if cfg.ConsecutiveDays == 0 {
-		cfg.ConsecutiveDays = 7
-	}
-	if cfg.DailyBalance == 0 {
-		cfg.DailyBalance = 0.50
-	}
-	if cfg.ConsecutiveBonusBalance == 0 {
-		cfg.ConsecutiveBonusBalance = 2.00
-	}
-	if cfg.DailyExp == 0 {
-		cfg.DailyExp = 10
-	}
-	
+
 	c.checkinCache.Set(key, cfg)
 	return cfg, nil
 }
