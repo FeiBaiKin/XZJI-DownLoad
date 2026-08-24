@@ -70,6 +70,8 @@ func Recharge(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+// RechargeStatus 订单状态轮询。充值与会员直付共用同一张 payment_orders，
+// 故一并返回 orderType / membershipLevel，供前端区分到账文案。
 func RechargeStatus(c *gin.Context) {
 	uid := middleware.GetUserID(c)
 	var order models.PaymentOrder
@@ -77,7 +79,15 @@ func RechargeStatus(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "订单不存在"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"orderNo": order.OrderNo, "amount": order.Amount, "status": order.Status, "points": order.Points, "paymentMethod": order.PaymentMethod, "paidAt": order.PaidAt})
+	orderType := order.OrderType
+	if orderType == "" {
+		orderType = models.OrderTypeRecharge
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"orderNo": order.OrderNo, "amount": order.Amount, "status": order.Status, "points": order.Points,
+		"paymentMethod": order.PaymentMethod, "paidAt": order.PaidAt,
+		"orderType": orderType, "membershipLevel": order.MembershipLevel,
+	})
 }
 
 func PurchaseLink(c *gin.Context) {
@@ -127,7 +137,8 @@ func BuyMembership(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请选择会员等级"})
 		return
 	}
-	res, err := economySvc(c).BuyMembership(middleware.GetUserID(c), req)
+	// 传 UA：支付宝 page 场景据此在电脑/手机收银台之间自动切换
+	res, err := economySvc(c).BuyMembership(middleware.GetUserID(c), req, c.GetHeader("User-Agent"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

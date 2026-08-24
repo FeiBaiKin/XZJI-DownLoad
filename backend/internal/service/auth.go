@@ -50,13 +50,16 @@ type UserBrief struct {
 	Balance             float64    `json:"balance"`
 	Exp                 int        `json:"exp"`
 	Level               int        `json:"level"`
+	LevelLabel          string     `json:"level_label"` // 后台 level_config 配置的等级名称，未配置时为空串
 	MembershipLevel     *string    `json:"membership_level"`
 	MembershipExpiresAt *time.Time `json:"membership_expires_at"`
 	CreatedAt           time.Time  `json:"created_at"`
 }
 
-// toUserBrief 转换模型为 brief
-func toUserBrief(u *models.User) UserBrief {
+// toUserBrief 转换模型为 brief。
+// 需要 db 是为了带出后台配置的等级名称（level_config.label），
+// 前端徽章优先显示它，缺配置时才回退 "Lv.N"。
+func toUserBrief(db *gorm.DB, u *models.User) UserBrief {
 	b := UserBrief{
 		ID:                  u.ID,
 		Username:            u.Username,
@@ -67,6 +70,7 @@ func toUserBrief(u *models.User) UserBrief {
 		Balance:             u.Balance,
 		Exp:                 u.Exp,
 		Level:               u.Level,
+		LevelLabel:          levelLabelOf(db, u.Level),
 		MembershipLevel:     u.MembershipLevel,
 		MembershipExpiresAt: u.MembershipExpiresAt,
 		CreatedAt:           u.CreatedAt,
@@ -78,6 +82,18 @@ func toUserBrief(u *models.User) UserBrief {
 		b.Avatar = ""
 	}
 	return b
+}
+
+// levelLabelOf 查后台配置的等级名称；未配置该等级时返回空串（由前端回退展示）
+func levelLabelOf(db *gorm.DB, level int) string {
+	if db == nil || level <= 0 {
+		return ""
+	}
+	var cfg models.LevelConfig
+	if err := db.Select("label").Where("level = ?", level).First(&cfg).Error; err != nil {
+		return ""
+	}
+	return cfg.Label
 }
 
 // Login 用户名密码登录
@@ -96,7 +112,7 @@ func (s *AuthService) Login(req LoginRequest) (*LoginResult, error) {
 	return &LoginResult{
 		Message: "登录成功",
 		Token:   token,
-		User:    toUserBrief(&user),
+		User:    toUserBrief(s.DB, &user),
 	}, nil
 }
 
@@ -192,7 +208,7 @@ func (s *AuthService) createUser(username, password, email string, emailVerified
 	return &LoginResult{
 		Message: "注册成功",
 		Token:   token,
-		User:    toUserBrief(&user),
+		User:    toUserBrief(s.DB, &user),
 	}, nil
 }
 
@@ -345,7 +361,7 @@ func (s *AuthService) PasswordlessLogin(req PasswordlessLoginRequest) (*LoginRes
 	return &LoginResult{
 		Message: "登录成功",
 		Token:   token,
-		User:    toUserBrief(&user),
+		User:    toUserBrief(s.DB, &user),
 	}, nil
 }
 

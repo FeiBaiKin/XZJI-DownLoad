@@ -5,7 +5,7 @@
 //   2) 作为选择器：父组件监听 @select 事件，拿到的参数是 MediaFile
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { NIcon, NButton, NInput, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
-import { Upload, Link as LinkIcon, Trash, Search } from '@vicons/tabler'
+import { PhUploadSimple, PhLink as LinkIcon, PhTrash, PhMagnifyingGlass } from '@phosphor-icons/vue'
 import { contentApi, type MediaFile } from '@/api/content'
 import { useToastStore } from '@/stores/toast'
 import AppPagination from '@/components/AppPagination.vue'
@@ -228,7 +228,7 @@ function fmtSize(s: number) {
         @dragleave="onDropLeave"
         @drop="onDrop"
       >
-        <NIcon :size="28" class="text-emerald-500 dark:text-emerald-400"><Upload /></NIcon>
+        <NIcon :size="28" class="text-emerald-500 dark:text-emerald-400"><PhUploadSimple /></NIcon>
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">点击或拖拽图片到此处</p>
         <p class="text-xs text-zinc-500 dark:text-zinc-400">支持 JPG / PNG / GIF / WebP，单个文件最大 5MB</p>
         <input
@@ -292,7 +292,7 @@ function fmtSize(s: number) {
           @clear="handleSearch"
         />
         <NButton size="small" quaternary :disabled="loading" @click="handleSearch">
-          <template #icon><NIcon><Search /></NIcon></template>
+          <template #icon><NIcon><PhMagnifyingGlass /></NIcon></template>
         </NButton>
       </div>
       <span v-if="!loading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">共 {{ total }} 个</span>
@@ -360,7 +360,7 @@ function fmtSize(s: number) {
                 :disabled="deletingIds.has(file.id)"
                 @click.stop
               >
-                <NIcon :size="14"><Trash /></NIcon>
+                <NIcon :size="14"><PhTrash /></NIcon>
               </button>
             </template>
             确认删除该图片？已引用它的内容将无法显示。

@@ -7,7 +7,7 @@ import { ref, onBeforeUnmount, nextTick } from 'vue'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import { NModal, NButton, NIcon } from 'naive-ui'
-import { X, Check, ArrowLeft } from '@vicons/tabler'
+import { PhX, PhCheck, PhArrowLeft } from '@phosphor-icons/vue'
 import { contentApi, type MediaFile } from '@/api/content'
 import type { Keyword } from '@/types/api'
 import MediaPicker from '@/components/MediaPicker.vue'
@@ -160,7 +160,7 @@ async function handleClear() {
               aria-label="返回选择图片"
               @click="backToSelect"
             >
-              <NIcon :size="16"><ArrowLeft /></NIcon>
+              <NIcon :size="16"><PhArrowLeft /></NIcon>
             </button>
             <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               {{ step === 'select' ? '从媒体库选择图标' : '裁剪图标' }}
@@ -172,7 +172,7 @@ async function handleClear() {
             aria-label="关闭"
             @click="close"
           >
-            <NIcon :size="16"><X /></NIcon>
+            <NIcon :size="16"><PhX /></NIcon>
           </button>
         </div>
 
@@ -224,7 +224,7 @@ async function handleClear() {
             :loading="saving"
             @click="handleSave"
           >
-            <template #icon><NIcon><Check /></NIcon></template>
+            <template #icon><NIcon><PhCheck /></NIcon></template>
             保存图标
           </NButton>
         </div>

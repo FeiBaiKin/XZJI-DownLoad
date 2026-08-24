@@ -10,6 +10,8 @@ export interface UserBrief {
   balance: number
   exp: number
   level: number
+  /** 后台 level_config 配置的等级名称；未配置时为空串，展示侧回退 Lv.N */
+  level_label?: string
   membership_level: string | null
   membership_expires_at: string | null
 }

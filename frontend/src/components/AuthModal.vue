@@ -5,7 +5,7 @@ import { ref, watch, onUnmounted, computed } from 'vue'
 import {
   NButton, NInput, NTabs, NTabPane, NIcon, NConfigProvider, darkTheme, zhCN, dateZhCN,
 } from 'naive-ui'
-import { X, ArrowLeft } from '@vicons/tabler'
+import { PhX, PhArrowLeft } from '@phosphor-icons/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore, type AuthModalTab } from '@/stores/authModal'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
@@ -374,7 +374,7 @@ const subtitle = computed(() => {
             aria-label="关闭"
             @click="close"
           >
-            <NIcon :size="18"><X /></NIcon>
+            <NIcon :size="18"><PhX /></NIcon>
           </button>
         </div>
 
@@ -412,7 +412,7 @@ const subtitle = computed(() => {
           class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:text-zinc-200"
           @click="switchTab('login')"
         >
-          <NIcon :size="15"><ArrowLeft /></NIcon>
+          <NIcon :size="15"><PhArrowLeft /></NIcon>
           返回登录
         </button>
 

@@ -63,6 +63,7 @@ func (s *EconomyService) Recharge(userID uint, req RechargeReq, userAgent string
 	order := models.PaymentOrder{
 		OrderNo: orderNo, UserID: userID, Amount: req.Amount, Points: bonusExp,
 		Status: "pending", PaymentMethod: payMethod, PaymentScene: scene,
+		OrderType: models.OrderTypeRecharge,
 	}
 	if err := s.DB.Create(&order).Error; err != nil {
 		return nil, fmt.Errorf("创建订单失败")
@@ -214,15 +215,20 @@ func (s *EconomyService) PurchaseLink(userID uint, req PurchaseLinkReq) (map[str
 
 type BuyMembershipReq struct {
 	Level string `json:"level"`
+	// Method 空 / "balance" 走余额扣费；wechat / alipay / epay 走第三方支付直付
+	Method string `json:"method"`
 }
 
-func (s *EconomyService) BuyMembership(userID uint, req BuyMembershipReq) (map[string]any, error) {
+func (s *EconomyService) BuyMembership(userID uint, req BuyMembershipReq, userAgent string) (map[string]any, error) {
 	var cfg models.MembershipConfig
 	if err := s.DB.Where("level_name = ?", req.Level).First(&cfg).Error; err != nil {
 		return nil, fmt.Errorf("无效的会员等级")
 	}
 	if cfg.Price < 0 {
 		return nil, fmt.Errorf("无效的会员价格")
+	}
+	if req.Method != "" && req.Method != "balance" {
+		return s.buyMembershipByPayment(userID, cfg, req.Method, userAgent)
 	}
 	orderNo := fmt.Sprintf("M%d%s", time.Now().UnixMilli(), randStr(4))
 
@@ -269,6 +275,76 @@ func (s *EconomyService) BuyMembership(userID uint, req BuyMembershipReq) (map[s
 	return map[string]any{
 		"message": "购买成功", "balance": updated.Balance,
 		"membershipLevel": updated.MembershipLevel, "membershipExpiresAt": updated.MembershipExpiresAt,
+	}, nil
+}
+
+// buyMembershipByPayment 会员直付：下一笔 order_type=membership 的支付订单，
+// 付款回调（payment.ProcessPaidOrder）里再开通会员，用户无需先充值余额。
+// 返回结构与 Recharge 对齐，前端可直接复用扫码 / 跳转 / 轮询那套流程。
+func (s *EconomyService) buyMembershipByPayment(userID uint, cfg models.MembershipConfig, method, userAgent string) (map[string]any, error) {
+	if cfg.Price <= 0 {
+		return nil, fmt.Errorf("该档位无需付费，请使用余额开通")
+	}
+	payCfg := payment.GetPaymentConfig(s.DB)
+	enabled := false
+	for _, e := range payCfg.EnabledProviders {
+		if e == method {
+			enabled = true
+			break
+		}
+	}
+	if !enabled {
+		return nil, fmt.Errorf("该支付方式未开启")
+	}
+	provider, err := payment.Get(method)
+	if err != nil {
+		return nil, err
+	}
+	scene := "native"
+	if method == "alipay" {
+		scene = payCfg.AliScene
+		if scene == "" {
+			scene = "page"
+		}
+	}
+	if method == "epay" {
+		scene = "v1"
+	}
+
+	// 与充值同口径赠经验，保证「直付」与「充值同额再买」拿到的收益一致
+	bonusExp := int(math.Floor(cfg.Price * 2))
+	orderNo := fmt.Sprintf("MP%d%s", time.Now().UnixMilli(), randStr(6))
+	order := models.PaymentOrder{
+		OrderNo: orderNo, UserID: userID, Amount: cfg.Price, Points: bonusExp,
+		Status: "pending", PaymentMethod: method, PaymentScene: scene,
+		OrderType: models.OrderTypeMembership, MembershipLevel: cfg.LevelName, MembershipDays: cfg.Days,
+	}
+	if err := s.DB.Create(&order).Error; err != nil {
+		return nil, fmt.Errorf("创建订单失败")
+	}
+
+	extra := map[string]string{}
+	if userAgent != "" {
+		extra["User-Agent"] = userAgent
+	}
+	result, err := provider.CreatePayment(payment.Order{
+		OrderNo: orderNo, Amount: cfg.Price, Points: bonusExp, UserID: userID,
+		Subject: fmt.Sprintf("开通%s %.2f元", cfg.LevelName, cfg.Price),
+	}, payCfg, scene, extra)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"pay":             true,
+		"type":            result.Type,
+		"scene":           result.Scene,
+		"payUrl":          result.PayUrl,
+		"qrCode":          result.QRCode,
+		"orderNo":         orderNo,
+		"amount":          cfg.Price,
+		"bonusExp":        bonusExp,
+		"paymentMethod":   method,
+		"membershipLevel": cfg.LevelName,
 	}, nil
 }
 

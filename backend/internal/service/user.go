@@ -28,7 +28,7 @@ func (s *UserService) GetProfile(userID uint) (*UserBrief, error) {
 	if err := s.DB.First(&user, userID).Error; err != nil {
 		return nil, fmt.Errorf("用户不存在")
 	}
-	b := toUserBrief(&user)
+	b := toUserBrief(s.DB, &user)
 	return &b, nil
 }
 

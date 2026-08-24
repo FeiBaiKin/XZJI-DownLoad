@@ -3,7 +3,7 @@
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, computed, onMounted } from 'vue'
 import { NButton, NInput, NAlert, NSwitch, NSkeleton, NIcon, NRadioGroup, NRadioButton, NTag } from 'naive-ui'
-import { Qrcode, Wallet, CreditCard, ChevronDown } from '@vicons/tabler'
+import { PhQrCode, PhWallet, PhCreditCard, PhCaretDown } from '@phosphor-icons/vue'
 import api from '@/api'
 import { PROVIDERS } from '@/constants/admin'
 
@@ -45,10 +45,10 @@ const message = ref('')
 const error = ref('')
 const activeProvider = ref<string | null>(null)
 
-const providerIcons: Record<string, typeof Qrcode> = {
-  wechat: Qrcode,
-  alipay: Wallet,
-  epay: CreditCard,
+const providerIcons: Record<string, typeof PhQrCode> = {
+  wechat: PhQrCode,
+  alipay: PhWallet,
+  epay: PhCreditCard,
 }
 
 onMounted(() => { fetchConfig() })
@@ -159,7 +159,7 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
                   :size="15"
                   class="shrink-0 text-zinc-400 transition-transform"
                   :class="activeProvider === p.key ? 'rotate-180' : ''"
-                ><ChevronDown /></NIcon>
+                ><PhCaretDown /></NIcon>
               </button>
               <NSwitch
                 :value="enabledProviders.includes(p.key)"

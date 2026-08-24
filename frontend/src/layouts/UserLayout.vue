@@ -4,7 +4,7 @@
 import { computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NIcon } from 'naive-ui'
-import { ArrowLeft, Dashboard, User, Heart, Crown, ShieldLock, Logout } from '@vicons/tabler'
+import { PhArrowLeft, PhGauge, PhUser, PhHeart, PhCrown, PhLockKey, PhSignOut } from '@phosphor-icons/vue'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -17,11 +17,11 @@ interface NavItem {
   icon: Component
 }
 const navItems: NavItem[] = [
-  { to: '/user', label: '个人中心', icon: Dashboard },
-  { to: '/user/profile', label: '个人资料', icon: User },
-  { to: '/user/favorites', label: '我的收藏', icon: Heart },
-  { to: '/user/membership', label: '会员中心', icon: Crown },
-  { to: '/user/security', label: '安全设置', icon: ShieldLock },
+  { to: '/user', label: '个人中心', icon: PhGauge },
+  { to: '/user/profile', label: '个人资料', icon: PhUser },
+  { to: '/user/favorites', label: '我的收藏', icon: PhHeart },
+  { to: '/user/membership', label: '会员中心', icon: PhCrown },
+  { to: '/user/security', label: '安全设置', icon: PhLockKey },
 ]
 
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || '用户')
@@ -46,7 +46,7 @@ function handleLogout() {
           to="/"
           class="inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:underline focus-visible:outline-none dark:text-zinc-400 dark:hover:text-zinc-100"
         >
-          <NIcon :size="16"><ArrowLeft /></NIcon>
+          <NIcon :size="16"><PhArrowLeft /></NIcon>
           返回首页
         </router-link>
       </div>
@@ -79,7 +79,7 @@ function handleLogout() {
             aria-label="退出登录"
             @click="handleLogout"
           >
-            <NIcon :size="16"><Logout /></NIcon>
+            <NIcon :size="16"><PhSignOut /></NIcon>
           </button>
         </div>
       </div>
@@ -89,7 +89,7 @@ function handleLogout() {
     <div class="sticky top-0 z-20 border-b border-zinc-200 bg-white/85 backdrop-blur-md lg:hidden dark:border-zinc-800 dark:bg-zinc-950/85">
       <div class="flex h-12 items-center justify-between px-4">
         <router-link to="/" class="inline-flex items-center gap-1 text-sm text-zinc-500 focus-visible:underline focus-visible:outline-none dark:text-zinc-400">
-          <NIcon :size="15"><ArrowLeft /></NIcon>
+          <NIcon :size="15"><PhArrowLeft /></NIcon>
           首页
         </router-link>
         <span class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ displayName }}</span>
@@ -100,7 +100,7 @@ function handleLogout() {
           aria-label="退出登录"
           @click="handleLogout"
         >
-          <NIcon :size="16"><Logout /></NIcon>
+          <NIcon :size="16"><PhSignOut /></NIcon>
         </button>
       </div>
       <nav class="scrollbar-none flex gap-1 overflow-x-auto px-3 pb-2">

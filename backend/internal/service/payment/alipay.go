@@ -79,7 +79,7 @@ func alipayPagePay(order Order, cfg PaymentConfig, amount string) (PaymentResult
 	biz := map[string]any{
 		"out_trade_no": order.OrderNo,
 		"total_amount": amount,
-		"subject":      "账户充值 " + amount + "元",
+		"subject":      order.subjectOr("账户充值 " + amount + "元"),
 		"product_code": "FAST_INSTANT_TRADE_PAY",
 	}
 	bizBytes, _ := json.Marshal(biz)
@@ -108,7 +108,7 @@ func alipayWapPay(order Order, cfg PaymentConfig, amount string) (PaymentResult,
 	biz := map[string]any{
 		"out_trade_no": order.OrderNo,
 		"total_amount": amount,
-		"subject":      "账户充值 " + amount + "元",
+		"subject":      order.subjectOr("账户充值 " + amount + "元"),
 		"product_code": "QUICK_WAP_WAY",
 	}
 	bizBytes, _ := json.Marshal(biz)
@@ -141,7 +141,7 @@ func alipayPrecreate(order Order, cfg PaymentConfig, amount string) (PaymentResu
 	biz := map[string]any{
 		"out_trade_no": order.OrderNo,
 		"total_amount": amount,
-		"subject":      "账户充值 " + amount + "元",
+		"subject":      order.subjectOr("账户充值 " + amount + "元"),
 	}
 	bizBytes, _ := json.Marshal(biz)
 	params := map[string]string{

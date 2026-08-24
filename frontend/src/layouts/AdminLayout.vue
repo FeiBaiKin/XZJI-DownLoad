@@ -5,8 +5,8 @@ import { h, ref, computed, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NMenu, NIcon, NButton, NDrawer, NDrawerContent, type MenuOption } from 'naive-ui'
 import {
-  Dashboard, Folders, Users, CreditCard, Settings, Sun, MoonStars, Logout, Menu2, Home, ShieldLock, Photo,
-} from '@vicons/tabler'
+  PhGauge, PhFolders, PhUsers, PhCreditCard, PhGear, PhSun, PhMoonStars, PhSignOut, PhList, PhHouse, PhLockKey, PhImage,
+} from '@phosphor-icons/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 
@@ -23,12 +23,12 @@ function renderIcon(icon: Component) {
 }
 
 const menuOptions: MenuOption[] = [
-  { label: '仪表盘', key: '/admin', icon: renderIcon(Dashboard) },
-  { label: '媒体库', key: '/admin/media', icon: renderIcon(Photo) },
+  { label: '仪表盘', key: '/admin', icon: renderIcon(PhGauge) },
+  { label: '媒体库', key: '/admin/media', icon: renderIcon(PhImage) },
   {
     label: '内容管理',
     key: 'group-content',
-    icon: renderIcon(Folders),
+    icon: renderIcon(PhFolders),
     children: [
       { label: '关键词管理', key: '/admin/keywords' },
       { label: '分类管理', key: '/admin/categories' },
@@ -39,7 +39,7 @@ const menuOptions: MenuOption[] = [
   {
     label: '用户系统',
     key: 'group-users',
-    icon: renderIcon(Users),
+    icon: renderIcon(PhUsers),
     children: [
       { label: '用户管理', key: '/admin/users' },
       { label: '签到配置', key: '/admin/checkin' },
@@ -50,7 +50,7 @@ const menuOptions: MenuOption[] = [
   {
     label: '支付系统',
     key: 'group-payment',
-    icon: renderIcon(CreditCard),
+    icon: renderIcon(PhCreditCard),
     children: [
       { label: '支付配置', key: '/admin/payment-config' },
       { label: '支付订单', key: '/admin/orders' },
@@ -59,7 +59,7 @@ const menuOptions: MenuOption[] = [
   {
     label: '系统设置',
     key: 'group-system',
-    icon: renderIcon(Settings),
+    icon: renderIcon(PhGear),
     children: [
       { label: '网站设置', key: '/admin/settings' },
       { label: 'SEO / GEO', key: '/admin/seo' },
@@ -96,7 +96,7 @@ function handleLogout() {
   <div v-if="auth.user && !isAdmin" class="flex min-h-dvh items-center justify-center px-6">
     <div class="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm sm:p-10 dark:border-zinc-800 dark:bg-zinc-900">
       <div class="mx-auto flex size-14 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-500/10 dark:text-red-400">
-        <NIcon :size="28"><ShieldLock /></NIcon>
+        <NIcon :size="28"><PhLockKey /></NIcon>
       </div>
       <h1 class="mt-5 text-lg font-semibold text-zinc-900 dark:text-zinc-100">无权访问</h1>
       <p class="mt-2 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
@@ -137,7 +137,7 @@ function handleLogout() {
             class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
             title="返回前台"
           >
-            <NIcon :size="16"><Home /></NIcon>
+            <NIcon :size="16"><PhHouse /></NIcon>
           </a>
           <button
             type="button"
@@ -145,7 +145,7 @@ function handleLogout() {
             :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
             @click="theme.toggle()"
           >
-            <NIcon :size="16"><Sun v-if="theme.isDark" /><MoonStars v-else /></NIcon>
+            <NIcon :size="16"><PhSun v-if="theme.isDark" /><PhMoonStars v-else /></NIcon>
           </button>
           <button
             type="button"
@@ -153,7 +153,7 @@ function handleLogout() {
             title="退出登录"
             @click="handleLogout"
           >
-            <NIcon :size="16"><Logout /></NIcon>
+            <NIcon :size="16"><PhSignOut /></NIcon>
           </button>
         </div>
       </div>
@@ -167,7 +167,7 @@ function handleLogout() {
         aria-label="打开导航"
         @click="mobileNavOpen = true"
       >
-        <NIcon :size="20"><Menu2 /></NIcon>
+        <NIcon :size="20"><PhList /></NIcon>
       </button>
       <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">管理后台</span>
       <button
@@ -176,7 +176,7 @@ function handleLogout() {
         :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
         @click="theme.toggle()"
       >
-        <NIcon :size="17"><Sun v-if="theme.isDark" /><MoonStars v-else /></NIcon>
+        <NIcon :size="17"><PhSun v-if="theme.isDark" /><PhMoonStars v-else /></NIcon>
       </button>
     </div>
 
@@ -201,7 +201,7 @@ function handleLogout() {
               quaternary
               @click="mobileNavOpen = false"
             >
-              <template #icon><NIcon><Home /></NIcon></template>
+              <template #icon><NIcon><PhHouse /></NIcon></template>
               返回前台
             </NButton>
             <NButton size="small" quaternary type="error" @click="handleLogout">退出登录</NButton>

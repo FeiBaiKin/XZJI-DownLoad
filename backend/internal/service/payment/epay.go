@@ -27,7 +27,7 @@ func (EpayProvider) CreatePayment(order Order, cfg PaymentConfig, scene string, 
 		"out_trade_no": order.OrderNo,
 		"notify_url":   cfg.EpayNotifyUrl,
 		"return_url":   cfg.EpayReturnUrl,
-		"name":         "账户充值 " + amount + "元",
+		"name":         order.subjectOr("账户充值 " + amount + "元"),
 		"money":        amount,
 	}
 	// 不指定 type：跳转彩虹统一收银台由用户自行选择支付通道（对齐原版）

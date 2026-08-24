@@ -3,7 +3,7 @@
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted } from 'vue'
 import { NButton, NInput, NInputNumber, NAlert, NSkeleton, NIcon } from 'naive-ui'
-import { Plus, X } from '@vicons/tabler'
+import { PhPlus, PhX } from '@phosphor-icons/vue'
 import api from '@/api'
 import { useToastStore } from '@/stores/toast'
 import type { LevelConfig } from '@/types/api'
@@ -68,7 +68,7 @@ async function handleSave() {
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">经验来自充值赠送与每日签到，达标自动升级</p>
         </div>
         <NButton secondary @click="addLevel">
-          <template #icon><NIcon><Plus /></NIcon></template>
+          <template #icon><NIcon><PhPlus /></NIcon></template>
           添加等级
         </NButton>
       </header>
@@ -114,7 +114,7 @@ async function handleSave() {
                 aria-label="删除此等级"
                 @click="removeLevel(idx)"
               >
-                <NIcon :size="14"><X /></NIcon>
+                <NIcon :size="14"><PhX /></NIcon>
               </button>
             </div>
           </div>

@@ -3,7 +3,7 @@
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted, h } from 'vue'
 import { NButton, NInput, NDataTable, NAlert, NSwitch, NTag, NSkeleton, NIcon, type DataTableColumns } from 'naive-ui'
-import { Plus } from '@vicons/tabler'
+import { PhPlus } from '@phosphor-icons/vue'
 import { contentApi, type Page } from '@/api/content'
 import { formatTime } from '@/utils/format'
 import { useToastStore } from '@/stores/toast'
@@ -130,7 +130,7 @@ const columns: DataTableColumns<Page> = [
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">创建独立页面，如隐私协议、用户协议等</p>
         </div>
         <NButton v-if="!editing" type="primary" @click="openNew">
-          <template #icon><NIcon><Plus /></NIcon></template>
+          <template #icon><NIcon><PhPlus /></NIcon></template>
           新建页面
         </NButton>
       </header>

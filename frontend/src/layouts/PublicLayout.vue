@@ -1,18 +1,19 @@
 <script setup lang="ts">
 // 公共布局：公开站点（首页 / 分类页）共享的 header + footer
-// Header：Logo + 导航（首页/分类） + 主题切换 + 用户菜单/登录注册
+// Header：Logo + 导航（首页/分类） + 会员入口 + 主题切换 + 用户菜单/登录注册
 // Footer：自定义页面链接 + 站点名 + footerText + 备案号（平铺一行展示）
 // 首页未登录：先展示内容，约 3 秒后弹窗引导登录/注册（可关闭，同会话不重复强弹）
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
 import { NButton, NDropdown, NIcon } from 'naive-ui'
-import { Sun, MoonStars, ShieldCheck, ShieldCheckered } from '@vicons/tabler'
+import { PhSun, PhMoonStars, PhShieldCheck, PhShieldCheckered } from '@phosphor-icons/vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 import { useThemeStore } from '@/stores/theme'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { contentApi, type Page } from '@/api/content'
 import AuthModal from '@/components/AuthModal.vue'
+import MembershipEntry from '@/components/MembershipEntry.vue'
 
 const auth = useAuthStore()
 const authModal = useAuthModalStore()
@@ -143,6 +144,9 @@ function handleUserMenuSelect(key: string) {
         </div>
 
         <div class="flex items-center gap-2">
+          <!-- 会员入口：主题切换左侧 -->
+          <MembershipEntry />
+
           <button
             type="button"
             class="flex size-9 items-center justify-center rounded-full text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
@@ -151,8 +155,8 @@ function handleUserMenuSelect(key: string) {
             @click="theme.toggle()"
           >
             <NIcon :size="18">
-              <Sun v-if="theme.isDark" />
-              <MoonStars v-else />
+              <PhSun v-if="theme.isDark" />
+              <PhMoonStars v-else />
             </NIcon>
           </button>
 
@@ -242,7 +246,7 @@ function handleUserMenuSelect(key: string) {
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
-              <NIcon :size="13" class="shrink-0"><ShieldCheck /></NIcon>
+              <NIcon :size="13" class="shrink-0"><PhShieldCheck weight="thin" /></NIcon>
               <span>{{ settings.siteIcp }}</span>
             </a>
             <a
@@ -252,7 +256,7 @@ function handleUserMenuSelect(key: string) {
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
-              <NIcon :size="13" class="shrink-0"><ShieldCheckered /></NIcon>
+              <NIcon :size="13" class="shrink-0"><PhShieldCheckered weight="thin" /></NIcon>
               <span>{{ settings.sitePolice }}</span>
             </a>
           </template>

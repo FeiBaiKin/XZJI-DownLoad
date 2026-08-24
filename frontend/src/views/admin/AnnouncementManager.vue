@@ -6,7 +6,7 @@ import {
   NButton, NInput, NDataTable, NAlert, NSwitch, NTag, NSkeleton, NIcon, NRadioGroup, NRadioButton,
   type DataTableColumns,
 } from 'naive-ui'
-import { Plus } from '@vicons/tabler'
+import { PhPlus } from '@phosphor-icons/vue'
 import { contentApi, type Announcement } from '@/api/content'
 import { formatTime } from '@/utils/format'
 import { typeLabels, typeOptions } from '@/constants/admin'
@@ -144,7 +144,7 @@ const columns: DataTableColumns<Announcement> = [
           <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">管理前台弹窗公告，用户关闭后不再显示</p>
         </div>
         <NButton v-if="!showForm" type="primary" @click="openNew">
-          <template #icon><NIcon><Plus /></NIcon></template>
+          <template #icon><NIcon><PhPlus /></NIcon></template>
           新建公告
         </NButton>
       </header>

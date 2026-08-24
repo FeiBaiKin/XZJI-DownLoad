@@ -34,6 +34,15 @@ type Order struct {
 	Amount  float64
 	Points  int // 赠送经验
 	UserID  uint
+	Subject string // 网关侧商品标题，空则回退「账户充值」
+}
+
+// subjectOr 取网关侧商品标题：未显式指定时回退充值文案（保持历史订单展示不变）
+func (o Order) subjectOr(fallback string) string {
+	if strings.TrimSpace(o.Subject) != "" {
+		return o.Subject
+	}
+	return fallback
 }
 
 type PaymentConfig struct {
@@ -231,29 +240,97 @@ func ProcessPaidOrder(db *gorm.DB, orderNo string, paidAmount, tradeNo string) (
 		tx.Rollback()
 		return 0, nil, err
 	}
-	// 加余额（使用回调金额，与原项目一致）
-	if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("balance", gorm.Expr("balance + ?", amt)).Error; err != nil {
-		tx.Rollback()
-		return 0, nil, err
+
+	if order.OrderType == models.OrderTypeMembership {
+		// 会员直付：不入余额，直接开通/续期（省去「先充值再扣余额」）
+		if err := activateMembership(tx, &order, amt, now); err != nil {
+			tx.Rollback()
+			return 0, nil, err
+		}
+	} else {
+		// 加余额（使用回调金额，与原项目一致）
+		if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("balance", gorm.Expr("balance + ?", amt)).Error; err != nil {
+			tx.Rollback()
+			return 0, nil, err
+		}
+		// 流水
+		if err := tx.Create(&models.PointsTransaction{
+			UserID: order.UserID, Type: "recharge", Amount: amt, BalanceAmount: amt,
+			ExpEarned: order.Points, Description: "账户充值", RefID: &order.ID,
+		}).Error; err != nil {
+			tx.Rollback()
+			return 0, nil, err
+		}
 	}
-	// 赠经验
+
+	// 赠经验（两类订单同口径：直付会员与「充值同额再购买」拿到的经验一致）
 	if order.Points > 0 {
 		if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Update("exp", gorm.Expr("exp + ?", order.Points)).Error; err != nil {
 			tx.Rollback()
 			return 0, nil, err
 		}
 	}
-	// 流水
-	if err := tx.Create(&models.PointsTransaction{
-		UserID: order.UserID, Type: "recharge", Amount: amt, BalanceAmount: amt,
-		ExpEarned: order.Points, Description: "账户充值", RefID: &order.ID,
-	}).Error; err != nil {
-		tx.Rollback()
-		return 0, nil, err
-	}
 
 	if err := tx.Commit().Error; err != nil {
 		return 0, nil, err
 	}
 	return order.UserID, map[string]any{"success": true}, nil
+}
+
+// activateMembership 会员直付订单入账：按档位天数开通/续期，并补齐会员订单与流水。
+// 到期时间口径与余额购买一致（未过期则从原到期日叠加）。
+func activateMembership(tx *gorm.DB, order *models.PaymentOrder, amt float64, now time.Time) error {
+	if order.MembershipLevel == "" {
+		return fmt.Errorf("会员订单缺少档位信息")
+	}
+	// 行锁用户，避免并发回调把同一笔有效期算重
+	var user models.User
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&user, order.UserID).Error; err != nil {
+		return fmt.Errorf("用户不存在")
+	}
+	days := order.MembershipDays
+	if days <= 0 {
+		// 下单后管理员改过档位天数（或历史订单缺列）时按当前配置兜底
+		var cfg models.MembershipConfig
+		if err := tx.Where("level_name = ?", order.MembershipLevel).First(&cfg).Error; err != nil {
+			return fmt.Errorf("会员档位不存在")
+		}
+		days = cfg.Days
+	}
+	base := now
+	if user.MembershipExpiresAt != nil && user.MembershipExpiresAt.After(base) {
+		base = *user.MembershipExpiresAt
+	}
+	expiresAt := base.AddDate(0, 0, days)
+	if err := tx.Model(&models.User{}).Where("id = ?", order.UserID).Updates(map[string]any{
+		"membership_level":      order.MembershipLevel,
+		"membership_expires_at": expiresAt,
+	}).Error; err != nil {
+		return err
+	}
+	if err := tx.Create(&models.MembershipOrder{
+		OrderNo: order.OrderNo, UserID: order.UserID, MembershipLevel: order.MembershipLevel,
+		Amount: amt, Days: days, Status: "paid", PaidAt: &now,
+	}).Error; err != nil {
+		return err
+	}
+	// 余额未变动，Amount 记 0；实付金额写在描述里，避免流水里出现虚假的余额扣减
+	return tx.Create(&models.PointsTransaction{
+		UserID: order.UserID, Type: "membership", ExpEarned: order.Points,
+		Description: fmt.Sprintf("开通%s（%s支付 %.2f 元）", order.MembershipLevel, methodLabel(order.PaymentMethod), amt),
+		RefID:       &order.ID,
+	}).Error
+}
+
+// methodLabel 支付方式中文名（流水描述用），未知方式原样返回
+func methodLabel(name string) string {
+	switch name {
+	case "wechat":
+		return "微信"
+	case "alipay":
+		return "支付宝"
+	case "epay":
+		return "易支付"
+	}
+	return name
 }

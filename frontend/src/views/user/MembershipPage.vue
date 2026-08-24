@@ -4,12 +4,12 @@
 // 视觉体系：卡片 rounded-2xl / 控件 rounded-lg / 标签 rounded-full；emerald 为站点强调色，档位色为数据驱动语义色
 import { ref, computed, onMounted } from 'vue'
 import { NButton, NIcon, NTag, NSkeleton } from 'naive-ui'
-import { Crown, Check, ChevronRight, Download, Discount, Calendar, CalendarPlus, ShieldCheck } from '@vicons/tabler'
+import { PhCrown, PhCheck, PhCaretRight, PhDownloadSimple, PhPercent, PhCalendar, PhCalendarPlus, PhShieldCheck } from '@phosphor-icons/vue'
 import api from '@/api'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
 import type { MembershipConfig, UserBrief } from '@/types/api'
-import { tierIcon, tierColor, tierWash, readableOn, periodText, discountLabel, priceText, perDayText, badgeText } from '@/utils/tier'
+import { TIER_FALLBACK_ICON, tierIcon, tierColor, tierWash, readableOn, periodText, discountLabel, priceText, perDayText, badgeText } from '@/utils/tier'
 import MembershipModal from '@/components/MembershipModal.vue'
 
 const auth = useAuthStore()
@@ -114,12 +114,15 @@ function handleBuyClick(plan: MembershipConfig) {
 }
 
 function handleBuySuccess(data: unknown) {
-  const d = data as { membershipExpiresAt: string; balance: number }
-  message.value = `开通成功，会员有效期至 ${new Date(d.membershipExpiresAt).toLocaleDateString('zh-CN')}`
+  // 余额开通返回 membershipExpiresAt；第三方直付由弹窗回读 profile 后传同名字段
+  const d = data as { membershipExpiresAt?: string | null; balance?: number }
+  message.value = d.membershipExpiresAt
+    ? `开通成功，会员有效期至 ${new Date(d.membershipExpiresAt).toLocaleDateString('zh-CN')}`
+    : '开通成功'
   if (auth.user) {
-    auth.user.balance = d.balance
+    if (typeof d.balance === 'number') auth.user.balance = d.balance
     auth.user.membership_level = selectedPlan.value?.level_name ?? auth.user.membership_level
-    auth.user.membership_expires_at = d.membershipExpiresAt
+    if (d.membershipExpiresAt) auth.user.membership_expires_at = d.membershipExpiresAt
   }
   selectedPlan.value = null
   fetchMembership()
@@ -151,7 +154,7 @@ function handleBuySuccess(data: unknown) {
         v-if="message"
         class="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-400"
       >
-        <span class="flex items-center gap-2"><NIcon :size="16"><Check /></NIcon>{{ message }}</span>
+        <span class="flex items-center gap-2"><NIcon :size="16"><PhCheck /></NIcon>{{ message }}</span>
         <button
           type="button"
           class="shrink-0 rounded text-emerald-600/80 hover:text-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-emerald-400/80 dark:hover:text-emerald-300"
@@ -174,7 +177,7 @@ function handleBuySuccess(data: unknown) {
         />
         <!-- 底纹图标 -->
         <NIcon aria-hidden="true" :size="190" class="pointer-events-none absolute -right-8 -bottom-12 rotate-12 text-white/[0.05]">
-          <component :is="hasMembership ? tierIcon(currentIdx) : Crown" />
+          <component :is="hasMembership ? tierIcon(currentIdx) : TIER_FALLBACK_ICON" />
         </NIcon>
 
         <div class="relative p-6 sm:p-7">
@@ -193,7 +196,7 @@ function handleBuySuccess(data: unknown) {
                   <span class="rounded-full bg-emerald-400/15 px-2.5 py-1 text-[11px] font-medium leading-none text-emerald-300">生效中</span>
                 </div>
                 <p class="mt-1 flex items-center gap-1.5 text-xs text-zinc-400">
-                  <NIcon :size="13"><Calendar /></NIcon>
+                  <NIcon :size="13"><PhCalendar /></NIcon>
                   {{ expiryShort() }} 到期 · 剩余 {{ daysLeft }} 天
                 </p>
               </div>
@@ -224,7 +227,7 @@ function handleBuySuccess(data: unknown) {
                 <p class="text-xs text-zinc-400">付费链接折扣</p>
                 <p class="mt-1.5 text-xl font-bold text-white">{{ currentDiscountText }}</p>
                 <p class="mt-2.5 flex items-center gap-1 text-[11px] text-zinc-500">
-                  <NIcon :size="12"><Discount /></NIcon>结算时自动应用
+                  <NIcon :size="12"><PhPercent /></NIcon>结算时自动应用
                 </p>
               </div>
             </div>
@@ -234,7 +237,7 @@ function handleBuySuccess(data: unknown) {
           <div v-else class="flex flex-col gap-6 py-2 sm:flex-row sm:items-center sm:justify-between sm:py-4">
             <div class="flex items-center gap-4">
               <span class="grid size-12 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.06] text-zinc-300">
-                <NIcon :size="24"><Crown /></NIcon>
+                <NIcon :size="24"><PhCrown weight="duotone" /></NIcon>
               </span>
               <div>
                 <h2 class="text-lg font-bold tracking-tight text-white sm:text-xl">尚未开通会员</h2>
@@ -246,7 +249,7 @@ function handleBuySuccess(data: unknown) {
               class="inline-flex items-center gap-1.5 self-start rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 active:scale-[0.98] sm:self-auto focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
             >
               选择档位
-              <NIcon :size="15"><ChevronRight /></NIcon>
+              <NIcon :size="15"><PhCaretRight /></NIcon>
             </a>
           </div>
         </div>
@@ -265,7 +268,7 @@ function handleBuySuccess(data: unknown) {
           class="mt-4 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/40 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/40"
         >
           <span class="mx-auto grid size-13 place-items-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">
-            <NIcon :size="26"><Crown /></NIcon>
+            <NIcon :size="26"><PhCrown weight="duotone" /></NIcon>
           </span>
           <p class="mt-4 text-sm font-medium text-zinc-600 dark:text-zinc-300">暂未开放会员档位</p>
           <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">管理员尚未配置档位，请稍后再来看看。</p>
@@ -311,15 +314,15 @@ function handleBuySuccess(data: unknown) {
 
               <ul class="mt-4 space-y-2.5 border-t border-zinc-100 pt-4 text-sm text-zinc-600 dark:border-zinc-800 dark:text-zinc-300">
                 <li class="flex items-center gap-2.5">
-                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><Download /></NIcon>
+                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><PhDownloadSimple /></NIcon>
                   {{ dlBenefit(plan) }}
                 </li>
                 <li class="flex items-center gap-2.5">
-                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><Discount /></NIcon>
+                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><PhPercent /></NIcon>
                   {{ discountBenefit(plan) }}
                 </li>
                 <li class="flex items-center gap-2.5">
-                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><CalendarPlus /></NIcon>
+                  <NIcon :size="16" class="shrink-0" :style="{ color: tierColor(plan.color) }"><PhCalendarPlus /></NIcon>
                   有效期 {{ plan.days }} 天，续费叠加
                 </li>
               </ul>
@@ -342,24 +345,24 @@ function handleBuySuccess(data: unknown) {
       <!-- 购买须知 -->
       <section v-if="configs.length > 0" class="mt-10 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
         <h3 class="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-          <NIcon :size="17" class="text-emerald-600 dark:text-emerald-400"><ShieldCheck /></NIcon>
+          <NIcon :size="17" class="text-emerald-600 dark:text-emerald-400"><PhShieldCheck /></NIcon>
           购买须知
         </h3>
         <ul class="mt-4 grid gap-x-8 gap-y-3 text-sm text-zinc-600 sm:grid-cols-2 dark:text-zinc-400">
           <li class="flex items-start gap-2">
-            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><Check /></NIcon>
+            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><PhCheck /></NIcon>
             每日额度内免费下载付费资源，超出后按原价购买。
           </li>
           <li class="flex items-start gap-2">
-            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><Check /></NIcon>
+            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><PhCheck /></NIcon>
             购买付费链接时自动应用档位折扣，无需手动领取。
           </li>
           <li class="flex items-start gap-2">
-            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><Check /></NIcon>
+            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><PhCheck /></NIcon>
             续费同档位从当前到期日起叠加，剩余天数不损失。
           </li>
           <li class="flex items-start gap-2">
-            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><Check /></NIcon>
+            <NIcon :size="15" class="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400"><PhCheck /></NIcon>
             切换不同档位不退还差价，请按需选择合适档位。
           </li>
         </ul>

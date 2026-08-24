@@ -3,7 +3,7 @@
 // 整卡点击复制关键词；收藏为独立按钮
 import { ref, computed } from 'vue'
 import { NIcon } from 'naive-ui'
-import { Copy, Check, Heart } from '@vicons/tabler'
+import { PhCopy, PhCheck, PhHeart } from '@phosphor-icons/vue'
 import { useToastStore } from '@/stores/toast'
 import type { PublicKeyword } from '@/api/content'
 import type { KeywordAttribute } from '@/types/api'
@@ -126,7 +126,7 @@ function handleKeydown(e: KeyboardEvent) {
       :aria-label="favorited ? '取消收藏' : '收藏'"
       @click.stop.prevent="emit('toggleFavorite')"
     >
-      <NIcon :size="16"><Heart /></NIcon>
+      <NIcon :size="16"><PhHeart :weight="favorited ? 'fill' : 'regular'" /></NIcon>
     </button>
 
     <!-- 主体：图标 + 文案 -->
@@ -171,7 +171,7 @@ function handleKeydown(e: KeyboardEvent) {
           ? 'text-emerald-600 dark:text-emerald-400'
           : 'text-zinc-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-zinc-500'"
       >
-        <NIcon :size="12"><Check v-if="copied" /><Copy v-else /></NIcon>
+        <NIcon :size="12"><PhCheck v-if="copied" /><PhCopy v-else /></NIcon>
         <span>{{ copied ? '已复制' : '复制' }}</span>
       </span>
     </div>

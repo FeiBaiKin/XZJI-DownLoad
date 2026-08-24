@@ -4,7 +4,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { NButton, NInput, NIcon } from 'naive-ui'
-import { ShieldLock } from '@vicons/tabler'
+import { PhLockKey } from '@phosphor-icons/vue'
 import { useAuthStore } from '@/stores/auth'
 import { safeRedirectPath } from '@/utils/safeRedirect'
 
@@ -61,7 +61,7 @@ async function handleSubmit() {
     <main class="relative w-full max-w-sm">
       <div class="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex items-center gap-2 text-zinc-400 dark:text-zinc-500">
-          <NIcon :size="15"><ShieldLock /></NIcon>
+          <NIcon :size="15"><PhLockKey /></NIcon>
           <span class="text-xs font-medium tracking-wide">管理控制台</span>
         </div>
         <h1 class="mt-3 text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">管理员登录</h1>

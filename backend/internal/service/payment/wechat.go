@@ -35,7 +35,7 @@ func (WechatProvider) CreatePayment(order Order, cfg PaymentConfig, scene string
 	body := map[string]any{
 		"appid":        cfg.WxAppId,
 		"mchid":        cfg.WxMchId,
-		"description":  "账户充值",
+		"description":  order.subjectOr("账户充值"),
 		"out_trade_no": order.OrderNo,
 		"notify_url":   cfg.WxNotifyUrl,
 		"amount":       map[string]any{"total": int(math.Round(order.Amount * 100)), "currency": "CNY"},

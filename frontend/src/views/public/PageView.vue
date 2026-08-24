@@ -4,7 +4,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NIcon, NSkeleton, NButton } from 'naive-ui'
-import { ArrowLeft } from '@vicons/tabler'
+import { PhArrowLeft } from '@phosphor-icons/vue'
 import DOMPurify from 'dompurify'
 import { contentApi, type Page } from '@/api/content'
 
@@ -33,7 +33,7 @@ watch(() => route.params.slug, (slug) => { if (slug) load(slug as string) })
         to="/"
         class="inline-flex items-center gap-1.5 text-sm text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:rounded dark:text-zinc-400 dark:hover:text-zinc-100 dark:focus-visible:ring-emerald-400/60"
       >
-        <NIcon :size="16"><ArrowLeft /></NIcon>
+        <NIcon :size="16"><PhArrowLeft /></NIcon>
         返回首页
       </router-link>
 

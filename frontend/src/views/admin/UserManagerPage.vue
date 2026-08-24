@@ -6,7 +6,7 @@ import {
   NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NModal, NIcon, NSkeleton,
   type DataTableColumns,
 } from 'naive-ui'
-import { X } from '@vicons/tabler'
+import { PhX } from '@phosphor-icons/vue'
 import api from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AppPagination from '@/components/AppPagination.vue'
@@ -201,7 +201,7 @@ const columns: DataTableColumns<UserBrief> = [
               aria-label="关闭"
               @click="editingUser = null"
             >
-              <NIcon :size="16"><X /></NIcon>
+              <NIcon :size="16"><PhX /></NIcon>
             </button>
           </div>
 

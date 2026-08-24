@@ -5,12 +5,18 @@ import api from '.'
 // ── 类型 ──
 export interface PaymentMethod { name: string; label: string }
 export interface RechargeResult { type: string; scene: string; payUrl: string; qrCode: string; orderNo: string; bonusExp?: number; paymentMethod: string }
-export interface RechargeStatus { orderNo: string; amount: number; status: string; points: number; paymentMethod: string; paidAt: string | null }
+/** 订单类型：recharge 充值入余额 · membership 会员直付（付款回调直接开通会员） */
+export type PaymentOrderType = 'recharge' | 'membership'
+export interface RechargeStatus { orderNo: string; amount: number; status: string; points: number; paymentMethod: string; paidAt: string | null; orderType: PaymentOrderType; membershipLevel: string }
 export interface PurchaseResult { message: string; alreadyPurchased?: boolean; membership?: boolean; balance?: number; balanceSpent?: number; originalCost?: number; discountApplied?: number; url?: string; code?: string }
 export interface PurchaseStatus { purchased: boolean; url?: string; code?: string }
 export interface MembershipBrief { level: string; expiresAt: string }
 export interface MembershipStatus { membership: MembershipBrief | null; downloads: number; dailyLimit: number; configs: MembershipPlan[] }
-export interface MembershipPlan { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string }
+export interface MembershipPlan { level_name: string; days: number; price: number; daily_download_limit: number; discount: number; color: string; badge?: string }
+/** 余额开通的返回 */
+export interface MembershipBuyResult { message: string; balance: number; membershipLevel: string | null; membershipExpiresAt: string | null }
+/** 第三方支付开通的返回：结构与充值下单一致，前端复用扫码 / 跳转 / 轮询流程 */
+export interface MembershipPayResult extends RechargeResult { pay: true; amount: number; membershipLevel: string }
 export interface Transaction { id: number; type: string; amount: number; balance_amount: number; exp_earned: number; description: string; created_at: string }
 export interface TransactionsResult { transactions: Transaction[]; total: number; page: number; limit: number }
 export interface CheckInStatus { checkedIn: boolean; streak: number; todayBalance: number; todayExp: number; isBonus: boolean; config: { dailyBalance: number; consecutiveDays: number; consecutiveBonusBalance: number; dailyExp: number }; tomorrowBalance: number }
@@ -31,8 +37,9 @@ export const economyApi = {
   purchaseStatus: (keywordId: number, blockIndex: number) =>
     api.get<PurchaseStatus>('/user/purchase-status', { params: { keywordId, blockIndex } }).then(r => r.data),
   membership: () => api.get<MembershipStatus>('/user/membership').then(r => r.data),
-  buyMembership: (level: string) =>
-    api.post<{ message: string; balance: number; membershipLevel: string | null; membershipExpiresAt: string | null }>('/user/buy-membership', { level }).then(r => r.data),
+  // method 省略 / 'balance' 走余额扣费；传后台已开启的支付方式则返回支付下单结果
+  buyMembership: (level: string, method?: string) =>
+    api.post<MembershipBuyResult | MembershipPayResult>('/user/buy-membership', { level, method }).then(r => r.data),
   transactions: (page?: number, limit?: number) =>
     api.get<TransactionsResult>('/user/transactions', { params: { page, limit } }).then(r => r.data),
   downloadsToday: () => api.get<{ downloads: number; date: string }>('/user/downloads-today').then(r => r.data),

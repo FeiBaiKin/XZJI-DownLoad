@@ -183,20 +183,31 @@ type MembershipOrder struct {
 
 func (MembershipOrder) TableName() string { return "membership_orders" }
 
-// PaymentOrder 充值订单（对齐 payment_orders）
+// 支付订单用途：充值余额 / 直接开通会员
+const (
+	OrderTypeRecharge   = "recharge"
+	OrderTypeMembership = "membership"
+)
+
+// PaymentOrder 支付订单（对齐 payment_orders）。
+// OrderType 区分用途：recharge 入账余额；membership 直接开通会员（免去先充值再扣余额）。
+// MembershipLevel / MembershipDays 仅 membership 订单有值，回调入账时据此开通或续期。
 type PaymentOrder struct {
-	ID            uint       `gorm:"primaryKey" json:"id"`
-	OrderNo       string     `gorm:"size:64;uniqueIndex" json:"order_no"`
-	UserID        uint       `json:"user_id"`
-	Amount        float64    `gorm:"type:decimal(10,2)" json:"amount"`
-	Points        int        `gorm:"default:0" json:"points"` // 实际为赠送经验
-	Status        string     `gorm:"size:20;default:pending" json:"status"`
-	PaymentMethod string     `gorm:"size:20;default:''" json:"payment_method"`
-	PaymentScene  string     `gorm:"size:20;default:''" json:"payment_scene"`
-	TradeNo       string     `gorm:"size:64;default:''" json:"trade_no"`
-	OpenID        string     `gorm:"size:128;default:''" json:"openid"`
-	CreatedAt     time.Time  `json:"created_at"`
-	PaidAt        *time.Time `json:"paid_at"`
+	ID              uint       `gorm:"primaryKey" json:"id"`
+	OrderNo         string     `gorm:"size:64;uniqueIndex" json:"order_no"`
+	UserID          uint       `json:"user_id"`
+	Amount          float64    `gorm:"type:decimal(10,2)" json:"amount"`
+	Points          int        `gorm:"default:0" json:"points"` // 实际为赠送经验
+	Status          string     `gorm:"size:20;default:pending" json:"status"`
+	PaymentMethod   string     `gorm:"size:20;default:''" json:"payment_method"`
+	PaymentScene    string     `gorm:"size:20;default:''" json:"payment_scene"`
+	TradeNo         string     `gorm:"size:64;default:''" json:"trade_no"`
+	OpenID          string     `gorm:"size:128;default:''" json:"openid"`
+	OrderType       string     `gorm:"size:20;default:recharge;index" json:"order_type"`
+	MembershipLevel string     `gorm:"size:50;default:''" json:"membership_level"`
+	MembershipDays  int        `gorm:"default:0" json:"membership_days"`
+	CreatedAt       time.Time  `json:"created_at"`
+	PaidAt          *time.Time `json:"paid_at"`
 }
 
 func (PaymentOrder) TableName() string { return "payment_orders" }

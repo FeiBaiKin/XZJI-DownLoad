@@ -1,14 +1,23 @@
 // 会员档位展示辅助：图标轮换、标识色可读性、周期 / 额度 / 折扣 / 单价 / 角标文案
 // 供前台会员中心、后台会员配置、购买弹窗共用，保证三处展示口径一致
-import type { Component } from 'vue'
-import { Diamond, Crown, Medal, Rocket, Star } from '@vicons/tabler'
+import { h, type Component } from 'vue'
+import { PhDiamond, PhCrown, PhMedal, PhRocket, PhStar } from '@phosphor-icons/vue'
 
-const TIER_ICONS: Component[] = [Diamond, Crown, Medal, Rocket, Star]
+// 档位图标统一 duotone 字重：双层渲染，强调层随 currentColor 继承档位标识色
+const duotone =
+  (Icon: Component): Component =>
+  (props: Record<string, unknown>) =>
+    h(Icon, { weight: 'duotone', ...props })
+
+const TIER_ICONS: Component[] = [duotone(PhDiamond), duotone(PhCrown), duotone(PhMedal), duotone(PhRocket), duotone(PhStar)]
 
 /** 按档位序号轮换图标：钻石 → 皇冠 → 勋章 → 火箭 → 星星 */
 export function tierIcon(index: number): Component {
   return TIER_ICONS[((index % TIER_ICONS.length) + TIER_ICONS.length) % TIER_ICONS.length]!
 }
+
+/** 非会员 / 无档位时的兜底皇冠，与档位图标同字重 */
+export const TIER_FALLBACK_ICON: Component = duotone(PhCrown)
 
 /** 档位标识色，空值回退站点 emerald */
 export function tierColor(color?: string | null): string {
