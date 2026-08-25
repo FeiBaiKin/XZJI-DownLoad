@@ -2,8 +2,9 @@
 // 充值弹窗：三步流程 select → paying → done
 // 业务逻辑保持不变（支付方式联动后台 payment_enabled_providers；扫码类 2s 轮询订单状态）
 import { ref, computed, onBeforeUnmount } from 'vue'
-import { NModal, NButton, NInput, NIcon } from 'naive-ui'
-import { PhX, PhQrCode, PhWallet, PhCreditCard, PhCheck, PhArrowLeft, PhArrowSquareOut } from '@phosphor-icons/vue'
+import { NModal, NButton, NInput } from 'naive-ui'
+import { ArrowLeft, Check, CreditCard, ExternalLink, QrCode, Wallet, X } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import QRCode from 'qrcode'
 import { economyApi, type PaymentMethod, type RechargeResult } from '@/api/economy'
 
@@ -37,7 +38,7 @@ const numAmount = computed(() => parseFloat(amount.value) || 0)
 const bonusExp = computed(() => Math.floor(numAmount.value * 2))
 const resultBonusExp = computed(() => result.value?.bonusExp ?? 0)
 const methodLabel = (name: string) => availableMethods.value.find((m) => m.name === name)?.label || name
-const methodIconOf = (name: string) => (name === 'wechat' ? PhQrCode : name === 'alipay' ? PhWallet : PhCreditCard)
+const methodIconOf = (name: string) => (name === 'wechat' ? QrCode : name === 'alipay' ? Wallet : CreditCard)
 const methodBrief = (name: string) => (name === 'wechat' ? '扫码支付' : name === 'alipay' ? '网页支付' : name === 'epay' ? '聚合收银台' : '')
 
 // paying 步骤派生
@@ -182,7 +183,7 @@ onBeforeUnmount(() => {
           aria-label="关闭"
           @click="close"
         >
-          <NIcon :size="16"><PhX /></NIcon>
+          <AppIcon :icon="X" scale="sm" />
         </button>
       </div>
 
@@ -207,9 +208,11 @@ onBeforeUnmount(() => {
                   : 'border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600'"
                 @click="method = m.name"
               >
-                <NIcon :size="22" :class="method === m.name ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'">
-                  <component :is="methodIconOf(m.name)" />
-                </NIcon>
+                <AppIcon
+                  :icon="methodIconOf(m.name)"
+                  scale="md"
+                  :class="method === m.name ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'"
+                />
                 <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200">{{ m.label }}</span>
                 <span class="text-[10px] text-zinc-500 dark:text-zinc-400">{{ methodBrief(m.name) }}</span>
               </button>
@@ -306,7 +309,7 @@ onBeforeUnmount(() => {
             {{ isEpay ? '支持微信、支付宝等多种方式' : '支付完成后将自动跳转回本站' }}
           </p>
           <NButton type="primary" size="large" class="mt-3 w-full" @click="handleRedirect">
-            <template #icon><NIcon><PhArrowSquareOut /></NIcon></template>
+            <template #icon><AppIcon :icon="ExternalLink" scale="sm" /></template>
             {{ isEpay ? '前往易支付收银台' : '前往支付宝支付' }}
           </NButton>
         </div>
@@ -314,7 +317,7 @@ onBeforeUnmount(() => {
         <p v-if="error" class="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400">{{ error }}</p>
 
         <NButton quaternary block @click="backToSelect">
-          <template #icon><NIcon><PhArrowLeft /></NIcon></template>
+          <template #icon><AppIcon :icon="ArrowLeft" scale="sm" /></template>
           返回重选
         </NButton>
       </div>
@@ -322,7 +325,7 @@ onBeforeUnmount(() => {
       <!-- ===== Step: Done ===== -->
       <div v-else class="flex flex-col items-center gap-2 px-6 py-8">
         <div class="flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400">
-          <NIcon :size="28"><PhCheck /></NIcon>
+          <AppIcon :icon="Check" scale="lg" />
         </div>
         <p class="mt-2 font-mono text-xl font-semibold text-zinc-900 dark:text-zinc-100">¥{{ displayAmount }} 已到账</p>
         <p v-if="resultBonusExp > 0" class="font-mono text-sm text-emerald-600 dark:text-emerald-400">+{{ resultBonusExp }} 经验</p>

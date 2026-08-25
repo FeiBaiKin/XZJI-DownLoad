@@ -2,13 +2,9 @@
 // 首页：command-bar 搜索 + 结果详情卡 + 精选资源 + 侧栏（用户卡强调）
 import { ref, computed, onMounted, watch, type Component } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { NButton, NIcon, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-ui'
-import {
-  PhMagnifyingGlass, PhCopy, PhArrowSquareOut, PhLock, PhCrown, PhWarningCircle, PhCheck, PhX,
-  PhClock, PhTrendUp, PhCaretRight, PhSparkle,
-  PhSquaresFour, PhLifebuoy, PhQuestion, PhCompass, PhArrowsClockwise, PhArrowUpRight, PhClockCounterClockwise,
-  PhUser, PhCoin, PhDownloadSimple, PhHeart,
-} from '@phosphor-icons/vue'
+import { NButton, NModal, NTag, NEmpty, NSkeleton, NAvatar } from 'naive-ui'
+import { ArrowUpRight, Check, ChevronRight, CircleAlert, CircleQuestionMark, Clock, Coins, Compass, Copy, Crown, Download, ExternalLink, Heart, History, LayoutGrid, LifeBuoy, Lock, RefreshCw, Search, Sparkles, TrendingUp, User, X } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import api from '@/api'
 import { contentApi, type PublicKeyword, type PaginatedKeywords, type Announcement, type Category } from '@/api/content'
 import { economyApi } from '@/api/economy'
@@ -120,10 +116,10 @@ const visibleAnn = ref<Announcement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
 
 const quickActions: { action: string; label: string; icon: Component }[] = [
-  { action: 'search', label: '搜索资源', icon: PhMagnifyingGlass },
-  { action: 'categories', label: '分类浏览', icon: PhSquaresFour },
-  { action: 'help', label: '帮助中心', icon: PhLifebuoy },
-  { action: 'about', label: '关于本站', icon: PhQuestion },
+  { action: 'search', label: '搜索资源', icon: Search },
+  { action: 'categories', label: '分类浏览', icon: LayoutGrid },
+  { action: 'help', label: '帮助中心', icon: LifeBuoy },
+  { action: 'about', label: '关于本站', icon: CircleQuestionMark },
 ]
 
 const isLoggedIn = computed(() => auth.isLoggedIn)
@@ -425,8 +421,8 @@ function blockCode(block: KeywordBlock, i: number): string {
 function linkIconOf(block: KeywordBlock): Component {
   const access = blockAccess(block)
   if (access === 'membership') return TIER_FALLBACK_ICON
-  if (access === 'balance') return PhLock
-  return PhArrowSquareOut
+  if (access === 'balance') return Lock
+  return ExternalLink
 }
 
 function isSafeHttpUrl(url?: string): boolean {
@@ -538,7 +534,7 @@ function handleQuickAction(action: string) {
               class="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400"
               aria-hidden="true"
             >
-              <NIcon :size="18"><PhMagnifyingGlass /></NIcon>
+              <AppIcon :icon="Search" scale="md" />
             </span>
             <input
               ref="inputRef"
@@ -559,7 +555,7 @@ function handleQuickAction(action: string) {
               aria-label="清除输入"
               @click="keyword = ''; clearResult()"
             >
-              <NIcon :size="14"><PhX /></NIcon>
+              <AppIcon :icon="X" scale="xs" />
             </button>
             <span
               class="mr-1 hidden shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 sm:inline-flex dark:border-zinc-700 dark:bg-zinc-800/70 dark:text-zinc-400"
@@ -579,7 +575,7 @@ function handleQuickAction(action: string) {
             <p v-if="error" class="text-xs text-red-500 dark:text-red-400">{{ error }}</p>
             <template v-else-if="hotKeywords.length > 0 && !result">
               <span class="flex shrink-0 items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500">
-                <NIcon :size="12"><PhTrendUp weight="thin" /></NIcon>
+                <AppIcon :icon="TrendingUp" scale="xs" />
                 热门
               </span>
               <div class="flex min-w-0 flex-wrap gap-1.5">
@@ -629,7 +625,7 @@ function handleQuickAction(action: string) {
                       v-if="result.source"
                       class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
                     >
-                      <NIcon :size="10"><PhCheck /></NIcon>
+                      <AppIcon :icon="Check" scale="xs" />
                       {{ result.source === 'database' ? '已收录' : '默认回复' }}
                     </span>
                   </div>
@@ -661,7 +657,7 @@ function handleQuickAction(action: string) {
                   title="关闭"
                   @click="clearResult"
                 >
-                  <NIcon :size="14"><PhX /></NIcon>
+                  <AppIcon :icon="X" scale="xs" />
                 </button>
               </div>
 
@@ -701,7 +697,7 @@ function handleQuickAction(action: string) {
                         ? 'bg-amber-100 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400'
                         : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'"
                     >
-                      <NIcon :size="16"><component :is="linkIconOf(block)" /></NIcon>
+                      <AppIcon :icon="linkIconOf(block)" scale="sm" />
                     </span>
                     <span class="min-w-0 flex-1 truncate text-[13.5px] font-medium text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white">
                       {{ block.label || '链接' }}
@@ -730,7 +726,7 @@ function handleQuickAction(action: string) {
                       title="点击复制提取码"
                       @click.prevent.stop="handleCopyCode(blockCode(block, i), i)"
                     >
-                      <NIcon :size="11"><PhCheck v-if="copiedIdx === i" /><PhCopy v-else /></NIcon>
+                      <AppIcon v-if="copiedIdx === i" :icon="Check" scale="xs" /><AppIcon v-else :icon="Copy" scale="xs" />
                       {{ copiedIdx === i ? '已复制' : `提取码 ${blockCode(block, i)}` }}
                     </button>
                   </a>
@@ -752,7 +748,7 @@ function handleQuickAction(action: string) {
           <div class="mb-4 flex items-end justify-between gap-4">
             <div class="min-w-0">
               <h2 class="flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                <NIcon :size="18" class="text-emerald-600 dark:text-emerald-400"><PhSparkle /></NIcon>
+                <AppIcon :icon="Sparkles" scale="md" class="text-emerald-600 dark:text-emerald-400" />
                 精选资源
               </h2>
               <p v-if="!featuredLoading" class="mt-1 font-mono text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -763,7 +759,7 @@ function handleQuickAction(action: string) {
               to="/categories"
               class="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-zinc-500 motion-safe:transition-colors hover:text-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:text-emerald-400 dark:focus-visible:ring-emerald-400/60"
             >
-              查看更多 <NIcon :size="13"><PhCaretRight /></NIcon>
+              查看更多 <AppIcon :icon="ChevronRight" scale="xs" />
             </router-link>
           </div>
 
@@ -874,7 +870,7 @@ function handleQuickAction(action: string) {
                 v-else
                 class="grid size-12 shrink-0 place-items-center rounded-full bg-white text-zinc-500 shadow-sm ring-1 ring-emerald-500/20 dark:bg-zinc-900 dark:text-zinc-400 dark:ring-emerald-400/20"
               >
-                <NIcon :size="22"><PhUser /></NIcon>
+                <AppIcon :icon="User" scale="md" />
               </span>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
@@ -905,7 +901,7 @@ function handleQuickAction(action: string) {
           <div class="grid grid-cols-3 border-t border-emerald-500/15 bg-white/40 dark:border-emerald-400/15 dark:bg-zinc-900/40">
             <div class="flex flex-col items-center gap-0.5 py-3">
               <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="11"><PhCoin /></NIcon>余额
+                <AppIcon :icon="Coins" scale="xs" />余额
               </span>
               <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
                 {{ isLoggedIn ? currentBalance.toFixed(2) : '-' }}
@@ -913,7 +909,7 @@ function handleQuickAction(action: string) {
             </div>
             <div class="flex flex-col items-center gap-0.5 border-x border-emerald-500/15 py-3 dark:border-emerald-400/15">
               <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="11"><PhDownloadSimple /></NIcon>下载
+                <AppIcon :icon="Download" scale="xs" />下载
               </span>
               <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
                 {{ isLoggedIn ? (downloadsToday !== null ? downloadsToday : '-') : '-' }}
@@ -921,7 +917,7 @@ function handleQuickAction(action: string) {
             </div>
             <div class="flex flex-col items-center gap-0.5 py-3">
               <span class="flex items-center gap-1 text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="11"><PhHeart /></NIcon>收藏
+                <AppIcon :icon="Heart" scale="xs" />收藏
               </span>
               <span class="font-mono text-sm font-bold text-zinc-800 dark:text-zinc-100">
                 {{ isLoggedIn ? favorites.favoritedIds.size : '-' }}
@@ -945,7 +941,7 @@ function handleQuickAction(action: string) {
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><PhCompass /></NIcon>
+              <AppIcon :icon="Compass" scale="xs" class="text-emerald-600 dark:text-emerald-400" />
               <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">灵感漫游</h3>
             </div>
             <button
@@ -957,7 +953,7 @@ function handleQuickAction(action: string) {
               aria-label="换一组关键词"
               @click="refreshDiscovery"
             >
-              <NIcon :size="13"><PhArrowsClockwise /></NIcon>
+              <AppIcon :icon="RefreshCw" scale="xs" />
             </button>
           </div>
 
@@ -996,9 +992,7 @@ function handleQuickAction(action: string) {
                   <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ kw.keyword }}</span>
                   <span class="mt-0.5 block truncate text-[11px] text-zinc-500 dark:text-zinc-400">{{ kw.description || '点击查看相关资源' }}</span>
                 </span>
-                <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
-                  <PhArrowUpRight weight="thin" />
-                </NIcon>
+                <AppIcon :icon="ArrowUpRight" scale="xs" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600" />
               </button>
             </div>
             <div
@@ -1015,7 +1009,7 @@ function handleQuickAction(action: string) {
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><PhClockCounterClockwise /></NIcon>
+              <AppIcon :icon="History" scale="xs" class="text-emerald-600 dark:text-emerald-400" />
               <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">最近搜索</h3>
             </div>
             <button
@@ -1039,14 +1033,12 @@ function handleQuickAction(action: string) {
               @click="handleSidebarSearch(item)"
             >
               <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                <NIcon :size="13"><PhMagnifyingGlass /></NIcon>
+                <AppIcon :icon="Search" scale="xs" />
               </span>
               <span class="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
                 {{ item }}
               </span>
-              <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
-                <PhArrowUpRight weight="thin" />
-              </NIcon>
+              <AppIcon :icon="ArrowUpRight" scale="xs" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600" />
             </button>
           </TransitionGroup>
           <div
@@ -1061,13 +1053,13 @@ function handleQuickAction(action: string) {
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><PhClock /></NIcon>
+              <AppIcon :icon="Clock" scale="xs" class="text-emerald-600 dark:text-emerald-400" />
               <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">最新更新</h3>
             </div>
             <router-link
               to="/categories"
               class="sidebar-action inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-zinc-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:focus-visible:ring-emerald-400/60"
-            >更多 <NIcon :size="11"><PhCaretRight /></NIcon></router-link>
+            >更多 <AppIcon :icon="ChevronRight" scale="xs" /></router-link>
           </div>
 
           <div
@@ -1109,9 +1101,7 @@ function handleQuickAction(action: string) {
                   {{ formatRelative(kw.updated_at || kw.created_at) }}
                 </span>
               </span>
-              <NIcon :size="13" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600">
-                <PhArrowUpRight weight="thin" />
-              </NIcon>
+              <AppIcon :icon="ArrowUpRight" scale="xs" class="sidebar-row__arrow shrink-0 text-zinc-300 dark:text-zinc-600" />
             </button>
           </div>
         </div>
@@ -1120,7 +1110,7 @@ function handleQuickAction(action: string) {
         <div class="sidebar-card overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center px-4 py-3">
             <div class="flex items-center gap-2">
-              <NIcon :size="14" class="text-emerald-600 dark:text-emerald-400"><PhSquaresFour /></NIcon>
+              <AppIcon :icon="LayoutGrid" scale="xs" class="text-emerald-600 dark:text-emerald-400" />
               <h3 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">快捷入口</h3>
             </div>
           </div>
@@ -1133,7 +1123,7 @@ function handleQuickAction(action: string) {
               @click="handleQuickAction(item.action)"
             >
               <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                <NIcon :size="15"><component :is="item.icon" /></NIcon>
+                <AppIcon :icon="item.icon" scale="sm" />
               </span>
               <span class="text-[12.5px] font-medium text-zinc-700 dark:text-zinc-300">{{ item.label }}</span>
             </button>
@@ -1156,7 +1146,7 @@ function handleQuickAction(action: string) {
             aria-label="关闭"
             @click="dismissAnnouncement"
           >
-            <NIcon :size="16"><PhX /></NIcon>
+            <AppIcon :icon="X" scale="sm" />
           </button>
         </div>
         <div class="rich-content max-h-[60vh] overflow-y-auto px-6 py-4 text-sm" v-html="annContent" />
@@ -1171,9 +1161,11 @@ function handleQuickAction(action: string) {
       <div v-if="purchaseDialog" class="w-[92vw] max-w-sm rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-zinc-800">
           <div class="flex items-center gap-2">
-            <NIcon :size="18" :class="purchaseDialog.access === 'membership' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'">
-              <PhCrown weight="duotone" v-if="purchaseDialog.access === 'membership'" /><PhLock v-else />
-            </NIcon>
+            <AppIcon
+              :icon="purchaseDialog.access === 'membership' ? Crown : Lock"
+              scale="md"
+              :class="purchaseDialog.access === 'membership' ? 'text-amber-500' : 'text-emerald-600 dark:text-emerald-400'"
+            />
             <h3 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               {{ purchaseDialog.access === 'membership' ? '会员专属链接' : '付费链接' }}
             </h3>
@@ -1184,7 +1176,7 @@ function handleQuickAction(action: string) {
             aria-label="关闭"
             @click="purchaseDialog = null"
           >
-            <NIcon :size="16"><PhX /></NIcon>
+            <AppIcon :icon="X" scale="sm" />
           </button>
         </div>
 
@@ -1212,7 +1204,7 @@ function handleQuickAction(action: string) {
               v-if="isMember"
               class="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400"
             >
-              <NIcon :size="14" class="mt-0.5 shrink-0"><PhCrown weight="duotone" /></NIcon>
+              <AppIcon :icon="Crown" scale="xs" class="mt-0.5 shrink-0" />
               会员折扣：购买付费链接将自动享受会员折扣价
             </p>
             <div class="flex items-center justify-between text-sm">
@@ -1235,7 +1227,7 @@ function handleQuickAction(action: string) {
             v-if="currentBalance < purchaseDialog.cost && purchaseDialog.access !== 'membership'"
             class="flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400"
           >
-            <NIcon :size="14"><PhWarningCircle /></NIcon>
+            <AppIcon :icon="CircleAlert" scale="xs" />
             余额不足，还需 <span class="font-mono font-semibold">¥{{ (purchaseDialog.cost - currentBalance).toFixed(2) }}</span>
           </p>
 

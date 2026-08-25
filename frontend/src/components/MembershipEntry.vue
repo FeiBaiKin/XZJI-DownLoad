@@ -4,8 +4,9 @@
 // 与会员中心 / 后台配置页 / 购买弹窗保持一致
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NIcon, NPopover, NSkeleton } from 'naive-ui'
-import { PhCrown } from '@phosphor-icons/vue'
+import { NButton, NPopover, NSkeleton } from 'naive-ui'
+import { Crown } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import { economyApi, type MembershipPlan } from '@/api/economy'
 import { useAuthStore } from '@/stores/auth'
 import { tierIcon, tierColor, readableOn, periodText, dlText, discountLabel, priceText } from '@/utils/tier'
@@ -61,7 +62,7 @@ function goMembership() {
         aria-label="会员套餐"
         title="会员套餐"
       >
-        <NIcon :size="18"><PhCrown weight="duotone" /></NIcon>
+        <AppIcon :icon="Crown" scale="md" />
       </button>
     </template>
 
@@ -70,7 +71,7 @@ function goMembership() {
     <div class="w-[min(19rem,66vw)] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
       <div class="border-b border-zinc-100 px-4 py-3 dark:border-zinc-800">
         <div class="flex items-center gap-2">
-          <NIcon :size="14" class="text-amber-600 dark:text-amber-400"><PhCrown weight="duotone" /></NIcon>
+          <AppIcon :icon="Crown" scale="xs" class="text-amber-600 dark:text-amber-400" />
           <h4 class="text-[13.5px] font-semibold text-zinc-900 dark:text-zinc-100">会员套餐</h4>
         </div>
         <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">开通后免费下载付费资源，付费链接享折扣</p>
@@ -101,7 +102,7 @@ function goMembership() {
             class="grid size-7 shrink-0 place-items-center rounded-lg"
             :style="{ backgroundColor: tierColor(plan.color), color: readableOn(tierColor(plan.color)) }"
           >
-            <NIcon :size="14"><component :is="tierIcon(i)" /></NIcon>
+            <AppIcon :icon="tierIcon(i)" scale="xs" />
           </span>
           <span class="min-w-0 flex-1">
             <span class="block truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">{{ plan.level_name }}</span>

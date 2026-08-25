@@ -5,11 +5,9 @@
 //   - 传 method（直付）  → { pay:true, type, scene, payUrl, qrCode, orderNo, amount, bonusExp }
 //     直付订单由支付回调开通会员，前端轮询 GET /user/recharge-status/:orderNo 等 paid
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { NModal, NButton, NIcon } from 'naive-ui'
-import {
-  PhX, PhCalendar, PhDownloadSimple, PhPercent, PhWallet, PhInfo,
-  PhCoin, PhQrCode, PhCreditCard, PhArrowLeft, PhArrowSquareOut,
-} from '@phosphor-icons/vue'
+import { NModal, NButton } from 'naive-ui'
+import { ArrowLeft, Calendar, Coins, CreditCard, Download, ExternalLink, Info, Percent, QrCode, Wallet, X } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import QRCode from 'qrcode'
 import { economyApi, type PaymentMethod, type MembershipPayResult } from '@/api/economy'
 import { authApi } from '@/api/auth'
@@ -44,7 +42,7 @@ const discountText = computed(() => discountLabel(props.plan?.discount ?? 0))
 
 // ── 支付方式 ──
 const methodIconOf = (name: string) =>
-  name === BALANCE ? PhCoin : name === 'wechat' ? PhQrCode : name === 'alipay' ? PhWallet : PhCreditCard
+  name === BALANCE ? Coins : name === 'wechat' ? QrCode : name === 'alipay' ? Wallet : CreditCard
 const methodBriefOf = (name: string) =>
   name === 'wechat' ? '扫码支付' : name === 'alipay' ? '网页支付' : name === 'epay' ? '聚合收银台' : ''
 
@@ -175,7 +173,7 @@ function backToSelect() {
               class="grid size-11 shrink-0 place-items-center rounded-xl"
               :style="{ backgroundColor: planColor, color: readableOn(planColor) }"
             >
-              <NIcon :size="22"><component :is="tierIcon(iconIndex)" /></NIcon>
+              <AppIcon :icon="tierIcon(iconIndex)" scale="md" />
             </span>
             <div class="min-w-0">
               <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ step === 'paying' ? '等待支付' : '开通会员' }}</p>
@@ -188,7 +186,7 @@ function backToSelect() {
             aria-label="关闭"
             @click="emit('close')"
           >
-            <NIcon :size="16"><PhX /></NIcon>
+            <AppIcon :icon="X" scale="sm" />
           </button>
         </div>
       </div>
@@ -199,19 +197,19 @@ function backToSelect() {
         <dl class="space-y-2.5 text-sm">
           <div class="flex items-center justify-between">
             <dt class="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-              <NIcon :size="15" :style="{ color: planColor }"><PhCalendar /></NIcon>有效期
+              <AppIcon :icon="Calendar" scale="sm" :style="{ color: planColor }" />有效期
             </dt>
             <dd class="font-medium text-zinc-800 dark:text-zinc-200">{{ plan.days }} 天（{{ periodText(plan.days) }}）</dd>
           </div>
           <div class="flex items-center justify-between">
             <dt class="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-              <NIcon :size="15" :style="{ color: planColor }"><PhDownloadSimple /></NIcon>每日下载
+              <AppIcon :icon="Download" scale="sm" :style="{ color: planColor }" />每日下载
             </dt>
             <dd class="font-medium text-zinc-800 dark:text-zinc-200">{{ dlText(plan.daily_download_limit) }}</dd>
           </div>
           <div class="flex items-center justify-between">
             <dt class="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
-              <NIcon :size="15" :style="{ color: planColor }"><PhPercent /></NIcon>付费链接折扣
+              <AppIcon :icon="Percent" scale="sm" :style="{ color: planColor }" />付费链接折扣
             </dt>
             <dd class="font-medium text-zinc-800 dark:text-zinc-200">{{ discountText ?? '标准价' }}</dd>
           </div>
@@ -232,9 +230,11 @@ function backToSelect() {
               :aria-pressed="payMethod === opt.name"
               @click="payMethod = opt.name; error = ''"
             >
-              <NIcon :size="20" :class="payMethod === opt.name ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'">
-                <component :is="methodIconOf(opt.name)" />
-              </NIcon>
+              <AppIcon
+                :icon="methodIconOf(opt.name)"
+                scale="md"
+                :class="payMethod === opt.name ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'"
+              />
               <span class="text-xs font-medium text-zinc-800 dark:text-zinc-200">{{ opt.label }}</span>
               <span class="text-[10px] text-zinc-500 dark:text-zinc-400">{{ opt.brief }}</span>
             </button>
@@ -244,7 +244,7 @@ function backToSelect() {
         <!-- 价格区 -->
         <div class="space-y-2.5 rounded-xl bg-zinc-50 px-4 py-4 dark:bg-zinc-800/60">
           <div class="flex items-center justify-between">
-            <span class="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400"><NIcon :size="14"><PhWallet /></NIcon>支付金额</span>
+            <span class="flex items-center gap-1.5 text-sm text-zinc-500 dark:text-zinc-400"><AppIcon :icon="Wallet" scale="xs" />支付金额</span>
             <span class="font-mono text-xl font-bold text-zinc-900 dark:text-zinc-100">¥{{ priceText(price) }}</span>
           </div>
           <div v-if="usingBalance" class="flex items-center justify-between">
@@ -258,7 +258,7 @@ function backToSelect() {
             <span class="text-sm text-zinc-700 dark:text-zinc-300">{{ methodLabelOf(payMethod) }}</span>
           </div>
           <div v-if="usingBalance && !canAfford" class="flex items-start gap-1.5 rounded-lg bg-red-50 px-2.5 py-1.5 text-xs text-red-600 dark:bg-red-500/10 dark:text-red-400">
-            <NIcon :size="13" class="mt-px shrink-0"><PhInfo /></NIcon>
+            <AppIcon :icon="Info" scale="xs" class="mt-px shrink-0" />
             <span>{{ hasThirdParty ? '余额不足，可改用上方支付方式直接开通，无需先充值' : '余额不足，请先充值后再购买' }}</span>
           </div>
         </div>
@@ -268,14 +268,14 @@ function backToSelect() {
           v-if="hasMembership && !isCurrentPlan"
           class="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-700 dark:bg-amber-400/10 dark:text-amber-400"
         >
-          <NIcon :size="14" class="mt-0.5 shrink-0"><PhInfo /></NIcon>
+          <AppIcon :icon="Info" scale="xs" class="mt-0.5 shrink-0" />
           <span>您当前是 {{ profile.membership_level }}，购买后有效期将从现有到期日延长。</span>
         </p>
         <p
           v-if="isCurrentPlan"
           class="flex items-start gap-1.5 rounded-lg bg-zinc-100 px-3 py-2.5 text-xs text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
         >
-          <NIcon :size="14" class="mt-0.5 shrink-0"><PhInfo /></NIcon>
+          <AppIcon :icon="Info" scale="xs" class="mt-0.5 shrink-0" />
           <span>您当前已是 {{ plan.level_name }}，无需重复购买。</span>
         </p>
 
@@ -334,13 +334,13 @@ function backToSelect() {
           </p>
           <p class="text-xs text-zinc-500 dark:text-zinc-400">支付成功后会员自动开通，无需手动扣余额</p>
           <NButton type="primary" size="large" class="mt-3 w-full" @click="handleRedirect">
-            <template #icon><NIcon><PhArrowSquareOut /></NIcon></template>
+            <template #icon><AppIcon :icon="ExternalLink" scale="sm" /></template>
             {{ isEpay ? '前往易支付收银台' : '前往支付宝支付' }}
           </NButton>
         </div>
 
         <NButton quaternary block @click="backToSelect">
-          <template #icon><NIcon><PhArrowLeft /></NIcon></template>
+          <template #icon><AppIcon :icon="ArrowLeft" scale="sm" /></template>
           返回重选
         </NButton>
       </div>

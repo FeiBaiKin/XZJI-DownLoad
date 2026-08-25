@@ -4,8 +4,9 @@
 //   1) 作为管理页内联使用：父组件直接渲染 <MediaPicker />
 //   2) 作为选择器：父组件监听 @select 事件，拿到的参数是 MediaFile
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { NIcon, NButton, NInput, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
-import { PhUploadSimple, PhLink as LinkIcon, PhTrash, PhMagnifyingGlass } from '@phosphor-icons/vue'
+import { NButton, NInput, NSkeleton, NEmpty, NPopconfirm } from 'naive-ui'
+import { Link as LinkIcon, Search, Trash2, Upload } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import { contentApi, type MediaFile } from '@/api/content'
 import { useToastStore } from '@/stores/toast'
 import AppPagination from '@/components/AppPagination.vue'
@@ -228,7 +229,7 @@ function fmtSize(s: number) {
         @dragleave="onDropLeave"
         @drop="onDrop"
       >
-        <NIcon :size="28" class="text-emerald-500 dark:text-emerald-400"><PhUploadSimple /></NIcon>
+        <AppIcon :icon="Upload" scale="lg" class="text-emerald-500 dark:text-emerald-400" />
         <p class="text-sm font-medium text-zinc-700 dark:text-zinc-200">点击或拖拽图片到此处</p>
         <p class="text-xs text-zinc-500 dark:text-zinc-400">支持 JPG / PNG / GIF / WebP，单个文件最大 5MB</p>
         <input
@@ -244,7 +245,7 @@ function fmtSize(s: number) {
       <!-- 网络 URL -->
       <div class="flex flex-col justify-between gap-3 rounded-2xl border border-zinc-200 p-5 dark:border-zinc-800">
         <div class="flex items-center gap-2">
-          <NIcon :size="16" class="text-emerald-500"><LinkIcon /></NIcon>
+          <AppIcon :icon="LinkIcon" scale="sm" class="text-emerald-500" />
           <span class="text-sm font-medium text-zinc-700 dark:text-zinc-200">从网络 URL 导入</span>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row">
@@ -292,7 +293,7 @@ function fmtSize(s: number) {
           @clear="handleSearch"
         />
         <NButton size="small" quaternary :disabled="loading" @click="handleSearch">
-          <template #icon><NIcon><PhMagnifyingGlass /></NIcon></template>
+          <template #icon><AppIcon :icon="Search" scale="sm" /></template>
         </NButton>
       </div>
       <span v-if="!loading" class="font-mono text-xs text-zinc-500 dark:text-zinc-400">共 {{ total }} 个</span>
@@ -360,7 +361,7 @@ function fmtSize(s: number) {
                 :disabled="deletingIds.has(file.id)"
                 @click.stop
               >
-                <NIcon :size="14"><PhTrash /></NIcon>
+                <AppIcon :icon="Trash2" scale="xs" />
               </button>
             </template>
             确认删除该图片？已引用它的内容将无法显示。

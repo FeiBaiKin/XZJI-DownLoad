@@ -3,8 +3,9 @@
 // 后端契约不变：GET /admin/membership-config 返回纯数组，PUT 接收纯数组，按 level_name 全量同步
 // 视觉体系：面板 rounded-2xl / 控件与图标章 rounded-lg；emerald 为操作强调色，档位色为数据驱动语义色
 import { ref, onMounted } from 'vue'
-import { NButton, NInput, NInputNumber, NIcon, NSkeleton, NColorPicker, NPopconfirm } from 'naive-ui'
-import { PhPlus, PhTrash, PhCopy, PhCrown, PhFloppyDisk, PhEye } from '@phosphor-icons/vue'
+import { NButton, NInput, NInputNumber, NSkeleton, NColorPicker, NPopconfirm } from 'naive-ui'
+import { Copy, Crown, Eye, Plus, Save, Trash2 } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import api from '@/api'
 import type { MembershipConfig } from '@/types/api'
 import { useToastStore } from '@/stores/toast'
@@ -124,7 +125,7 @@ async function discardChanges() {
           </p>
         </div>
         <NButton type="primary" @click="addLevel">
-          <template #icon><NIcon><PhPlus /></NIcon></template>
+          <template #icon><AppIcon :icon="Plus" scale="sm" /></template>
           添加档位
         </NButton>
       </header>
@@ -135,12 +136,12 @@ async function discardChanges() {
         class="mt-6 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/40 py-20 text-center dark:border-zinc-700 dark:bg-zinc-900/40"
       >
         <span class="mx-auto grid size-14 place-items-center rounded-xl bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-600">
-          <NIcon :size="28"><PhCrown /></NIcon>
+          <AppIcon :icon="Crown" scale="lg" />
         </span>
         <p class="mt-4 text-sm font-medium text-zinc-600 dark:text-zinc-300">暂无会员档位</p>
         <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">创建第一个档位后，前台会员中心即可展示并售卖。</p>
         <NButton type="primary" size="small" class="mt-5" @click="addLevel">
-          <template #icon><NIcon><PhPlus /></NIcon></template>
+          <template #icon><AppIcon :icon="Plus" scale="sm" /></template>
           创建第一个档位
         </NButton>
       </div>
@@ -175,7 +176,7 @@ async function discardChanges() {
                   class="pointer-events-none absolute inset-0 grid place-items-center rounded-lg"
                   :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
                 >
-                  <NIcon :size="18"><component :is="tierIcon(idx)" /></NIcon>
+                  <AppIcon :icon="tierIcon(idx)" scale="sm" />
                 </span>
                 <NColorPicker
                   class="tier-color-overlay"
@@ -201,7 +202,7 @@ async function discardChanges() {
                   aria-label="复制档位"
                   @click="duplicateLevel(idx)"
                 >
-                  <NIcon :size="16"><PhCopy /></NIcon>
+                  <AppIcon :icon="Copy" scale="sm" />
                 </button>
                 <NPopconfirm @positive-click="removeLevel(idx)">
                   <template #trigger>
@@ -211,7 +212,7 @@ async function discardChanges() {
                       title="删除档位"
                       aria-label="删除档位"
                     >
-                      <NIcon :size="16"><PhTrash /></NIcon>
+                      <AppIcon :icon="Trash2" scale="sm" />
                     </button>
                   </template>
                   确认移除「{{ lv.level_name || '未命名' }}」？保存后生效。
@@ -289,7 +290,7 @@ async function discardChanges() {
                 aria-label="复制档位"
                 @click="duplicateLevel(idx)"
               >
-                <NIcon :size="16"><PhCopy /></NIcon>
+                <AppIcon :icon="Copy" scale="sm" />
               </button>
               <NPopconfirm @positive-click="removeLevel(idx)">
                 <template #trigger>
@@ -299,7 +300,7 @@ async function discardChanges() {
                     title="删除档位"
                     aria-label="删除档位"
                   >
-                    <NIcon :size="16"><PhTrash /></NIcon>
+                    <AppIcon :icon="Trash2" scale="sm" />
                   </button>
                 </template>
                 确认移除「{{ lv.level_name || '未命名' }}」？保存后生效。
@@ -313,7 +314,7 @@ async function discardChanges() {
       <section v-if="levels.length > 0" class="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50/60 p-5 dark:border-zinc-800 dark:bg-zinc-900/40">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <h2 class="flex items-center gap-2 text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-            <NIcon :size="16" class="text-emerald-600 dark:text-emerald-400"><PhEye /></NIcon>
+            <AppIcon :icon="Eye" scale="sm" class="text-emerald-600 dark:text-emerald-400" />
             前台展示效果
           </h2>
           <p class="text-xs text-zinc-500 dark:text-zinc-400">按上方顺序展示，填写角标的档位会突出标注，随编辑实时更新</p>
@@ -331,7 +332,7 @@ async function discardChanges() {
                   class="grid size-9 shrink-0 place-items-center rounded-lg"
                   :style="{ backgroundColor: tierColor(lv.color), color: readableOn(tierColor(lv.color)) }"
                 >
-                  <NIcon :size="18"><component :is="tierIcon(idx)" /></NIcon>
+                  <AppIcon :icon="tierIcon(idx)" scale="sm" />
                 </span>
                 <p class="min-w-0 truncate text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ lv.level_name || '未命名档位' }}</p>
                 <span
@@ -372,7 +373,7 @@ async function discardChanges() {
             放弃所有未保存的修改？
           </NPopconfirm>
           <NButton type="primary" :loading="saving" :disabled="!dirty" @click="handleSave">
-            <template #icon><NIcon><PhFloppyDisk /></NIcon></template>
+            <template #icon><AppIcon :icon="Save" scale="sm" /></template>
             保存配置
           </NButton>
         </div>

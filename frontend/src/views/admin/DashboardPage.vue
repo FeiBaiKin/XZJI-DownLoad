@@ -3,8 +3,9 @@
 // 设计：沿用 zinc / emerald + rounded-2xl 卡片语言，数字用 mono，密度中等
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { NSkeleton, NButton, NTag, NIcon } from 'naive-ui'
-import { PhArrowRight, PhCoin, PhHeart, PhLink as LinkIcon, PhFolder, PhFileText } from '@phosphor-icons/vue'
+import { NSkeleton, NButton, NTag } from 'naive-ui'
+import { ArrowRight, Coins, FileText, Folder, Heart, Link as LinkIcon } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import api from '@/api'
 import { formatMoney } from '@/utils/format'
 import { methodLabels } from '@/constants/admin'
@@ -148,7 +149,7 @@ function formatPaidAt(v?: string | null) {
           </div>
           <NButton size="small" secondary @click="router.push('/admin/keywords')">
             管理关键词
-            <template #icon><NIcon><PhArrowRight /></NIcon></template>
+            <template #icon><AppIcon :icon="ArrowRight" scale="sm" /></template>
           </NButton>
         </header>
 
@@ -262,7 +263,7 @@ function formatPaidAt(v?: string | null) {
           <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
               <div class="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="15"><PhFolder /></NIcon>
+                <AppIcon :icon="Folder" scale="sm" />
                 关键词资源
               </div>
               <p class="mt-2 font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">{{ stats.keywords || 0 }}</p>
@@ -272,7 +273,7 @@ function formatPaidAt(v?: string | null) {
             </div>
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
               <div class="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="15"><LinkIcon /></NIcon>
+                <AppIcon :icon="LinkIcon" scale="sm" />
                 链接购买
               </div>
               <p class="mt-2 font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -284,7 +285,7 @@ function formatPaidAt(v?: string | null) {
             </div>
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
               <div class="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="15"><PhHeart /></NIcon>
+                <AppIcon :icon="Heart" scale="sm" />
                 收藏总数
               </div>
               <p class="mt-2 font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -296,7 +297,7 @@ function formatPaidAt(v?: string | null) {
             </div>
             <div class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
               <div class="flex items-center gap-2 text-[13px] text-zinc-500 dark:text-zinc-400">
-                <NIcon :size="15"><PhFileText /></NIcon>
+                <AppIcon :icon="FileText" scale="sm" />
                 分类 / 页面
               </div>
               <p class="mt-2 font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-50">
@@ -361,7 +362,7 @@ function formatPaidAt(v?: string | null) {
                 :key="o.id"
                 class="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5"
               >
-                <NIcon :size="14" class="shrink-0 text-emerald-500 dark:text-emerald-400"><PhCoin /></NIcon>
+                <AppIcon :icon="Coins" scale="xs" class="shrink-0 text-emerald-500 dark:text-emerald-400" />
                 <span class="min-w-0 flex-1 truncate font-mono text-xs text-zinc-600 dark:text-zinc-300">
                   {{ o.order_no }}
                 </span>

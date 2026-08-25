@@ -3,15 +3,9 @@
 // 点击「添加关键词」或「编辑」打开右侧抽屉，保存后列表原地刷新
 // 业务逻辑与后端契约保持不变
 import { ref, onMounted, computed, h } from 'vue'
-import {
-  NButton, NIcon, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup,
-  NSelect, NDrawer, NDrawerContent, NModal, NRadioGroup, NRadio, NUpload,
-  type DataTableColumns, type UploadFileInfo,
-} from 'naive-ui'
-import {
-  PhPlus, PhX, PhArrowUp, PhArrowDown, PhTextAlignLeft, PhImage, PhLink as LinkIcon, PhArrowSquareOut, PhCaretDown, PhTrash,
-  PhDownloadSimple, PhUploadSimple, PhEye, PhEyeSlash,
-} from '@phosphor-icons/vue'
+import { NButton, NInput, NInputNumber, NDataTable, NTag, NCheckbox, NCheckboxGroup, NSelect, NDrawer, NDrawerContent, NModal, NRadioGroup, NRadio, NUpload, type DataTableColumns, type UploadFileInfo } from 'naive-ui'
+import { AlignLeft, ArrowDown, ArrowUp, ChevronDown, Download, ExternalLink, Eye, EyeOff, Image as ImageIcon, Link as LinkIcon, Plus, Trash2, Upload, X } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import { contentApi, type Category, type Keyword } from '@/api/content'
 import type { KeywordAttribute, KeywordStatus } from '@/types/api'
 import { extractErrorMessage } from '@/types/error'
@@ -513,19 +507,19 @@ const columns: DataTableColumns<Keyword> = [
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <NButton secondary :loading="exportBusy" @click="handleExport('json')">
-          <template #icon><NIcon><PhDownloadSimple /></NIcon></template>
+          <template #icon><AppIcon :icon="Download" scale="sm" /></template>
           导出 JSON
         </NButton>
         <NButton secondary :loading="exportBusy" @click="handleExport('csv')">
-          <template #icon><NIcon><PhDownloadSimple /></NIcon></template>
+          <template #icon><AppIcon :icon="Download" scale="sm" /></template>
           导出 CSV
         </NButton>
         <NButton secondary @click="importOpen = true; importResult = null">
-          <template #icon><NIcon><PhUploadSimple /></NIcon></template>
+          <template #icon><AppIcon :icon="Upload" scale="sm" /></template>
           导入
         </NButton>
         <NButton type="primary" @click="openCreate">
-          <template #icon><NIcon><PhPlus /></NIcon></template>
+          <template #icon><AppIcon :icon="Plus" scale="sm" /></template>
           添加关键词
         </NButton>
       </div>
@@ -551,7 +545,7 @@ const columns: DataTableColumns<Keyword> = [
                   : 'text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800'"
                 @click="keywordStatus = 'published'"
               >
-                <NIcon :size="15"><PhEye /></NIcon>
+                <AppIcon :icon="Eye" scale="sm" />
                 已上架
               </button>
               <button
@@ -562,7 +556,7 @@ const columns: DataTableColumns<Keyword> = [
                   : 'text-zinc-500 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800'"
                 @click="keywordStatus = 'draft'"
               >
-                <NIcon :size="15"><PhEyeSlash /></NIcon>
+                <AppIcon :icon="EyeOff" scale="sm" />
                 已下架
               </button>
             </div>
@@ -581,7 +575,7 @@ const columns: DataTableColumns<Keyword> = [
                   class="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60"
                 >
                   <img v-if="keywordIcon" :src="keywordIcon" alt="图标" class="size-full object-cover" />
-                  <NIcon v-else :size="22" class="text-zinc-300 dark:text-zinc-600"><PhImage /></NIcon>
+                  <AppIcon :icon="ImageIcon" scale="md" v-else  class="text-zinc-300 dark:text-zinc-600" />
                 </div>
                 <div class="flex flex-col gap-1.5">
                   <NButton
@@ -591,7 +585,7 @@ const columns: DataTableColumns<Keyword> = [
                     :title="!editingId ? '请先保存关键词后再上传图标' : '从媒体库选图并裁剪为图标'"
                     @click="iconPickerOpen = true"
                   >
-                    <template #icon><NIcon><PhImage /></NIcon></template>
+                    <template #icon><AppIcon :icon="ImageIcon" scale="sm" /></template>
                     {{ keywordIcon ? '更换图标' : '从媒体库选择' }}
                   </NButton>
                   <NButton v-if="keywordIcon" size="small" quaternary type="error" @click="keywordIcon = ''">
@@ -609,7 +603,7 @@ const columns: DataTableColumns<Keyword> = [
               <div class="mb-1.5 flex items-center justify-between">
                 <label class="block text-sm font-medium text-zinc-700 dark:text-zinc-300">属性</label>
                 <NButton size="tiny" quaternary @click="addAttribute">
-                  <template #icon><NIcon><PhPlus /></NIcon></template>
+                  <template #icon><AppIcon :icon="Plus" scale="sm" /></template>
                   添加
                 </NButton>
               </div>
@@ -644,7 +638,7 @@ const columns: DataTableColumns<Keyword> = [
                     aria-label="删除属性"
                     @click="removeAttribute(idx)"
                   >
-                    <NIcon :size="14"><PhTrash /></NIcon>
+                    <AppIcon :icon="Trash2" scale="xs" />
                   </button>
                 </div>
               </div>
@@ -657,15 +651,15 @@ const columns: DataTableColumns<Keyword> = [
               <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">响应内容块</span>
               <div class="flex gap-1.5">
                 <NButton size="tiny" secondary @click="addBlock('text')">
-                  <template #icon><NIcon><PhTextAlignLeft /></NIcon></template>
+                  <template #icon><AppIcon :icon="AlignLeft" scale="sm" /></template>
                   文本
                 </NButton>
                 <NButton size="tiny" secondary @click="addBlock('image')">
-                  <template #icon><NIcon><PhImage /></NIcon></template>
+                  <template #icon><AppIcon :icon="ImageIcon" scale="sm" /></template>
                   图片
                 </NButton>
                 <NButton size="tiny" secondary @click="addBlock('link')">
-                  <template #icon><NIcon><LinkIcon /></NIcon></template>
+                  <template #icon><AppIcon :icon="LinkIcon" scale="sm" /></template>
                   链接
                 </NButton>
               </div>
@@ -695,7 +689,7 @@ const columns: DataTableColumns<Keyword> = [
                     aria-label="上移此块"
                     @click="moveBlock(idx, -1)"
                   >
-                    <NIcon :size="14"><PhArrowUp /></NIcon>
+                    <AppIcon :icon="ArrowUp" scale="xs" />
                   </button>
                   <button
                     type="button"
@@ -705,7 +699,7 @@ const columns: DataTableColumns<Keyword> = [
                     aria-label="下移此块"
                     @click="moveBlock(idx, 1)"
                   >
-                    <NIcon :size="14"><PhArrowDown /></NIcon>
+                    <AppIcon :icon="ArrowDown" scale="xs" />
                   </button>
                 </div>
 
@@ -722,7 +716,7 @@ const columns: DataTableColumns<Keyword> = [
                       aria-label="删除此块"
                       @click="removeBlock(idx)"
                     >
-                      <NIcon :size="13"><PhX /></NIcon>
+                      <AppIcon :icon="X" scale="xs" />
                     </button>
                   </div>
 
@@ -822,7 +816,7 @@ const columns: DataTableColumns<Keyword> = [
                 <span class="block text-xs font-medium text-zinc-500 dark:text-zinc-400">链接解析器</span>
                 <span class="mt-0.5 block text-[11px] text-zinc-400 dark:text-zinc-500">从网盘分享链接自动提取</span>
               </span>
-              <NIcon :size="15" class="text-zinc-400 transition-transform" :class="parserOpen ? 'rotate-180' : ''"><PhCaretDown /></NIcon>
+              <AppIcon :icon="ChevronDown" scale="sm" class="text-zinc-400 transition-transform" :class="parserOpen ? 'rotate-180' : ''" />
             </button>
             <div v-if="parserOpen" class="space-y-3 border-t border-zinc-100 p-4 dark:border-zinc-800">
               <div class="flex flex-col gap-2 sm:flex-row">
@@ -870,7 +864,7 @@ const columns: DataTableColumns<Keyword> = [
                 <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">响应预览</span>
                 <span class="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ blocks.length }} 块</span>
               </span>
-              <NIcon :size="15" class="text-zinc-400 transition-transform" :class="previewOpen ? 'rotate-180' : ''"><PhCaretDown /></NIcon>
+              <AppIcon :icon="ChevronDown" scale="sm" class="text-zinc-400 transition-transform" :class="previewOpen ? 'rotate-180' : ''" />
             </button>
             <div v-if="previewOpen" class="max-h-80 space-y-2.5 overflow-y-auto border-t border-zinc-100 p-4 dark:border-zinc-800">
               <p v-if="blocks.length === 0" class="text-xs text-zinc-400 dark:text-zinc-500">添加内容块后此处将显示预览</p>
@@ -886,7 +880,7 @@ const columns: DataTableColumns<Keyword> = [
                   v-else-if="block.type === 'link'"
                   class="flex items-center gap-2 rounded-lg border border-zinc-200 px-2.5 py-2 text-[13px] dark:border-zinc-700"
                 >
-                  <NIcon :size="13" class="shrink-0 text-emerald-500"><PhArrowSquareOut /></NIcon>
+                  <AppIcon :icon="ExternalLink" scale="xs" class="shrink-0 text-emerald-500" />
                   <span class="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">{{ block.label || block.url || '(空链接)' }}</span>
                   <span v-if="block.code" class="shrink-0 font-mono text-[11px] text-zinc-400 dark:text-zinc-500">{{ block.code }}</span>
                 </div>
@@ -1020,7 +1014,7 @@ const columns: DataTableColumns<Keyword> = [
           @change="({ file }) => onImportFile({ file })"
         >
           <NButton type="primary" :loading="importBusy" secondary block>
-            <template #icon><NIcon><PhUploadSimple /></NIcon></template>
+            <template #icon><AppIcon :icon="Upload" scale="sm" /></template>
             选择文件并导入
           </NButton>
         </NUpload>

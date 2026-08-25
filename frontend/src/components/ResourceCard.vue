@@ -2,8 +2,8 @@
 // 资源卡片：图标 + 标题 + 两行描述 + 单一访问 chip + 收藏
 // 整卡点击复制关键词；收藏为独立按钮
 import { ref, computed } from 'vue'
-import { NIcon } from 'naive-ui'
-import { PhCopy, PhCheck, PhHeart } from '@phosphor-icons/vue'
+import { Check, Copy, Heart } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import { useToastStore } from '@/stores/toast'
 import type { PublicKeyword } from '@/api/content'
 import type { KeywordAttribute } from '@/types/api'
@@ -126,7 +126,7 @@ function handleKeydown(e: KeyboardEvent) {
       :aria-label="favorited ? '取消收藏' : '收藏'"
       @click.stop.prevent="emit('toggleFavorite')"
     >
-      <NIcon :size="16"><PhHeart :weight="favorited ? 'fill' : 'regular'" /></NIcon>
+      <AppIcon :icon="Heart" scale="sm" :filled="favorited" />
     </button>
 
     <!-- 主体：图标 + 文案 -->
@@ -171,7 +171,7 @@ function handleKeydown(e: KeyboardEvent) {
           ? 'text-emerald-600 dark:text-emerald-400'
           : 'text-zinc-400 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 dark:text-zinc-500'"
       >
-        <NIcon :size="12"><PhCheck v-if="copied" /><PhCopy v-else /></NIcon>
+        <AppIcon v-if="copied" :icon="Check" scale="xs" /><AppIcon v-else :icon="Copy" scale="xs" />
         <span>{{ copied ? '已复制' : '复制' }}</span>
       </span>
     </div>

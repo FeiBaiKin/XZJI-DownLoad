@@ -2,8 +2,8 @@
 // 认证页共享外壳：居中卡片布局（登录 / 注册 / 找回密码）
 // 取消全宽分栏与左侧品牌图；沿用站点 zinc + emerald 语言
 import { computed } from 'vue'
-import { NIcon } from 'naive-ui'
-import { PhArrowLeft } from '@phosphor-icons/vue'
+import { ArrowLeft } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 
 withDefaults(defineProps<{
@@ -39,7 +39,7 @@ const logoLetter = computed(() => (site.siteName?.[0] || 'X').toUpperCase())
         :to="backTo"
         class="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 active:scale-[0.98] dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        <NIcon :size="16"><PhArrowLeft /></NIcon>
+        <AppIcon :icon="ArrowLeft" scale="sm" />
         {{ backLabel }}
       </router-link>
 

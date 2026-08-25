@@ -2,8 +2,9 @@
 // 支付配置：站点地址 + 微信/支付宝/易支付三家参数（payment_* 键直读直写）
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, computed, onMounted } from 'vue'
-import { NButton, NInput, NAlert, NSwitch, NSkeleton, NIcon, NRadioGroup, NRadioButton, NTag } from 'naive-ui'
-import { PhQrCode, PhWallet, PhCreditCard, PhCaretDown } from '@phosphor-icons/vue'
+import { NButton, NInput, NAlert, NSwitch, NSkeleton, NRadioGroup, NRadioButton, NTag } from 'naive-ui'
+import { ChevronDown, CreditCard, QrCode, Wallet } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import api from '@/api'
 import { PROVIDERS } from '@/constants/admin'
 
@@ -45,10 +46,10 @@ const message = ref('')
 const error = ref('')
 const activeProvider = ref<string | null>(null)
 
-const providerIcons: Record<string, typeof PhQrCode> = {
-  wechat: PhQrCode,
-  alipay: PhWallet,
-  epay: PhCreditCard,
+const providerIcons: Record<string, typeof QrCode> = {
+  wechat: QrCode,
+  alipay: Wallet,
+  epay: CreditCard,
 }
 
 onMounted(() => { fetchConfig() })
@@ -146,20 +147,18 @@ const siteUrl = computed(() => (config.value.payment_site_url ? config.value.pay
                   class="grid size-9 shrink-0 place-items-center rounded-lg"
                   :class="enabledProviders.includes(p.key)
                     ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400'
-                    : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800'"
+                    : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'"
                 >
-                  <NIcon :size="19"><component :is="providerIcons[p.key]" /></NIcon>
+                  <AppIcon :icon="providerIcons[p.key]" scale="md" />
                 </span>
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ p.label }}</span>
                   <span class="mt-0.5 block truncate text-xs text-zinc-500 dark:text-zinc-400">{{ p.brief }}</span>
                 </span>
-                <NIcon
-                  v-if="enabledProviders.includes(p.key)"
-                  :size="15"
+                <AppIcon :icon="ChevronDown" scale="sm" v-if="enabledProviders.includes(p.key)"
+                  
                   class="shrink-0 text-zinc-400 transition-transform"
-                  :class="activeProvider === p.key ? 'rotate-180' : ''"
-                ><PhCaretDown /></NIcon>
+                  :class="activeProvider === p.key ? 'rotate-180' : ''" />
               </button>
               <NSwitch
                 :value="enabledProviders.includes(p.key)"

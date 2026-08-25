@@ -2,10 +2,9 @@
 // 前台登录/注册弹窗：首页引导与 Header 等入口复用
 // 设计：zinc + emerald 居中卡片；Teleport 到 body 后需自带 NConfigProvider 才能跟站点深浅色
 import { ref, watch, onUnmounted, computed } from 'vue'
-import {
-  NButton, NInput, NTabs, NTabPane, NIcon, NConfigProvider, darkTheme, zhCN, dateZhCN,
-} from 'naive-ui'
-import { PhX, PhArrowLeft } from '@phosphor-icons/vue'
+import { NButton, NInput, NTabs, NTabPane, NConfigProvider, darkTheme, zhCN, dateZhCN } from 'naive-ui'
+import { ArrowLeft, X } from '@lucide/vue'
+import AppIcon from './AppIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore, type AuthModalTab } from '@/stores/authModal'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
@@ -374,7 +373,7 @@ const subtitle = computed(() => {
             aria-label="关闭"
             @click="close"
           >
-            <NIcon :size="18"><PhX /></NIcon>
+            <AppIcon :icon="X" scale="md" />
           </button>
         </div>
 
@@ -412,7 +411,7 @@ const subtitle = computed(() => {
           class="mt-4 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:text-zinc-200"
           @click="switchTab('login')"
         >
-          <NIcon :size="15"><PhArrowLeft /></NIcon>
+          <AppIcon :icon="ArrowLeft" scale="sm" />
           返回登录
         </button>
 

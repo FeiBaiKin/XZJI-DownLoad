@@ -5,8 +5,9 @@
 // 首页未登录：先展示内容，约 3 秒后弹窗引导登录/注册（可关闭，同会话不重复强弹）
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute, RouterView } from 'vue-router'
-import { NButton, NDropdown, NIcon } from 'naive-ui'
-import { PhSun, PhMoonStars, PhShieldCheck, PhShieldCheckered } from '@phosphor-icons/vue'
+import { NButton, NDropdown } from 'naive-ui'
+import { BadgeCheck, MoonStar, ShieldCheck, Sun } from '@lucide/vue'
+import AppIcon from '../components/AppIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAuthModalStore } from '@/stores/authModal'
 import { useThemeStore } from '@/stores/theme'
@@ -154,10 +155,7 @@ function handleUserMenuSelect(key: string) {
             :aria-label="theme.isDark ? '切换浅色模式' : '切换深色模式'"
             @click="theme.toggle()"
           >
-            <NIcon :size="18">
-              <PhSun v-if="theme.isDark" />
-              <PhMoonStars v-else />
-            </NIcon>
+            <AppIcon v-if="theme.isDark" :icon="Sun" scale="md" /><AppIcon v-else :icon="MoonStar" scale="md" />
           </button>
 
           <NDropdown
@@ -246,7 +244,7 @@ function handleUserMenuSelect(key: string) {
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
-              <NIcon :size="13" class="shrink-0"><PhShieldCheck weight="thin" /></NIcon>
+              <AppIcon :icon="ShieldCheck" scale="xs" class="shrink-0" />
               <span>{{ settings.siteIcp }}</span>
             </a>
             <a
@@ -256,7 +254,7 @@ function handleUserMenuSelect(key: string) {
               rel="noopener noreferrer"
               class="inline-flex items-center gap-1 motion-safe:transition-colors hover:text-zinc-600 focus-visible:underline focus-visible:outline-none dark:hover:text-zinc-300"
             >
-              <NIcon :size="13" class="shrink-0"><PhShieldCheckered weight="thin" /></NIcon>
+              <AppIcon :icon="BadgeCheck" scale="xs" class="shrink-0" />
               <span>{{ settings.sitePolice }}</span>
             </a>
           </template>

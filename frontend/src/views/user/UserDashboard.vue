@@ -2,8 +2,9 @@
 // 个人中心仪表盘：余额/会员/等级卡片、每日签到、最近交易
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted } from 'vue'
-import { NButton, NIcon, NTag, NSkeleton, NAlert } from 'naive-ui'
-import { PhWallet, PhCrown, PhStar } from '@phosphor-icons/vue'
+import { NButton, NTag, NSkeleton, NAlert } from 'naive-ui'
+import { Crown, Star, Wallet } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import { economyApi } from '@/api/economy'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -156,7 +157,7 @@ function daysLeftOf(expiresAt: string) {
         <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between">
             <span class="text-[13px] text-zinc-500 dark:text-zinc-400">账户余额</span>
-            <NIcon :size="18" class="text-emerald-500/70"><PhWallet /></NIcon>
+            <AppIcon :icon="Wallet" scale="md" class="text-emerald-500/70" />
           </div>
           <p class="mt-2 font-mono text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {{ (profile?.balance || 0).toFixed(2) }}
@@ -171,7 +172,7 @@ function daysLeftOf(expiresAt: string) {
         <div v-if="membershipStatus" class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between">
             <span class="text-[13px] text-zinc-500 dark:text-zinc-400">会员状态</span>
-            <NIcon :size="18" class="text-amber-500/80"><PhCrown weight="duotone" /></NIcon>
+            <AppIcon :icon="Crown" scale="md" class="text-amber-500/80" />
           </div>
           <p class="mt-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {{ membershipStatus.membership ? membershipStatus.membership.level : '非会员' }}
@@ -195,7 +196,7 @@ function daysLeftOf(expiresAt: string) {
         <div class="flex flex-col rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
           <div class="flex items-center justify-between">
             <span class="text-[13px] text-zinc-500 dark:text-zinc-400">用户等级</span>
-            <NIcon :size="18" class="text-emerald-500/70"><PhStar /></NIcon>
+            <AppIcon :icon="Star" scale="md" class="text-emerald-500/70" />
           </div>
           <p class="mt-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
             {{ levelInfo?.label || `Lv.${profile?.level || 1}` }}

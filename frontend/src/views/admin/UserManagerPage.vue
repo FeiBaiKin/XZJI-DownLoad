@@ -2,11 +2,9 @@
 // 用户管理：分页列表 + 编辑（余额/经验/等级/会员/角色）+ 删除
 // 业务逻辑与接口契约保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, onMounted, h } from 'vue'
-import {
-  NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NModal, NIcon, NSkeleton,
-  type DataTableColumns,
-} from 'naive-ui'
-import { PhX } from '@phosphor-icons/vue'
+import { NButton, NInput, NInputNumber, NDataTable, NAlert, NSelect, NTag, NModal, NSkeleton, type DataTableColumns } from 'naive-ui'
+import { X } from '@lucide/vue'
+import AppIcon from '../../components/AppIcon.vue'
 import api from '@/api'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import AppPagination from '@/components/AppPagination.vue'
@@ -201,7 +199,7 @@ const columns: DataTableColumns<UserBrief> = [
               aria-label="关闭"
               @click="editingUser = null"
             >
-              <NIcon :size="16"><PhX /></NIcon>
+              <AppIcon :icon="X" scale="sm" />
             </button>
           </div>
 
