@@ -285,10 +285,57 @@
 [data-theme='dark'] .w-e-text-container [data-slate-editor] pre > code .token.variable { color: #e5c07b; }
 
 
-/* ── 公共动效系统：层级、状态切换与操作反馈；不使用装饰性常驻动画 ── */
+/* ── 公共动效系统：层级、状态切换与操作反馈；不使用装饰性常驻动画 ──
+   档位由 <html data-motion> 驱动（后台「网站设置 → 界面动效」可配置）：
+   subtle 轻柔 / standard 标准 / expressive 生动；off 表示后台已关闭动效。
+   所有页面过渡、入场编排、按压反馈的时长与幅度都从下面这组变量取值，
+   切换档位即整体改变节奏；off 或系统减少动态效果时全部归零。 */
 :root {
   --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-ease-reveal: cubic-bezier(0.65, 0, 0.35, 1); /* 主题揭示专用平缓曲线 */
+  --motion-dur-enter: 480ms;   /* 首屏块级入场 */
+  --motion-dur-page: 260ms;    /* 页面切换进入 */
+  --motion-dur-fade: 190ms;    /* 布局切换淡入淡出 / 页面退出 */
+  --motion-dur-fast: 160ms;    /* 小元素反馈 */
+  --motion-shift: 10px;        /* 页面入场纵向位移 */
+  --motion-stagger: 34ms;      /* 列表交错间隔 */
+  --motion-tap: 0.97;          /* 按压缩放幅度 */
+  --motion-reveal: 480ms;      /* 主题切换圆形揭示时长 */
+}
+html[data-motion='subtle'] {
+  --motion-dur-enter: 360ms;
+  --motion-dur-page: 200ms;
+  --motion-dur-fade: 150ms;
+  --motion-dur-fast: 120ms;
+  --motion-shift: 5px;
+  --motion-stagger: 18ms;
+  --motion-tap: 0.985;
+  --motion-reveal: 320ms;
+}
+html[data-motion='expressive'] {
+  --motion-dur-enter: 620ms;
+  --motion-dur-page: 340ms;
+  --motion-dur-fade: 230ms;
+  --motion-dur-fast: 180ms;
+  --motion-shift: 18px;
+  --motion-stagger: 52ms;
+  --motion-tap: 0.95;
+  --motion-reveal: 620ms;
+}
+
+/* ── 主题切换圆形揭示 ──
+   JS（theme store）只写入扩散起点 --vt-x/--vt-y 并调用 startViewTransition；
+   时长用 --motion-reveal（随动效档位联动），缓动必须用平缓的 ease-in-out：
+   全站默认的 ease-out 前 20% 时间就扩出 80% 半径，视觉上等于瞬切（实测踩坑） */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root) {
+  animation: vt-reveal var(--motion-reveal, 480ms) var(--motion-ease-reveal, cubic-bezier(0.65, 0, 0.35, 1)) both;
 }
 
 .sidebar-card {
@@ -324,7 +371,7 @@
 }
 
 @keyframes ui-enter {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(var(--motion-shift, 12px)); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -332,140 +379,207 @@
   to { transform: rotate(360deg); }
 }
 
+/* 点击涟漪（.motion-ripple 由 App.vue 注入）；keyframes 必须在顶层，
+   Lightning CSS 会丢弃嵌套在选择器块内的 @keyframes */
+@keyframes motion-ripple {
+  0% { transform: scale(0.3); opacity: 1; }
+  60% { opacity: 0.5; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+/* 主题切换圆形揭示（作用在 ::view-transition-new(root) 伪元素上，见上方说明） */
+@keyframes vt-reveal {
+  from { clip-path: circle(0px at var(--vt-x, 50%) var(--vt-y, 32px)); }
+  to { clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 32px)); }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .ui-enter {
-    animation: ui-enter 520ms var(--motion-ease-out) both;
-    animation-delay: var(--enter-delay, 0ms);
-  }
+  html:not([data-motion='off']) {
+    .ui-enter {
+      animation: ui-enter var(--motion-dur-enter) var(--motion-ease-out) both;
+      animation-delay: var(--enter-delay, 0ms);
+    }
 
-  .sidebar-stack > * {
-    animation: ui-enter 480ms var(--motion-ease-out) both;
-  }
-  .sidebar-stack > :nth-child(1) { animation-delay: 70ms; }
-  .sidebar-stack > :nth-child(2) { animation-delay: 120ms; }
-  .sidebar-stack > :nth-child(3) { animation-delay: 170ms; }
-  .sidebar-stack > :nth-child(4) { animation-delay: 220ms; }
-  .sidebar-stack > :nth-child(5) { animation-delay: 270ms; }
+    /* 布局切换（前台 / 用户中心 / 后台 / 独立页之间）：纯淡入淡出 */
+    .app-fade-enter-active,
+    .app-fade-leave-active {
+      transition: opacity var(--motion-dur-fade) var(--motion-ease-standard);
+    }
+    .app-fade-enter-from,
+    .app-fade-leave-to {
+      opacity: 0;
+    }
 
-  .resource-card {
-    transition:
-      transform 240ms var(--motion-ease-out),
-      border-color 200ms var(--motion-ease-standard),
-      box-shadow 240ms var(--motion-ease-out),
-      background-color 200ms var(--motion-ease-standard);
-  }
-  .resource-card__icon {
-    transition: transform 300ms var(--motion-ease-out);
-  }
+    /* 布局内页面切换：淡入 + 轻位移 */
+    .page-shift-enter-active {
+      transition:
+        opacity calc(var(--motion-dur-page) * 0.7) var(--motion-ease-standard),
+        transform var(--motion-dur-page) var(--motion-ease-out);
+    }
+    .page-shift-leave-active {
+      transition:
+        opacity var(--motion-dur-fade) var(--motion-ease-standard),
+        transform var(--motion-dur-fade) var(--motion-ease-out);
+    }
+    .page-shift-enter-from {
+      opacity: 0;
+      transform: translateY(var(--motion-shift));
+    }
+    .page-shift-leave-to {
+      opacity: 0;
+      transform: translateY(calc(var(--motion-shift) * -0.4));
+    }
 
-  .sidebar-row,
-  .sidebar-quick-item,
-  .sidebar-action,
-  .sidebar-row__arrow {
-    transition:
-      color 180ms var(--motion-ease-standard),
-      border-color 180ms var(--motion-ease-standard),
-      background-color 180ms var(--motion-ease-standard),
-      transform 220ms var(--motion-ease-out);
-  }
-  .sidebar-row:hover .sidebar-row__arrow {
-    color: var(--color-emerald-500);
-    transform: translate(2px, -2px);
-  }
-  .sidebar-row:active,
-  .sidebar-quick-item:active {
-    transform: scale(0.99);
-  }
-  .sidebar-action:active:not(:disabled) {
-    transform: scale(0.94);
-  }
-  .discovery-refresh.is-loading > * {
-    animation: refresh-spin 700ms linear infinite;
-  }
+    /* 按压反馈：按钮类控件按下轻微缩放，松开以弹性曲线回弹。
+       用 :where 保持零特异性包住元素选择器，避免覆盖组件库与工具类的样式 */
+    :where(button, [role='button']) {
+      transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+      transition-duration: var(--motion-dur-fast);
+      transition-timing-function: var(--motion-ease-spring);
+    }
+    :where(button, [role='button']):active:not(:disabled) {
+      transform: scale(var(--motion-tap));
+      /* 按下要跟手：缩短过渡并走标准缓动，松开回弹仍用上面的弹性时长 */
+      transition-duration: 60ms;
+      transition-timing-function: var(--motion-ease-standard);
+    }
 
-  .result-reveal-enter-active,
-  .result-reveal-leave-active {
-    transition:
-      opacity 240ms var(--motion-ease-standard),
-      transform 320ms var(--motion-ease-out);
-  }
-  .result-reveal-enter-from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  .result-reveal-leave-to {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
+    /* 点击涟漪：由 App.vue 的全局 pointerdown 监听在按钮内注入 .motion-ripple，
+       inset:0 + border-radius:inherit 保证不越界，无需动按钮自身的 overflow */
+    .motion-ripple-host {
+      position: relative;
+    }
+    .motion-ripple {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: radial-gradient(
+        circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+        color-mix(in oklab, currentColor 55%, transparent) 0%,
+        color-mix(in oklab, currentColor 26%, transparent) 32%,
+        transparent 70%
+      );
+      transform: scale(0.3);
+      opacity: 0;
+      animation: motion-ripple 620ms var(--motion-ease-out) forwards;
+    }
 
-  .resource-list-enter-active {
-    transition:
-      opacity 300ms var(--motion-ease-standard),
-      transform 360ms var(--motion-ease-out);
-    transition-delay: calc(var(--item-index, 0) * 34ms);
-  }
-  .resource-list-enter-from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  .resource-list-leave-active {
-    transition:
-      opacity 180ms var(--motion-ease-standard),
-      transform 220ms var(--motion-ease-out);
-  }
-  .resource-list-leave-to {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  .resource-list-move {
-    transition: transform 320ms var(--motion-ease-out);
-  }
+    .sidebar-stack > * {
+      animation: ui-enter var(--motion-dur-enter) var(--motion-ease-out) both;
+    }
+    .sidebar-stack > :nth-child(1) { animation-delay: 70ms; }
+    .sidebar-stack > :nth-child(2) { animation-delay: 120ms; }
+    .sidebar-stack > :nth-child(3) { animation-delay: 170ms; }
+    .sidebar-stack > :nth-child(4) { animation-delay: 220ms; }
+    .sidebar-stack > :nth-child(5) { animation-delay: 270ms; }
+
+    .resource-card {
+      transition:
+        transform 240ms var(--motion-ease-out),
+        border-color 200ms var(--motion-ease-standard),
+        box-shadow 240ms var(--motion-ease-out),
+        background-color 200ms var(--motion-ease-standard);
+    }
+    .resource-card__icon {
+      transition: transform 300ms var(--motion-ease-out);
+    }
+
+    .sidebar-row,
+    .sidebar-quick-item,
+    .sidebar-action,
+    .sidebar-row__arrow {
+      transition:
+        color 180ms var(--motion-ease-standard),
+        border-color 180ms var(--motion-ease-standard),
+        background-color 180ms var(--motion-ease-standard),
+        transform 220ms var(--motion-ease-out);
+    }
+    .sidebar-row:hover .sidebar-row__arrow {
+      color: var(--color-emerald-500);
+      transform: translate(2px, -2px);
+    }
+    .sidebar-row:active,
+    .sidebar-quick-item:active {
+      transform: scale(0.99);
+    }
+    .sidebar-action:active:not(:disabled) {
+      transform: scale(0.94);
+    }
+    .discovery-refresh.is-loading > * {
+      animation: refresh-spin 700ms linear infinite;
+    }
+
+    .result-reveal-enter-active,
+    .result-reveal-leave-active {
+      transition:
+        opacity 240ms var(--motion-ease-standard),
+        transform 320ms var(--motion-ease-out);
+    }
+    .result-reveal-enter-from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .result-reveal-leave-to {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+
+    .resource-list-enter-active {
+      transition:
+        opacity 300ms var(--motion-ease-standard),
+        transform 360ms var(--motion-ease-out);
+      transition-delay: calc(var(--item-index, 0) * var(--motion-stagger));
+    }
+    .resource-list-enter-from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .resource-list-leave-active {
+      transition:
+        opacity 180ms var(--motion-ease-standard),
+        transform 220ms var(--motion-ease-out);
+    }
+    .resource-list-leave-to {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    .resource-list-move {
+      transition: transform 320ms var(--motion-ease-out);
+    }
 
 
-  .history-list-enter-active,
-  .history-list-leave-active {
-    transition:
-      opacity 180ms var(--motion-ease-standard),
-      transform 220ms var(--motion-ease-out);
-  }
-  .history-list-enter-from,
-  .history-list-leave-to {
-    opacity: 0;
-    transform: translateX(5px);
-  }
+    .history-list-enter-active,
+    .history-list-leave-active {
+      transition:
+        opacity 180ms var(--motion-ease-standard),
+        transform 220ms var(--motion-ease-out);
+    }
+    .history-list-enter-from,
+    .history-list-leave-to {
+      opacity: 0;
+      transform: translateX(5px);
+    }
 
-  .discovery-swap-enter-active,
-  .discovery-swap-leave-active {
-    transition:
-      opacity 180ms var(--motion-ease-standard),
-      transform 240ms var(--motion-ease-out);
-  }
-  .discovery-swap-enter-from {
-    opacity: 0;
-    transform: translateX(6px);
-  }
-  .discovery-swap-leave-to {
-    opacity: 0;
-    transform: translateX(-4px);
-  }
-
-  .page-shift-enter-active,
-  .page-shift-leave-active {
-    transition:
-      opacity 180ms var(--motion-ease-standard),
-      transform 260ms var(--motion-ease-out);
-  }
-  .page-shift-enter-from {
-    opacity: 0;
-    transform: translateY(7px);
-  }
-  .page-shift-leave-to {
-    opacity: 0;
-    transform: translateY(-3px);
+    .discovery-swap-enter-active,
+    .discovery-swap-leave-active {
+      transition:
+        opacity 180ms var(--motion-ease-standard),
+        transform 240ms var(--motion-ease-out);
+    }
+    .discovery-swap-enter-from {
+      opacity: 0;
+      transform: translateX(6px);
+    }
+    .discovery-swap-leave-to {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
   }
 }
 
-/* 系统要求减少动态效果时，包含 Naive UI 在内的过渡都快速归零。 */
+/* 系统要求减少动态效果，或后台关闭动效（data-motion='off'）时，
+   包含 Naive UI 在内的过渡都快速归零（0.01ms 而非 none：保留 transitionend 回调触发）。 */
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;
@@ -481,4 +595,15 @@
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
   }
+}
+
+html[data-motion='off'] *,
+html[data-motion='off'] *::before,
+html[data-motion='off'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
 }

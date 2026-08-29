@@ -63,7 +63,7 @@ func AdminStats(c *gin.Context) {
 // 公开站点设置（仅站点相关键，屏蔽 payment_*/email_* 等敏感配置）。
 // 对齐原项目 /api/settings 供首页读取 siteName/siteDescription/footerText/siteLogo*。
 func PublicSettings(c *gin.Context) {
-	keys := []string{"siteName", "siteDescription", "footerText", "siteLogoType", "siteLogoUrl", "siteIcp", "sitePolice"}
+	keys := []string{"siteName", "siteDescription", "footerText", "siteLogoType", "siteLogoUrl", "siteIcp", "sitePolice", "motionEnabled", "motionPreset"}
 	var rows []models.SiteSetting
 	getApp(c).DB.Where("setting_key IN ?", keys).Find(&rows)
 	m := map[string]string{
@@ -74,6 +74,8 @@ func PublicSettings(c *gin.Context) {
 		"siteLogoUrl":     "",
 		"siteIcp":         "",
 		"sitePolice":      "",
+		"motionEnabled":   "true",
+		"motionPreset":    "standard",
 	}
 	for _, r := range rows {
 		m[r.SettingKey] = r.SettingValue

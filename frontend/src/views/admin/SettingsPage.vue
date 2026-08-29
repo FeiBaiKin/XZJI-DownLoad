@@ -2,7 +2,7 @@
 // 网站设置：站点 Logo（图片/文字）、名称、描述、页脚
 // 业务逻辑保持不变；UI 重构为 Naive UI + Tailwind
 import { ref, computed, onMounted } from 'vue'
-import { NButton, NInput, NAlert, NSwitch, NSkeleton } from 'naive-ui'
+import { NButton, NInput, NAlert, NSwitch, NSkeleton, NRadioGroup, NRadioButton } from 'naive-ui'
 import api from '@/api'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
 import { useToastStore } from '@/stores/toast'
@@ -15,17 +15,26 @@ interface SiteSettingsData {
   siteLogoUrl: string
   siteIcp: string
   sitePolice: string
+  motionEnabled: string
+  motionPreset: string
   [key: string]: string
 }
 
 const siteStore = useSiteSettingsStore()
 const toast = useToastStore()
-const settings = ref<SiteSettingsData>({ siteName: '', siteDescription: '', footerText: '', siteLogoType: 'text', siteLogoUrl: '', siteIcp: '', sitePolice: '' })
+const settings = ref<SiteSettingsData>({ siteName: '', siteDescription: '', footerText: '', siteLogoType: 'text', siteLogoUrl: '', siteIcp: '', sitePolice: '', motionEnabled: 'true', motionPreset: 'standard' })
 const loading = ref(true)
 const saving = ref(false)
 const message = ref('')
 const uploading = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
+
+// 动效风格选项：值与后端 motionPreset 一致，App.vue 依此设置 <html data-motion>
+const motionPresets = [
+  { value: 'subtle', label: '轻柔', desc: '更短的时长与更小的位移，几乎不打扰' },
+  { value: 'standard', label: '标准', desc: '均衡的过渡节奏，适合大多数站点' },
+  { value: 'expressive', label: '生动', desc: '更明显的位移与交错编排，存在感更强' },
+]
 
 onMounted(() => { fetchSettings() })
 
@@ -41,6 +50,8 @@ async function fetchSettings() {
       siteLogoUrl: data.siteLogoUrl || '',
       siteIcp: data.siteIcp || '',
       sitePolice: data.sitePolice || '',
+      motionEnabled: data.motionEnabled !== 'false' ? 'true' : 'false',
+      motionPreset: data.motionPreset || 'standard',
     }
   } catch (err) { console.error('获取设置失败:', err); toast.error('加载失败，请刷新重试') }
   finally { loading.value = false }
@@ -60,6 +71,9 @@ async function handleSubmit() {
     siteStore.siteLogoUrl = settings.value.siteLogoUrl
     siteStore.siteIcp = settings.value.siteIcp
     siteStore.sitePolice = settings.value.sitePolice
+    // 动效设置即时生效：App.vue 监听 store 并同步 <html data-motion>
+    siteStore.motionEnabled = settings.value.motionEnabled !== 'false'
+    siteStore.motionPreset = settings.value.motionPreset
     siteStore.loaded = true
     message.value = '设置已保存'
   } catch (err) { console.error('保存设置失败:', err); message.value = '保存失败' }
@@ -172,6 +186,33 @@ const isImageLogo = computed(() => settings.value.siteLogoType === 'image')
               <NInput v-model:value="settings.sitePolice" placeholder="如：渝公网安备500XXXXXXXX号，留空不显示" />
               <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">留空则不在前台页脚显示，前台将链接到 beian.mps.gov.cn</p>
             </div>
+          </div>
+        </section>
+
+        <!-- 界面动效 -->
+        <section class="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+          <h3 class="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">界面动效</h3>
+
+          <div class="mt-4 flex flex-col items-start gap-3 rounded-xl bg-zinc-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:bg-zinc-800/60">
+            <div>
+              <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200">启用界面动效</p>
+              <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">页面过渡、按钮按压反馈与列表交错入场；访客系统开启「减少动态效果」时始终关闭</p>
+            </div>
+            <NSwitch
+              :value="settings.motionEnabled === 'true'"
+              size="small"
+              @update:value="(v: boolean) => updateSetting('motionEnabled', v ? 'true' : 'false')"
+            />
+          </div>
+
+          <div v-if="settings.motionEnabled === 'true'" class="mt-4">
+            <label class="mb-2 block text-sm text-zinc-600 dark:text-zinc-400">动效风格</label>
+            <NRadioGroup v-model:value="settings.motionPreset" name="motion-preset">
+              <NRadioButton v-for="p in motionPresets" :key="p.value" :value="p.value">{{ p.label }}</NRadioButton>
+            </NRadioGroup>
+            <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+              {{ motionPresets.find((p) => p.value === settings.motionPreset)?.desc }}。保存后立即对全站生效，无需重启。
+            </p>
           </div>
         </section>
 

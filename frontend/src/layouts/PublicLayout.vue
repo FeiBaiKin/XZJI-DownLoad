@@ -153,7 +153,7 @@ function handleUserMenuSelect(key: string) {
             class="flex size-9 items-center justify-center rounded-full text-zinc-500 motion-safe:transition-colors hover:bg-zinc-100 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 dark:focus-visible:ring-emerald-400/60"
             :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
             :aria-label="theme.isDark ? '切换浅色模式' : '切换深色模式'"
-            @click="theme.toggle()"
+            @click="theme.toggle($event)"
           >
             <AppIcon v-if="theme.isDark" :icon="Sun" scale="md" /><AppIcon v-else :icon="MoonStar" scale="md" />
           </button>

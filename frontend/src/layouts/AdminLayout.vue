@@ -142,7 +142,7 @@ function handleLogout() {
             type="button"
             class="flex size-8 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
             :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
-            @click="theme.toggle()"
+            @click="theme.toggle($event)"
           >
             <AppIcon v-if="theme.isDark" :icon="Sun" scale="sm" /><AppIcon v-else :icon="MoonStar" scale="sm" />
           </button>
@@ -173,7 +173,7 @@ function handleLogout() {
         type="button"
         class="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
         :title="theme.isDark ? '切换浅色模式' : '切换深色模式'"
-        @click="theme.toggle()"
+        @click="theme.toggle($event)"
       >
         <AppIcon v-if="theme.isDark" :icon="Sun" scale="sm" /><AppIcon v-else :icon="MoonStar" scale="sm" />
       </button>
@@ -212,7 +212,11 @@ function handleLogout() {
     <!-- 主内容区 -->
     <main class="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div class="mx-auto max-w-6xl">
-        <RouterView />
+        <RouterView v-slot="{ Component, route: r }">
+          <Transition name="page-shift" mode="out-in">
+            <component :is="Component" :key="r.path" />
+          </Transition>
+        </RouterView>
       </div>
     </main>
   </div>

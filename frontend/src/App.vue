@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch, onMounted, computed } from 'vue'
+import { watch, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { NConfigProvider, NGlobalStyle, NMessageProvider, darkTheme, zhCN, dateZhCN } from 'naive-ui'
 import { useThemeStore } from '@/stores/theme'
@@ -31,9 +31,49 @@ watch(() => theme.isDark, (v) => {
   document.documentElement.setAttribute('data-theme', v ? 'dark' : 'light')
 }, { immediate: true })
 
+// 同步动效档位到 <html data-motion>（后台「网站设置 → 界面动效」控制）：
+// subtle / standard / expressive 三档；开关关闭时置 off，全站过渡与动画归零
+const MOTION_PRESETS = ['subtle', 'standard', 'expressive']
+watch(() => [site.motionEnabled, site.motionPreset] as const, ([enabled, preset]) => {
+  document.documentElement.dataset.motion = enabled && MOTION_PRESETS.includes(preset) ? preset : 'off'
+}, { immediate: true })
+
+// 顶层 RouterView 仅在布局（路由一级记录）变化时过渡，布局内页面切换交给各布局的 page-shift
+const layoutKey = computed(() => route.matched[0]?.path || route.path)
+
+// 全局点击涟漪：pointerdown 时向命中的按钮注入一次性光晕（色随按钮文字色 currentColor，
+// inset:0 + border-radius:inherit 限制在按钮内）。随动效开关与系统减少动态效果启停。
+function spawnRipple(e: PointerEvent) {
+  if (document.documentElement.dataset.motion === 'off') return
+  const target = (e.target as Element | null)?.closest?.('button, [role="button"]') as HTMLElement | null
+  if (!target || target.hasAttribute('disabled') || target.getAttribute('aria-disabled') === 'true') return
+  const rect = target.getBoundingClientRect()
+  if (!rect.width || !rect.height) return
+  const ripple = document.createElement('span')
+  ripple.className = 'motion-ripple'
+  ripple.style.setProperty('--ripple-x', `${e.clientX - rect.left}px`)
+  ripple.style.setProperty('--ripple-y', `${e.clientY - rect.top}px`)
+  if (getComputedStyle(target).position === 'static') target.classList.add('motion-ripple-host')
+  const remove = () => {
+    ripple.remove()
+    target.classList.remove('motion-ripple-host')
+  }
+  ripple.addEventListener('animationend', remove, { once: true })
+  // 兜底：动画被系统/扩展禁用等极端情况下 animationend 不触发，超时强清理
+  window.setTimeout(remove, 800)
+  target.appendChild(ripple)
+}
+
 onMounted(() => {
   site.fetch()
   license.fetch()
+  if (window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+    document.addEventListener('pointerdown', spawnRipple, { passive: true })
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('pointerdown', spawnRipple)
 })
 </script>
 
@@ -48,7 +88,11 @@ onMounted(() => {
     <NMessageProvider>
       <ToastBridge />
       <LicenseBlocked v-if="licenseBlocked" />
-      <RouterView v-else />
+      <RouterView v-else v-slot="{ Component }">
+        <Transition name="app-fade" mode="out-in" appear>
+          <component :is="Component" :key="layoutKey" />
+        </Transition>
+      </RouterView>
     </NMessageProvider>
   </NConfigProvider>
 </template>

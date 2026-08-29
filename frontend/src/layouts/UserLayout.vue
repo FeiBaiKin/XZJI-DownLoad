@@ -121,7 +121,11 @@ function handleLogout() {
     <!-- 主内容区 -->
     <main class="min-w-0 flex-1 px-4 py-8 sm:px-8 lg:px-10 lg:py-10">
       <div class="mx-auto max-w-4xl">
-        <RouterView />
+        <RouterView v-slot="{ Component, route: r }">
+          <Transition name="page-shift" mode="out-in">
+            <component :is="Component" :key="r.path" />
+          </Transition>
+        </RouterView>
       </div>
     </main>
   </div>
